@@ -16,6 +16,16 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   now reads as a breadcrumb (`[mark] > Settings`), and the glyph is still the
   click-to-go-back control with the same hover title reveal.
 
+### Fixed
+
+- Light theme + Liquid Glass no longer turns illegible over dark wallpapers or
+  windows. Apple's macOS 26 glass material adapts its light/dark treatment to
+  whatever is behind the notch, so neutral glass could flip dark underneath
+  forced-light (dark) chrome text. The default mapping now anchors the glass to
+  the resolved theme - a white tint plus a white legibility scrim in light, and
+  the mirrored black tint in dark - both scaled by the existing Glass strength
+  slider. Hosts with a custom backdrop resolver are unaffected.
+
 ## [0.4.0] - 2026-06-29
 
 ### Added

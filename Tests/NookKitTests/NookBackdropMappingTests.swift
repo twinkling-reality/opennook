@@ -8,6 +8,7 @@
 import NookSurface
 import SwiftUI
 import XCTest
+
 @testable import NookKit
 
 /// Pins ``NookBackdropMapping`` to its rendering contract. The mapping is the only
@@ -72,11 +73,13 @@ final class NookBackdropMappingTests: XCTestCase {
             effectiveColorScheme: .dark,
             reduceTransparency: false
         )
-        let expected = NookBackdrop.vibrancy(.init(
-            material: .sidebar,
-            blendingMode: .behindWindow,
-            darkenOpacity: 0.52
-        ))
+        let expected = NookBackdrop.vibrancy(
+            .init(
+                material: .sidebar,
+                blendingMode: .behindWindow,
+                darkenOpacity: 0.52
+            )
+        )
         XCTAssertEqual(backdrop, expected)
     }
 
@@ -86,11 +89,13 @@ final class NookBackdropMappingTests: XCTestCase {
             effectiveColorScheme: .light,
             reduceTransparency: false
         )
-        let expected = NookBackdrop.vibrancy(.init(
-            material: .sidebar,
-            blendingMode: .behindWindow,
-            darkenOpacity: 0.10
-        ))
+        let expected = NookBackdrop.vibrancy(
+            .init(
+                material: .sidebar,
+                blendingMode: .behindWindow,
+                darkenOpacity: 0.10
+            )
+        )
         XCTAssertEqual(backdrop, expected)
     }
 
@@ -102,11 +107,13 @@ final class NookBackdropMappingTests: XCTestCase {
             effectiveColorScheme: .dark,
             reduceTransparency: false
         )
-        let expected = NookBackdrop.vibrancy(.init(
-            material: .sidebar,
-            blendingMode: .behindWindow,
-            darkenOpacity: 0.52 * 0.5
-        ))
+        let expected = NookBackdrop.vibrancy(
+            .init(
+                material: .sidebar,
+                blendingMode: .behindWindow,
+                darkenOpacity: 0.52 * 0.5
+            )
+        )
         XCTAssertEqual(backdrop, expected)
     }
 
@@ -118,35 +125,53 @@ final class NookBackdropMappingTests: XCTestCase {
 
     // MARK: - Liquid Glass
 
-    func testLiquidGlassDarkMapsToNeutralGlassWithDarkDarken() {
+    /// Dark glass is anchored to the theme with a black tint inside the material plus
+    /// the black legibility shading - Apple's adaptive glass must not flip light over a
+    /// bright wallpaper while the chrome text stays dark-theme white.
+    func testLiquidGlassDarkAnchorsWithBlackTintAndDarken() {
         let backdrop = NookBackdropMapping.notchBackdrop(
             preferences: preferences(palette: .dark, style: .liquidGlass),
             effectiveColorScheme: .dark,
             reduceTransparency: false
         )
-        let expected = NookBackdrop.liquidGlass(.init(
-            highlightStrength: 0.6,
-            shading: .init(gradient: Gradient(colors: [
-                .black.opacity(0.22),
-                .black.opacity(0.22 * 0.4)
-            ]))
-        ))
+        let expected = NookBackdrop.liquidGlass(
+            .init(
+                tint: .black,
+                tintStrength: 0.30,
+                highlightStrength: 0.6,
+                shading: .init(
+                    gradient: Gradient(colors: [
+                        .black.opacity(0.22),
+                        .black.opacity(0.22 * 0.4),
+                    ])
+                )
+            )
+        )
         XCTAssertEqual(backdrop, expected)
     }
 
-    func testLiquidGlassLightUsesLighterDarken() {
+    /// Light glass mirrors the dark anchoring with white: a white tint plus a white
+    /// scrim keep the surface light over a dark wallpaper, so light-theme (dark) text
+    /// stays legible no matter what sits behind the notch.
+    func testLiquidGlassLightAnchorsWithWhiteTintAndScrim() {
         let backdrop = NookBackdropMapping.notchBackdrop(
             preferences: preferences(palette: .light, style: .liquidGlass),
             effectiveColorScheme: .light,
             reduceTransparency: false
         )
-        let expected = NookBackdrop.liquidGlass(.init(
-            highlightStrength: 0.6,
-            shading: .init(gradient: Gradient(colors: [
-                .black.opacity(0.05),
-                .black.opacity(0.05 * 0.4)
-            ]))
-        ))
+        let expected = NookBackdrop.liquidGlass(
+            .init(
+                tint: .white,
+                tintStrength: 0.42,
+                highlightStrength: 0.6,
+                shading: .init(
+                    gradient: Gradient(colors: [
+                        .white.opacity(0.38),
+                        .white.opacity(0.38 * 0.4),
+                    ])
+                )
+            )
+        )
         XCTAssertEqual(backdrop, expected)
     }
 
@@ -169,13 +194,43 @@ final class NookBackdropMappingTests: XCTestCase {
             effectiveColorScheme: .dark,
             reduceTransparency: false
         )
-        let expected = NookBackdrop.liquidGlass(.init(
-            highlightStrength: 0.6,
-            shading: .init(gradient: Gradient(colors: [
-                .black.opacity(0.22 * 0.5),
-                .black.opacity(0.22 * 0.5 * 0.4)
-            ]))
-        ))
+        let expected = NookBackdrop.liquidGlass(
+            .init(
+                tint: .black,
+                tintStrength: 0.30 * 0.5,
+                highlightStrength: 0.6,
+                shading: .init(
+                    gradient: Gradient(colors: [
+                        .black.opacity(0.22 * 0.5),
+                        .black.opacity(0.22 * 0.5 * 0.4),
+                    ])
+                )
+            )
+        )
+        XCTAssertEqual(backdrop, expected)
+    }
+
+    func testBackdropStrengthScalesLiquidGlassLightAnchor() {
+        var prefs = preferences(palette: .light, style: .liquidGlass)
+        prefs.backdropStrength = 0.5
+        let backdrop = NookBackdropMapping.notchBackdrop(
+            preferences: prefs,
+            effectiveColorScheme: .light,
+            reduceTransparency: false
+        )
+        let expected = NookBackdrop.liquidGlass(
+            .init(
+                tint: .white,
+                tintStrength: 0.42 * 0.5,
+                highlightStrength: 0.6,
+                shading: .init(
+                    gradient: Gradient(colors: [
+                        .white.opacity(0.38 * 0.5),
+                        .white.opacity(0.38 * 0.5 * 0.4),
+                    ])
+                )
+            )
+        )
         XCTAssertEqual(backdrop, expected)
     }
 }
