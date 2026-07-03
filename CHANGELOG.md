@@ -6,6 +6,16 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- The top bar's collapsed leading cluster (shown in Settings and while a module
+  breadcrumb is active) keeps the host identity glyph - the configured
+  `leadingIcon`, or the brand mark when none is set - instead of swapping to a
+  bare `chevron.left`. The old chevron sat next to the breadcrumb's
+  `chevron.right` separator and misread as browser back/forward buttons; the bar
+  now reads as a breadcrumb (`[mark] > Settings`), and the glyph is still the
+  click-to-go-back control with the same hover title reveal.
+
 ## [0.4.0] - 2026-06-29
 
 ### Added

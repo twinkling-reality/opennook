@@ -184,6 +184,12 @@ struct NookTopBar: View {
     /// sub-context) - the label collapses until the user hovers the glyph, which
     /// doubles as the back control. Clicking it exits Settings or clears the
     /// breadcrumb; the module observes that clear and pops its own sub-state.
+    ///
+    /// The collapsed glyph keeps the host identity - the configured `leadingIcon`, or
+    /// the brand mark when none is set - rather than swapping to a bare back chevron.
+    /// A `chevron.left` here would sit beside the breadcrumb's `chevron.right`
+    /// separator and misread as browser back/forward buttons; keeping the mark makes
+    /// the bar read as the breadcrumb it is: `[mark] > Settings`.
     private var homeLeadingCluster: some View {
         let hasBreadcrumb = (appState.moduleBreadcrumb?.isEmpty == false)
         let showPersistentHomeTitle = appState.isHomeView && !appState.isSettingsView && !hasBreadcrumb
@@ -217,20 +223,33 @@ struct NookTopBar: View {
                     .foregroundStyle(resolvedTheme.secondaryLabel)
                     .lineLimit(1)
             } else {
-                HeaderIcon(
-                    systemName: leadingIcon ?? "chevron.left",
+                HeaderGlyphButton(
                     isActive: false,
                     activeColor: chromeInteractionAccent,
-                    help: title
-                ) {
-                    withAnimation(motion.leadingClusterBack) {
-                        if appState.isSettingsView {
-                            appState.showHome()
-                        } else if hasBreadcrumb {
-                            appState.moduleBreadcrumb = nil
-                        } else {
-                            appState.showHome()
+                    help: title,
+                    action: {
+                        withAnimation(motion.leadingClusterBack) {
+                            if appState.isSettingsView {
+                                appState.showHome()
+                            } else if hasBreadcrumb {
+                                appState.moduleBreadcrumb = nil
+                            } else {
+                                appState.showHome()
+                            }
                         }
+                    }
+                ) { color in
+                    if let leadingIcon {
+                        Image(systemName: leadingIcon)
+                            .font(typography.headerIcon)
+                            .foregroundStyle(color)
+                    } else {
+                        branding.markView(
+                            size: metrics.brandMarkSize,
+                            strokeWidth: metrics.brandMarkStrokeWidth,
+                            color: color
+                        )
+                        .frame(width: metrics.brandMarkSize, height: metrics.brandMarkSize)
                     }
                 }
                 .accessibilityLabel(title)

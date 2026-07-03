@@ -29,25 +29,26 @@ struct StaticHeaderIcon: View {
     }
 }
 
-/// Hover-and-tap glyph in the topbar (sidebar toggle, settings, search, etc.). Active state
-/// is colored by `activeColor`; idle by the resolved theme.
-struct HeaderIcon: View {
-    let systemName: String
+/// Hover-and-tap topbar button generic over its glyph: an SF Symbol (via ``HeaderIcon``)
+/// or any custom mark, e.g. the host brand mark when the leading cluster collapses into
+/// the breadcrumb's back control. The glyph closure receives the resolved foreground
+/// color so custom marks track the same idle/hover/active tones as symbol glyphs, and
+/// every glyph shares the `headerIconSize` frame so the hover chip reads identically
+/// across the bar.
+struct HeaderGlyphButton<Glyph: View>: View {
     let isActive: Bool
     let activeColor: Color
     let help: String
     let action: () -> Void
+    @ViewBuilder let glyph: (Color) -> Glyph
 
     @Environment(\.nookResolvedTheme) private var theme
-    @Environment(\.nookChromeTypography) private var typography
     @Environment(\.nookChromeMetrics) private var metrics
     @State private var isHovering = false
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: systemName)
-                .font(typography.headerIcon)
-                .foregroundStyle(foreground)
+            glyph(foreground)
                 .frame(width: metrics.headerIconSize, height: metrics.headerIconSize)
                 .background(
                     isHovering ? theme.subtleFill : .clear,
@@ -68,5 +69,30 @@ struct HeaderIcon: View {
     private var foreground: Color {
         if isActive { return activeColor }
         return isHovering ? theme.primaryLabel.opacity(metrics.headerIconHoverLabelOpacity) : theme.headerInactiveIcon
+    }
+}
+
+/// Hover-and-tap glyph in the topbar (sidebar toggle, settings, search, etc.). Active state
+/// is colored by `activeColor`; idle by the resolved theme.
+struct HeaderIcon: View {
+    let systemName: String
+    let isActive: Bool
+    let activeColor: Color
+    let help: String
+    let action: () -> Void
+
+    @Environment(\.nookChromeTypography) private var typography
+
+    var body: some View {
+        HeaderGlyphButton(
+            isActive: isActive,
+            activeColor: activeColor,
+            help: help,
+            action: action
+        ) { color in
+            Image(systemName: systemName)
+                .font(typography.headerIcon)
+                .foregroundStyle(color)
+        }
     }
 }
