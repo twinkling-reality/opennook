@@ -15,7 +15,7 @@ export default defineConfig({
         replacesTitle: false,
       },
       social: [
-        { icon: 'github', label: 'GitHub', href: 'https://github.com/athledev-labs/opennook' },
+        { icon: 'github', label: 'GitHub', href: 'https://github.com/twinkling-reality/opennook' },
       ],
       editLink: { baseUrl: undefined },
       lastUpdated: false,

@@ -8,6 +8,9 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- The GitHub repository moved to [twinkling-reality/opennook](https://github.com/twinkling-reality/opennook) (organization rename from `twinkling-reality`). Update your Swift package URL; GitHub redirects the old `twinkling-reality/opennook` path.
+
+
 - The top bar's collapsed leading cluster (shown in Settings and while a module
   breadcrumb is active) keeps the host identity glyph - the configured
   `leadingIcon`, or the brand mark when none is set - instead of swapping to a
@@ -171,17 +174,17 @@ This is still 0.x: the public API is not frozen. Pin to a tag.
 
 ## [0.2.0] - 2026-05-23
 
-See the [v0.2.0 release](https://github.com/athledev-labs/opennook/releases) on
+See the [v0.2.0 release](https://github.com/twinkling-reality/opennook/releases) on
 GitHub.
 
 ## [0.1.0] - 2026-05-22
 
 Initial public release. See the
-[v0.1.0 release](https://github.com/athledev-labs/opennook/releases) on GitHub.
+[v0.1.0 release](https://github.com/twinkling-reality/opennook/releases) on GitHub.
 
-[Unreleased]: https://github.com/athledev-labs/opennook/compare/v0.4.0...HEAD
-[0.4.0]: https://github.com/athledev-labs/opennook/compare/v0.3.1...v0.4.0
-[0.3.1]: https://github.com/athledev-labs/opennook/compare/v0.3.0...v0.3.1
-[0.3.0]: https://github.com/athledev-labs/opennook/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/athledev-labs/opennook/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/athledev-labs/opennook/releases/tag/v0.1.0
+[Unreleased]: https://github.com/twinkling-reality/opennook/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/twinkling-reality/opennook/compare/v0.3.1...v0.4.0
+[0.3.1]: https://github.com/twinkling-reality/opennook/compare/v0.3.0...v0.3.1
+[0.3.0]: https://github.com/twinkling-reality/opennook/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/twinkling-reality/opennook/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/twinkling-reality/opennook/releases/tag/v0.1.0
