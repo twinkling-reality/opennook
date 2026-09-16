@@ -112,4 +112,24 @@ public enum AssistantPrompt {
         let json = try AssistantPatch.encoded(preset)
         return "The settings as they are now:\n\(json.text)"
     }
+
+    /// The whole request as one piece of text, for the ways of asking that have no notion of a
+    /// conversation: a command line tool, or a person pasting into a chat window.
+    ///
+    /// The newest turn stays last, which is where a model weights its attention.
+    public static func flattened(_ request: AssistantRequest, adding note: String? = nil) -> String {
+        var sections = [request.systemPrompt]
+        if let note {
+            sections.append(note)
+        }
+        for turn in request.turns {
+            switch turn.role {
+                case .person:
+                    sections.append("The person said:\n\(turn.text)")
+                case .assistant:
+                    sections.append("You answered:\n\(turn.text)")
+            }
+        }
+        return sections.joined(separator: "\n\n")
+    }
 }

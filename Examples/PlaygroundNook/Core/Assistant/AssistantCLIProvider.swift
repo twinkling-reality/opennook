@@ -209,26 +209,13 @@ public struct AssistantCLIProvider: AssistantProvider {
         )
     }
 
-    /// The whole request as one piece of text.
-    ///
-    /// Neither tool takes a conversation, so the turns are flattened with plain markers. The final
-    /// person turn stays last, which is where both tools weight their attention.
+    /// The whole request as one piece of text, since neither tool takes a conversation.
     static func prompt(for request: AssistantRequest, tool: Tool) -> String {
-        var sections = [request.systemPrompt]
-        if tool.capabilities.enforcesSchema {
-            // The schema file says what the answer must look like, so this only has to say that the
-            // answer is the whole reply.
-            sections.append("Answer with the JSON object described by the output schema, and nothing else.")
-        }
-        for turn in request.turns {
-            switch turn.role {
-                case .person:
-                    sections.append("The person said:\n\(turn.text)")
-                case .assistant:
-                    sections.append("You answered:\n\(turn.text)")
-            }
-        }
-        return sections.joined(separator: "\n\n")
+        // With a schema file, the shape of the answer is already settled and only needs pointing at.
+        let note =
+            tool.capabilities.enforcesSchema
+            ? "Answer with the JSON object described by the output schema, and nothing else." : nil
+        return AssistantPrompt.flattened(request, adding: note)
     }
 
     /// What a non-zero exit means. A tool that has lost its sign-in is the one failure a person has
