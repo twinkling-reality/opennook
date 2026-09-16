@@ -18,6 +18,7 @@ configuration.topBar.leadingIcon = "house"  // SF Symbol override; nil keeps the
 // Chrome flags.
 configuration.topBar.showsTopBar = true   // false strips top bar + gear + lock
 configuration.topBar.showsSettings = true // false drops the gear (top bar stays)
+configuration.topBar.notchClearance = .automatic  // .manual lets content run up beside the notch
 
 // Move the lock or the gear somewhere else, keeping the feature.
 configuration.topBar.showsKeepOpenButton = true  // false takes the lock out of the bar
@@ -29,6 +30,10 @@ configuration.topBar.showsSettingsButton = true  // false takes the gear out of 
 When `false`, the chrome shell renders only your home view inside the
 expanded surface. No top bar, no gear, no lock. Use this when your view
 owns the entire surface.
+
+The content still starts below the notch, where the bar would have ended. To put icons
+beside the notch, or to let the content run up to the top, see
+[Clearing the notch](/guides/layout-and-insets/#clearing-the-notch).
 
 ## `showsSettings`
 

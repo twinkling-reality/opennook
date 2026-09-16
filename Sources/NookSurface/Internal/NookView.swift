@@ -54,6 +54,18 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
         )
     }
 
+    /// Where the hardware notch falls in the host's expanded view, read through
+    /// ``EnvironmentValues/nookNotchCutout``. `.none` in the floating form and whenever the
+    /// surface is not expanded.
+    private var notchCutout: NookNotchCutout {
+        guard nook.state == .expanded else { return .none }
+        return NookNotchCutout.expanded(
+            form: nook.layoutForm,
+            notchSize: nook.notchSize,
+            chromeSafeAreaInsets: expandedContentInsets
+        )
+    }
+
     private var expandedCornerRadii: (top: CGFloat, bottom: CGFloat) {
         (top: nook.style.topCornerRadius, bottom: nook.style.bottomCornerRadius)
     }
@@ -327,6 +339,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
                 nook.expandedContent
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .environment(\.nookContentInsets, contentInsets)
+                    .environment(\.nookNotchCutout, notchCutout)
                     .environment(\.nookScrollEdgeFade, nook.scrollEdgeFade)
                     .transition(
                         .blur(intensity: 6).combined(with: .scale(y: 0.72, anchor: .top)).combined(with: .opacity)

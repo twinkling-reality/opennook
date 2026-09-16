@@ -50,6 +50,14 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   value). `NookConfiguration.defaultStyle` names the framework's own chrome shape.
   At the engine level, `Nook.style` is now settable and published, and
   `Nook.hoverBehavior` is settable, so a running chrome restyles in place.
+- Notch clearance: `NookTopBarConfiguration.notchClearance` (`NookNotchClearance`)
+  keeps the home and Settings content clear of the hardware notch. With the default,
+  `.automatic`, the content starts below the notch whether or not the top bar is
+  showing, and the top bar grows to fill the band beside the notch when the notch is
+  taller than the bar; `.manual` lets the content run up beside the notch.
+  `nookNotchAccessories(leading:trailing:)` puts views such as icons beside the notch,
+  `NookNotchRow` splits a row around it, and `\.nookNotchCutout` (`NookNotchCutout`)
+  tells content where the notch falls in its frame. See "Layout and content insets".
 - `Examples/PlaygroundNook` (`swift run PlaygroundNook`): a live customization
   playground. A controls window changes the running nook's appearance, theme, size
   and shape, typography and motion, top bar, companion surfaces, rim glow, scroll
@@ -73,6 +81,9 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - The notch panel grows downward when a companion surface hangs below the top half
   of the screen. Without companions it keeps its size, and the file-drag region
   stays the top half of the screen either way.
+- With the top bar hidden (`topBar.showsTopBar = false`), expanded content now starts
+  below the hardware notch instead of beside and under it, where the notch hid the
+  middle of it. Set `topBar.notchClearance = .manual` to keep the old layout.
 
 ### Fixed
 

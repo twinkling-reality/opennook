@@ -83,6 +83,12 @@ The app chrome layered over `NookSurface`.
   [Layout and content insets](/guides/layout-and-insets/). Source:
   `Sources/NookKit/App/Views/Layout/NookLayout.swift`,
   `Sources/NookKit/App/NookChromeMetrics.swift`.
+- **Notch clearance** - `NookNotchClearance` (`topBar.notchClearance`),
+  `NookNotchRow`, and the `nookNotchAccessories(leading:trailing:)` modifier: keeping
+  content clear of the hardware notch, and putting views beside it. See
+  [Layout and content insets](/guides/layout-and-insets/#clearing-the-notch). Source:
+  `Sources/NookKit/App/Views/Layout/NookNotchClearance.swift`,
+  `Sources/NookKit/App/Views/Layout/NookNotchRow.swift`.
 
 ## NookSurface
 
@@ -96,6 +102,9 @@ these through `NookKit` rather than directly; the host-facing knobs are:
 - `NookPresentation` - notch-fused vs free-floating chrome.
 - `NookContentInsets` - curve-derived safe-area insets for edge-pinned host content.
   See [Layout and content insets](/guides/layout-and-insets/).
+- `NookNotchCutout`, `\.nookNotchCutout` - where the hardware notch falls in the host
+  content frame. See
+  [Layout and content insets](/guides/layout-and-insets/#clearing-the-notch).
 - `NookCompanionSurface`, `NookCompanionAnchor`, `NookCompanionVisibility`,
   `NookCompanionShape`, `NookCompanionBackdrop` - companion surfaces at the engine
   level (`Nook.companions`), with the `nookCompanionVisibility(_:)` /

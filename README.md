@@ -291,6 +291,18 @@ configuration.addCompanion(id: "controls", anchor: .trailing, hidesInSettings: f
 }
 ```
 
+**Clear of the notch.** Content starts below the hardware notch even with the top bar
+hidden, and small views can sit beside the notch in the band the bar would fill. See
+[Layout and content insets](https://opennook.dev/guides/layout-and-insets/#clearing-the-notch):
+
+```swift
+configuration.topBar.showsTopBar = false
+configuration.topBar.notchClearance = .automatic  // .manual lets content run up beside the notch
+
+// In your home view's body:
+PlayerView().nookNotchAccessories { Image(systemName: "music.note") } trailing: { NookKeepOpenButton() }
+```
+
 **Rim glow and edge fade.** Light a glowing rim around the panel to signal state,
 and soften scrolling content where it meets the panel's edges (Apple's soft scroll
 edge effect on macOS 26, a gradient mask on macOS 15). See

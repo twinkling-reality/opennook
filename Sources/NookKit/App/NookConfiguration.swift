@@ -389,6 +389,12 @@ public struct NookTopBarConfiguration: Sendable {
     /// framework banner - e.g. a host surfacing status inside its own home content.
     public var showsStatusBanner: Bool
 
+    /// How the home and Settings content keeps clear of the hardware notch. Defaults to
+    /// ``NookNotchClearance/automatic``: the content starts below the notch whether or not
+    /// the top bar is showing. Set ``NookNotchClearance/manual`` to let the content run up
+    /// beside the notch while the bar is hidden, and lay it out around the notch yourself.
+    public var notchClearance: NookNotchClearance = .automatic
+
     /// The label for the top bar's leading cluster. Defaults to `"Home"` - override
     /// so the bar communicates *product* context (a date, a section name) rather
     /// than the demo's navigation metaphor. The closure receives ``AppState`` for
