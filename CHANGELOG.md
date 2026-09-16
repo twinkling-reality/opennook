@@ -73,6 +73,12 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   module now starts the timer when it is built. The `NookModule.onActivate()`
   documentation and the Multiple modules guide now say that the launch module gets
   no `onActivate()`.
+- A `Nook` built with its public initializer - the one `AppCoordinator` uses - now
+  ends its layout-resize grace when it leaves the expanded state, as the
+  no-compact-content initializer already did. Before, a collapse could leave
+  `isLayoutGraceActive` set for the rest of the grace window (about 0.6 s), so the
+  coordinator kept reporting the user as engaged (`isUserEngaged`) and held back
+  surface claims such as activity-queue takeovers after the user had left.
 
 ## [0.4.0] - 2026-06-29
 

@@ -305,6 +305,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
         observeScreenParameters()
         observeStateForPendingFeedback()
         observeStateForLifecycleHooks()
+        observeStateForLayoutGrace()
         observeStateForCompanions()
     }
 
