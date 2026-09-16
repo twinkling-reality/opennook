@@ -151,6 +151,25 @@ public struct NookConfiguration: Sendable {
     /// and not add a separate `.padding(.horizontal, ...)` on the home root.
     public var expandedWidth: CGFloat? = nil
 
+    /// Host surfaces floated beside the nook - an action pill under the expanded panel, a
+    /// round button beside it - in registration order. Empty (the default) renders the chrome
+    /// exactly as before. Use ``addCompanion(id:anchor:spacing:visibility:shape:backdrop:hidesInSettings:accessibilityLabel:theme:content:)``
+    /// to append one; see ``NookCompanion``.
+    public var companions: [NookCompanion] = []
+
+    /// How the chrome draws its glowing rim while content lights it with
+    /// `nookRimGlow(_:)` - for example a blue rim while work is running. The rim only
+    /// appears while some content publishes a color, so the default style draws nothing on
+    /// its own. See `NookRimGlowStyle`.
+    public var rimGlow: NookRimGlowStyle = .standard
+
+    /// A soft fade where scrolling content meets the panel's edges, instead of a hard clip.
+    /// `nil` (the default) is off. When set, the framework's own scroll views (Settings, the
+    /// `NookComponents` shelf) fade, and host scroll views follow the same setting by
+    /// applying `nookScrollEdgeFade(axes:)`. Uses Apple's soft scroll edge effect on
+    /// macOS 26 and a gradient mask on macOS 15. See `NookScrollEdgeFade`.
+    public var scrollEdgeFade: NookScrollEdgeFade? = nil
+
     /// Called when the chrome transitions into the expanded surface (from any source).
     ///
     /// `@Sendable @MainActor`: the lifecycle hooks fire on the surface's main-actor
@@ -245,6 +264,52 @@ public struct NookConfiguration: Sendable {
         )
     }
 
+    /// Appends a companion surface - a host view floated beside the nook - from a
+    /// `@ViewBuilder`. See ``NookCompanion`` for what each parameter controls.
+    ///
+    /// ```swift
+    /// configuration.addCompanion(id: "actions") { ActionPill() }
+    /// configuration.addCompanion(id: "timer", anchor: .trailing, visibility: .both, shape: .circle) {
+    ///     TimerButton()
+    /// }
+    /// ```
+    ///
+    /// Traps on an `id` already registered on this configuration: the id keys the companion's
+    /// hover tracking and accessibility identifier, and two companions sharing one would
+    /// silently merge both.
+    public mutating func addCompanion<Content: View & Sendable>(
+        id: String,
+        anchor: NookCompanionAnchor = .below,
+        spacing: CGFloat = NookCompanionSurface.defaultSpacing,
+        visibility: NookCompanionVisibility = .expanded,
+        shape: NookCompanionShape = .capsule,
+        backdrop: NookCompanionBackdrop = .inherit,
+        hidesInSettings: Bool = true,
+        accessibilityLabel: String? = nil,
+        theme: (@Sendable @MainActor (AppState) -> NookResolvedTheme)? = nil,
+        @ViewBuilder content: @escaping @Sendable @MainActor () -> Content
+    ) {
+        precondition(
+            !companions.contains(where: { $0.id == id }),
+            "NookConfiguration: duplicate companion id '\(id)'. Companion ids must be unique within a "
+                + "configuration - they key hover tracking and the accessibility identifier."
+        )
+        companions.append(
+            NookCompanion(
+                id: id,
+                anchor: anchor,
+                spacing: spacing,
+                visibility: visibility,
+                shape: shape,
+                backdrop: backdrop,
+                hidesInSettings: hidesInSettings,
+                accessibilityLabel: accessibilityLabel,
+                theme: theme,
+                content: content
+            )
+        )
+    }
+
     /// Registers host actions for the top bar's trailing cluster from a `@ViewBuilder`
     /// closure. The items render immediately left of the framework's keep-open lock and
     /// gear, themed and able to observe ``AppState``. See
@@ -289,6 +354,19 @@ public struct NookTopBarConfiguration: Sendable {
     /// is removed, the menu-bar "Settings..." item is dropped, and the expanded
     /// surface stays on the home view.
     public var showsSettings: Bool
+
+    /// Whether the top bar renders the keep-open lock. Defaults to `true`. Set to `false`
+    /// to take the lock out of the bar - for example to show ``NookKeepOpenButton`` in a
+    /// companion surface instead. Keep-open itself stays available: the Settings row, the
+    /// menu-bar item, and ``NookChromeActions/toggleKeepOpen`` still reach it.
+    public var showsKeepOpenButton: Bool = true
+
+    /// Whether the top bar renders the Settings gear. Defaults to `true`. Unlike
+    /// ``showsSettings``, turning this off removes only the gear: Settings stays reachable
+    /// through ``NookSettingsButton`` (say, in a companion surface),
+    /// ``NookChromeActions/toggleSettings``, the menu-bar item, and
+    /// ``AppCoordinator/showSettings()``.
+    public var showsSettingsButton: Bool = true
 
     /// Whether the framework's transient status banner (driven by ``AppState/status``)
     /// renders under the top bar. Defaults to `true`. Set to `false` to suppress the

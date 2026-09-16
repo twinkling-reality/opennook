@@ -7,7 +7,16 @@ const SITE = 'https://opennook.dev';
 // Pages not listed here still appear, under "Other", so nothing is silently dropped.
 const SECTIONS: { title: string; ids: string[] }[] = [
   { title: 'Getting started', ids: ['start/introduction', 'start/install', 'start/first-nook'] },
-  { title: 'Customization', ids: ['guides/theming', 'guides/settings-chrome', 'guides/displays'] },
+  {
+    title: 'Customization',
+    ids: [
+      'guides/theming',
+      'guides/settings-chrome',
+      'guides/companion-surfaces',
+      'guides/panel-effects',
+      'guides/displays',
+    ],
+  },
   { title: 'Components', ids: ['guides/file-shelf', 'guides/activity-queue', 'guides/volume-glyph'] },
   { title: 'Hosting', ids: ['guides/multiple-modules'] },
   { title: 'Reference', ids: ['reference/api', 'reference/troubleshooting'] },

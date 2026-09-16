@@ -32,7 +32,7 @@ var package = Package(
         // Example apps under `Examples/` - each a single `main.swift` showing one
         // way to build on OpenNook through public API only. Run with `swift run
         // HelloNook` (or `ClockNook` / `ThemedNook` / `ChromeNook` / `LayoutNook` /
-        // `ShelfNook` / `ActivityNook` / `VolumeNook` / `MultiNook`).
+        // `ShelfNook` / `ActivityNook` / `VolumeNook` / `MultiNook` / `CompanionNook`).
         .executable(name: "HelloNook", targets: ["HelloNook"]),
         .executable(name: "ClockNook", targets: ["ClockNook"]),
         .executable(name: "ThemedNook", targets: ["ThemedNook"]),
@@ -41,7 +41,8 @@ var package = Package(
         .executable(name: "ShelfNook", targets: ["ShelfNook"]),
         .executable(name: "ActivityNook", targets: ["ActivityNook"]),
         .executable(name: "VolumeNook", targets: ["VolumeNook"]),
-        .executable(name: "MultiNook", targets: ["MultiNook"])
+        .executable(name: "MultiNook", targets: ["MultiNook"]),
+        .executable(name: "CompanionNook", targets: ["CompanionNook"]),
     ],
     targets: [
         .target(
@@ -80,9 +81,10 @@ var package = Package(
         ),
         .target(
             // Optional Tier 3 add-on components. Apache-2.0. Depends on NookKit
-            // (for the resolved-theme environment); not part of the default app.
+            // (for the resolved-theme environment) and NookSurface (for the panel-wide
+            // scroll edge fade); not part of the default app.
             name: "NookComponents",
-            dependencies: ["NookKit"],
+            dependencies: ["NookKit", "NookSurface"],
             path: "Sources/NookComponents",
             swiftSettings: strictConcurrency
         ),
@@ -140,6 +142,12 @@ var package = Package(
             path: "Examples/MultiNook",
             swiftSettings: strictConcurrency
         ),
+        .executableTarget(
+            name: "CompanionNook",
+            dependencies: ["NookApp"],
+            path: "Examples/CompanionNook",
+            swiftSettings: strictConcurrency
+        ),
         .testTarget(
             name: "NookKitTests",
             dependencies: ["NookKit", "NookSurface"],
@@ -151,7 +159,7 @@ var package = Package(
             dependencies: ["NookComponents"],
             path: "Tests/NookComponentsTests",
             swiftSettings: strictConcurrency
-        )
+        ),
     ]
 )
 

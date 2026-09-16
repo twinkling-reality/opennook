@@ -130,6 +130,9 @@ struct SettingsView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.bottom, metrics.settingsContentBottomPadding)
         }
+        // Follows the host's panel-wide opt-in (`NookConfiguration.scrollEdgeFade`); a
+        // no-op while it is off.
+        .nookScrollEdgeFade(axes: .vertical)
         .frame(maxWidth: .infinity, maxHeight: settingsScrollMaxHeight, alignment: .leading)
     }
 

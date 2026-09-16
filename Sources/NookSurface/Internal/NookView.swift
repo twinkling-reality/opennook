@@ -17,7 +17,10 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     @State private var compactTrailingWidth: CGFloat = 0
     @State private var trackedExpandedSize: CGSize = .zero
     @State private var ambientColor: Color?
+    @State private var rimColor: Color?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
 
     init(nook: Nook<Expanded, CompactLeading, CompactTrailing>) {
         self.nook = nook
@@ -37,7 +40,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     }
 
     /// Residual safe-area insets the host's expanded view can read via
-    /// ``EnvironmentValues/nookContentInsets``. `.zero` while compact or hidden - 
+    /// ``EnvironmentValues/nookContentInsets``. `.zero` while compact or hidden -
     /// no host expanded content is rendered in those states. The expanded value
     /// is the geometric clearance left over after the chrome's own paddings;
     /// see ``NookContentInsets/expanded(form:topCornerRadius:bottomCornerRadius:chromeSafeAreaInset:)``.
@@ -108,24 +111,40 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// edge gaps mid-bounce.
     ///
     /// The matching `.contentShape(NookShape)` is critical: `.clipShape` only clips drawing,
-    /// not hit-testing. Without it, the hover region falls back to the rectangular bounds - 
+    /// not hit-testing. Without it, the hover region falls back to the rectangular bounds -
     /// which extend down into the would-be-expanded area because the expanded content's
     /// `.fixedSize()` doesn't actually collapse to 0×0 when wrapped in a max-frame. Result:
     /// hovering in the empty space below a compact nook triggers the hover-grow animation.
     /// Hit-testing the same `NookShape` we render confines hover to the visible chrome.
+    ///
+    /// Companion surfaces are an overlay applied *after* the clip and the content shape, so
+    /// they are neither clipped to the chrome nor folded into its hover region; they report
+    /// their own hover, which the nook combines with the chrome's (see
+    /// `Nook+Companions.swift`). Applied *before* the offset and the floating inset, so they
+    /// move with the chrome. The rim glow's line sits inside the compositing group, where
+    /// the clip turns a centered stroke into an inner edge; its halo sits behind the
+    /// clipped chrome, where it can spill past the edge.
     var body: some View {
         notchContent()
-            .background { notchBackdrop() }
+            .background { NookBackdropFill(backdrop: nook.backdrop, shape: notchShape) }
+            .overlay { rimLine() }
             .overlay { feedbackOverlay() }
             .compositingGroup()
             .clipShape(notchShape)
+            .background { rimHalo() }
             .contentShape(notchShape)
-            .onHover(perform: nook.updateHoverState)
+            .onHover(perform: nook.updateChromeHoverState)
+            .overlay { companionLayer() }
             .offset(x: xOffset)
             // Floating mode drops the panel below the menu bar; notch mode keeps it
             // flush to the top edge (inset 0). Applied outside the clipped chrome so it
             // shifts the whole shape without distorting it or the hover region.
             .padding(.top, floatingTopInset)
+            // Read above the companion overlay, so compact, expanded, and companion content
+            // can all light the rim.
+            .onPreferenceChange(NookRimGlowPreferenceKey.self) { color in
+                withAnimation(Self.rimAnimation) { rimColor = color }
+            }
             .animation(nook.effectiveConversionAnimation, value: nook.state)
             .animation(nook.effectiveConversionAnimation, value: [compactLeadingWidth, compactTrailingWidth])
     }
@@ -151,116 +170,91 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
         )
     }
 
-    private func notchBackdrop() -> some View {
-        Group {
-            switch nook.backdrop {
-            case .vibrancy(let spec):
-                ZStack {
-                    VisualEffectView(
-                        material: spec.material,
-                        blendingMode: spec.blendingMode
-                    )
-                    if spec.darkenOpacity > 0 {
-                        Color.black.opacity(spec.darkenOpacity)
-                    }
-                }
-            case .solid(let color):
-                color
-            case .liquidGlass(let glass):
-                liquidGlassBackdrop(glass)
-            }
+    // MARK: Rim glow
+
+    /// Fades the rim in and out, and between colors. Opacity only, so it is also right under
+    /// Reduce Motion.
+    private static var rimAnimation: Animation { .easeInOut(duration: 0.3) }
+
+    /// The rim color to draw: whatever content published, else the ambient wash when the
+    /// style follows it.
+    private var effectiveRimColor: Color? {
+        nook.rimGlowStyle.color(rimColor: rimColor, ambientColor: ambientColor)
+    }
+
+    private var rimRendering: NookRimGlowRendering {
+        NookRimGlowRendering.resolve(
+            style: nook.rimGlowStyle,
+            reduceMotion: reduceMotion,
+            increaseContrast: colorSchemeContrast == .increased,
+            reduceTransparency: reduceTransparency
+        )
+    }
+
+    /// The notch form's top band is fused with the menu bar and the hardware notch, so the
+    /// rim fades out across it and rises out of the menu bar instead of outlining it.
+    private var rimTopFadeHeight: CGFloat? {
+        isFloating ? nil : nook.notchSize.height
+    }
+
+    @ViewBuilder
+    private func rimLine() -> some View {
+        let rendering = rimRendering
+        if let color = effectiveRimColor, rendering.lineWidth > 0, rendering.lineOpacity > 0 {
+            NookRimLine(shape: notchShape, color: color, rendering: rendering, topFadeHeight: rimTopFadeHeight)
+                .transition(.opacity)
         }
     }
 
-    /// Liquid Glass backdrop. Apple's real glass material on macOS 26 Tahoe and later;
-    /// a layered approximation on earlier systems. Both shape the glass to the same
-    /// ``NookShape`` the chrome already clips to, so the rim and the eared/floating
-    /// outline stay in register.
     @ViewBuilder
-    private func liquidGlassBackdrop(_ glass: NookBackdrop.LiquidGlass) -> some View {
-        // `Glass` / `.glassEffect` exist only in the macOS 26 SDK (Xcode 26+, Swift 6.2).
-        // `@available` is a runtime gate and still needs those symbols present in the SDK
-        // being compiled against, so an older Xcode cannot build the real path at all.
-        // Gate it at compile time too: an older toolchain uses the approximation
-        // unconditionally, while the macOS 26 SDK keeps the real material (runtime-gated
-        // to macOS 26). This lets a consumer on an earlier Xcode still build the package.
-        #if compiler(>=6.2)
-        if #available(macOS 26.0, *) {
-            realLiquidGlass(glass)
-        } else {
-            approximateLiquidGlass(glass)
-        }
-        #else
-        approximateLiquidGlass(glass)
-        #endif
-    }
-
-    #if compiler(>=6.2)
-    @available(macOS 26.0, *)
-    @ViewBuilder
-    private func realLiquidGlass(_ glass: NookBackdrop.LiquidGlass) -> some View {
-        let tinted: Glass = {
-            guard let tint = glass.tint, glass.tintStrength > 0 else { return .regular }
-            return Glass.regular.tint(tint.opacity(glass.tintStrength))
-        }()
-        Color.clear
-            .glassEffect(tinted, in: notchShape)
-            // The legibility pass is whatever the spec carries - the surface adds no
-            // darken of its own on top of Apple's self-contrasting material.
-            .overlay { glassShading(glass) }
-    }
-    #endif
-
-    /// The host-supplied legibility shading, rendered as a gradient. `nil` shading draws
-    /// nothing, leaving the glass pristine. The gradient, its stops, and its direction all
-    /// come from the ``NookBackdrop/LiquidGlass`` spec - the surface never substitutes its
-    /// own, so a host can shape the falloff however it likes.
-    @ViewBuilder
-    private func glassShading(_ glass: NookBackdrop.LiquidGlass) -> some View {
-        if let shading = glass.shading {
-            LinearGradient(
-                gradient: shading.gradient,
-                startPoint: shading.startPoint,
-                endPoint: shading.endPoint
+    private func rimHalo() -> some View {
+        let rendering = rimRendering
+        if let color = effectiveRimColor, rendering.drawsHalo {
+            NookRimHalo(
+                shape: notchShape,
+                color: color,
+                rendering: rendering,
+                topFadeHeight: rimTopFadeHeight
             )
+            .transition(.opacity)
         }
     }
 
-    /// Pre-Tahoe approximation: a glassy material, an optional tint, a legibility darken,
-    /// then the specular treatment that actually reads as "glass" - a top-down sheen and
-    /// a bright rim traced along ``notchShape``. The outer `.clipShape` trims the rim's
-    /// outer half, leaving an inner highlight along the edge.
+    // MARK: Companion surfaces
+
     @ViewBuilder
-    private func approximateLiquidGlass(_ glass: NookBackdrop.LiquidGlass) -> some View {
-        ZStack {
-            VisualEffectView(material: .hudWindow, blendingMode: .behindWindow)
-
-            if let tint = glass.tint, glass.tintStrength > 0 {
-                tint.opacity(glass.tintStrength)
-            }
-
-            glassShading(glass)
-
-            if glass.highlightStrength > 0 {
-                LinearGradient(
-                    colors: [Color.white.opacity(0.16 * glass.highlightStrength), .clear],
-                    startPoint: .top,
-                    endPoint: .center
-                )
-                notchShape
-                    .stroke(
-                        LinearGradient(
-                            colors: [
-                                Color.white.opacity(0.5 * glass.highlightStrength),
-                                Color.white.opacity(0.06 * glass.highlightStrength)
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        ),
-                        lineWidth: 1
-                    )
+    private func companionLayer() -> some View {
+        let rows = nook.companionRows
+        if !rows.isEmpty {
+            NookCompanionLayerLayout(bodyInset: isFloating ? 0 : topCornerRadius) {
+                ForEach(rows) { row in
+                    NookCompanionRowLayout(anchor: row.anchor) {
+                        ForEach(row.surfaces) { surface in
+                            companionItem(surface)
+                                .transition(.opacity)
+                        }
+                    }
+                    .layoutValue(key: NookCompanionRowAnchorKey.self, value: row.anchor)
+                }
             }
         }
+    }
+
+    private func companionItem(_ surface: NookCompanionSurface) -> some View {
+        let id = surface.id
+        return NookCompanionItemView(
+            surface: surface,
+            chromeState: nook.state,
+            backdrop: surface.backdrop.resolved(inheriting: nook.backdrop),
+            reduceMotion: reduceMotion,
+            presenceAnimation: nook.effectiveConversionAnimation,
+            onHover: { hovering in nook.updateCompanionHoverState(id: id, hovering: hovering) },
+            onVisibilityRestriction: { restriction in
+                nook.noteCompanionVisibilityRestriction(id: id, restriction: restriction)
+            },
+            onExtent: { maxY in nook.noteCompanionExtent(id: id, maxY: maxY) }
+        )
+        .environment(\.nookScrollEdgeFade, nook.scrollEdgeFade)
     }
 
     private func notchContent() -> some View {
@@ -296,7 +290,9 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
                     .safeAreaInset(edge: .top, spacing: 0) { Color.clear.frame(height: 4) }
                     .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: 8) }
                     .onGeometryChange(for: CGFloat.self, of: \.size.width) { compactLeadingWidth = $0 }
-                    .transition(.blur(intensity: 6).combined(with: .scale(x: 0, anchor: .trailing)).combined(with: .opacity))
+                    .transition(
+                        .blur(intensity: 6).combined(with: .scale(x: 0, anchor: .trailing)).combined(with: .opacity)
+                    )
             }
 
             // Notch mode: a gap exactly the notch width, so the leading/trailing slots
@@ -311,11 +307,13 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
                     .safeAreaInset(edge: .top, spacing: 0) { Color.clear.frame(height: 4) }
                     .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: 8) }
                     .onGeometryChange(for: CGFloat.self, of: \.size.width) { compactTrailingWidth = $0 }
-                    .transition(.blur(intensity: 6).combined(with: .scale(x: 0, anchor: .leading)).combined(with: .opacity))
+                    .transition(
+                        .blur(intensity: 6).combined(with: .scale(x: 0, anchor: .leading)).combined(with: .opacity)
+                    )
             }
         }
         .frame(height: nook.notchSize.height)
-        // `disableCompactLeading/Trailing` are construction-time `let`s on `Nook` - 
+        // `disableCompactLeading/Trailing` are construction-time `let`s on `Nook` -
         // they cannot change at runtime, so no `.onChange` reconciliation is needed.
         // The `@State` `compactLeadingWidth`/`compactTrailingWidth` retain their last
         // measured value when the slot views disappear (SwiftUI doesn't fire
@@ -329,7 +327,10 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
                 nook.expandedContent
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .environment(\.nookContentInsets, contentInsets)
-                    .transition(.blur(intensity: 6).combined(with: .scale(y: 0.72, anchor: .top)).combined(with: .opacity))
+                    .environment(\.nookScrollEdgeFade, nook.scrollEdgeFade)
+                    .transition(
+                        .blur(intensity: 6).combined(with: .scale(y: 0.72, anchor: .top)).combined(with: .opacity)
+                    )
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

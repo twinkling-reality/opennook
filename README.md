@@ -147,6 +147,7 @@ swift run ShelfNook     # a drop-files-on-the-notch shelf (NookComponents)
 swift run ActivityNook  # a priority live-activity queue (NookComponents)
 swift run VolumeNook    # an ambient volume glyph in the compact pill (NookComponents)
 swift run MultiNook     # multiple interchangeable modules sharing one surface
+swift run CompanionNook # companion surfaces beside the nook, rim glow, scroll edge fade
 ```
 
 ## Start your own notch app
@@ -260,6 +261,44 @@ handle; suppress the framework banner if you render your own:
 ```swift
 appState.showStatus("Imported 3 files", severity: .success)
 configuration.topBar.showsStatusBanner = false
+```
+
+**Companion surfaces.** Float your own views beside the nook - a pill of actions
+below it, a round button beside it. They are anchored to the chrome (below,
+leading, or trailing), shown in the compact state, the expanded state, or both,
+painted with the chrome's backdrop, and move with its expand and collapse in every
+layout. Clicking one never takes focus from the nook. See
+[Companion surfaces](https://opennook.dev/guides/companion-surfaces/) and
+`Examples/CompanionNook`:
+
+```swift
+configuration.addCompanion(id: "actions", anchor: .below, spacing: 10) { ActionPill() }
+configuration.addCompanion(id: "timer", anchor: .trailing, visibility: .both, shape: .circle) {
+    TimerButton()
+}
+```
+
+**Top bar controls anywhere.** Take the keep-open lock or the Settings gear out of
+the top bar without losing the feature, and show the framework's own controls in a
+companion (or build yours on `\.nookChromeActions`):
+
+```swift
+configuration.topBar.showsKeepOpenButton = false
+configuration.topBar.showsSettingsButton = false
+configuration.addCompanion(id: "controls", anchor: .trailing, hidesInSettings: false) {
+    ChromeControls()  // a view stacking NookKeepOpenButton() and NookSettingsButton()
+}
+```
+
+**Rim glow and edge fade.** Light a glowing rim around the panel to signal state,
+and soften scrolling content where it meets the panel's edges (Apple's soft scroll
+edge effect on macOS 26, a gradient mask on macOS 15). See
+[Rim glow and edge fade](https://opennook.dev/guides/panel-effects/):
+
+```swift
+MyHomeView().nookRimGlow(model.isWorking ? .blue : nil)  // opt in by publishing a color
+configuration.scrollEdgeFade = .standard                   // Settings, the shelf, and
+ScrollView { rows }.nookScrollEdgeFade(axes: .vertical)     // your marked scroll views
 ```
 
 **Identity.** Name the product, drop in a custom brand mark (replaces the OpenNook

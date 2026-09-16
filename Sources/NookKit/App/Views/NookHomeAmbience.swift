@@ -5,8 +5,8 @@
 // you may not use this file except in compliance with the License.
 // A copy is included at /LICENSE in the repository root.
 
-import SwiftUI
 import NookSurface
+import SwiftUI
 
 /// NookKit-level product concept: a host's *home surface* can pick a theme color, and the
 /// expanded chrome (top bar + home) paints a soft wash behind it.
@@ -14,7 +14,7 @@ import NookSurface
 /// This is the "home screen's chosen color" semantics. It is deliberately kept *out* of the
 /// MIT `NookSurface` engine, which only exposes the product-agnostic
 /// ``NookSurface/NookAmbientColorPreferenceKey`` seam. NookKit attaches the meaning here.
-public extension View {
+extension View {
     /// Publishes the home surface's chosen theme color so the surface backdrop paints a
     /// matching ambient wash behind the full expanded chrome. Pass `nil` for no tint.
     ///
@@ -24,8 +24,8 @@ public extension View {
     ///     .nookHomeAmbience(selectedTheme.accentColor)
     /// ```
     ///
-    /// Under the hood this forwards to ``NookSurface``'s generic ambient-color seam.
-    func nookHomeAmbience(_ color: Color?) -> some View {
+    /// Under the hood this forwards to `NookSurface`'s generic ambient-color seam.
+    public func nookHomeAmbience(_ color: Color?) -> some View {
         nookAmbientColor(color)
     }
 }
