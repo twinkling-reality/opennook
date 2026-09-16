@@ -60,6 +60,12 @@ final class ActivityModule: NookModule {
     private let queue = NookActivityQueue()
     private var sampleTimer: Timer?
 
+    /// The host calls `onActivate()` only when the user switches *to* a module, not for the
+    /// module it launches with, so the sample timer also starts here.
+    init() {
+        startSampleTimer()
+    }
+
     func makeConfiguration() -> NookConfiguration {
         var configuration = NookConfiguration()
         configuration.setHome {
@@ -72,24 +78,7 @@ final class ActivityModule: NookModule {
     }
 
     func onActivate() {
-        // Demo only: enqueue a rotating sample activity on a timer so the
-        // takeover is visible. A real app enqueues in response to its own events.
-        let samples = [
-            NookActivity(priority: .normal, title: "Build finished",
-                         subtitle: "Debug · 12.4s", systemImage: "hammer", tint: .green),
-            NookActivity(priority: .high, title: "Backup complete",
-                         subtitle: "3,204 files", systemImage: "externaldrive.badge.checkmark", tint: .blue),
-            NookActivity(priority: .low, title: "New message",
-                         subtitle: "from the notch", systemImage: "message", tint: .orange),
-        ]
-        let timer = Timer.scheduledTimer(withTimeInterval: 6, repeats: true) { [queue] _ in
-            // Timer fires on the main run loop; hop to the main actor to enqueue.
-            MainActor.assumeIsolated {
-                let index = Int(Date.now.timeIntervalSince1970 / 6) % samples.count
-                queue.enqueue(samples[index])
-            }
-        }
-        sampleTimer = timer
+        startSampleTimer()
     }
 
     /// Stops surface activity before the switch: joins the queue's drain loop and
@@ -101,6 +90,44 @@ final class ActivityModule: NookModule {
     func onDeactivate() {
         sampleTimer?.invalidate()
         sampleTimer = nil
+    }
+
+    /// Demo only: enqueues a rotating sample activity on a timer so the takeover is
+    /// visible. A real app enqueues in response to its own events. Safe to call when the
+    /// timer is already running, since both `init()` and `onActivate()` call it.
+    private func startSampleTimer() {
+        guard sampleTimer == nil else { return }
+        let samples = [
+            NookActivity(
+                priority: .normal,
+                title: "Build finished",
+                subtitle: "Debug · 12.4s",
+                systemImage: "hammer",
+                tint: .green
+            ),
+            NookActivity(
+                priority: .high,
+                title: "Backup complete",
+                subtitle: "3,204 files",
+                systemImage: "externaldrive.badge.checkmark",
+                tint: .blue
+            ),
+            NookActivity(
+                priority: .low,
+                title: "New message",
+                subtitle: "from the notch",
+                systemImage: "message",
+                tint: .orange
+            ),
+        ]
+        let timer = Timer.scheduledTimer(withTimeInterval: 6, repeats: true) { [queue] _ in
+            // Timer fires on the main run loop; hop to the main actor to enqueue.
+            MainActor.assumeIsolated {
+                let index = Int(Date.now.timeIntervalSince1970 / 6) % samples.count
+                queue.enqueue(samples[index])
+            }
+        }
+        sampleTimer = timer
     }
 }
 

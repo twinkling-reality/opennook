@@ -67,6 +67,12 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the resolved theme - a white tint plus a white legibility scrim in light, and
   the mirrored black tint in dark - both scaled by the existing Glass strength
   slider. Hosts with a custom backdrop resolver are unaffected.
+- `Examples/ActivityNook` now shows its sample activities. It started its demo
+  timer in `onActivate()`, which the host calls only on a module switch and never
+  for the module it launches with, so the demo sat on "Activity queue idle". The
+  module now starts the timer when it is built. The `NookModule.onActivate()`
+  documentation and the Multiple modules guide now say that the launch module gets
+  no `onActivate()`.
 
 ## [0.4.0] - 2026-06-29
 
