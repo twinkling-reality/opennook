@@ -15,132 +15,181 @@ import SwiftUI
 /// `NookConfiguration.topBar` and `labels`, plus a status banner to try them on.
 struct TopBarPage: View {
     @ObservedObject var model: PlaygroundModel
+    @AppStorage("playground.topBar.showsLabels") private var showsLabels = false
 
     private static let iconSuggestions = [
         "house", "music.note", "sun.max", "calendar", "bolt.fill", "sparkles", "timer", "tray.full", "bell",
     ]
 
     var body: some View {
-        Form {
-            Section {
-                Toggle("Show the top bar", isOn: $model.settings.topBar.showsTopBar)
-                Toggle("Offer Settings", isOn: $model.settings.topBar.showsSettings)
-                Toggle("Keep-open lock in the top bar", isOn: $model.settings.topBar.showsKeepOpenButton)
-                    .disabled(!topBar.showsTopBar)
-                Toggle("Settings gear in the top bar", isOn: $model.settings.topBar.showsSettingsButton)
-                    .disabled(!topBar.showsTopBar || !topBar.showsSettings)
-                Toggle("Status banner", isOn: $model.settings.topBar.showsStatusBanner)
-                    .disabled(!topBar.showsTopBar)
-                Picker("Width", selection: $model.settings.topBar.width) {
-                    Text("Content column").tag(PlaygroundSettings.TopBar.Width.contentColumn)
-                    Text("Intrinsic").tag(PlaygroundSettings.TopBar.Width.intrinsic)
+        PlaygroundPageView(page: .topBar) {
+            SectionCard(title: "Bar", isModified: flagsAreModified, reset: resetFlags) {
+                SwitchRow(
+                    title: "Top bar",
+                    isOn: $model.settings.topBar.showsTopBar,
+                    help: "The row with the title, the lock, and the gear."
+                )
+                if topBar.showsTopBar {
+                    SegmentedRow(
+                        title: "Width",
+                        selection: $model.settings.topBar.width,
+                        choices: [Choice(.contentColumn, "Column"), Choice(.intrinsic, "Fit")],
+                        help: "Column spans the content. Fit wraps the icons and centers them."
+                    )
+                    SwitchRow(title: "Lock button", isOn: $model.settings.topBar.showsKeepOpenButton)
+                    if topBar.showsSettings {
+                        SwitchRow(title: "Gear button", isOn: $model.settings.topBar.showsSettingsButton)
+                    }
+                    SwitchRow(
+                        title: "Status banner",
+                        isOn: $model.settings.topBar.showsStatusBanner,
+                        help: "The message strip under the top bar."
+                    )
                 }
-                .pickerStyle(.segmented)
-            } header: {
-                Text("Top bar")
-            } footer: {
-                SectionFooter(
-                    text: "Offer Settings off removes Settings everywhere. The lock and gear toggles only take the "
-                        + "buttons out of the bar; the Companions page can put them in a companion instead.",
-                    isResettable: flagsAreModified,
-                    reset: resetFlags
+                SwitchRow(
+                    title: "Settings",
+                    isOn: $model.settings.topBar.showsSettings,
+                    help: "Off removes Settings everywhere: the gear, the screen, and the menu item."
                 )
             }
 
-            Section {
-                TextField("Title", text: $model.settings.topBar.leadingTitle, prompt: Text("Home"))
-                LabeledContent("Icon") {
-                    HStack(spacing: 8) {
-                        TextField("Icon", text: iconName, prompt: Text("Brand mark"))
-                            .labelsHidden()
-                        iconPreview
-                        Menu {
-                            Button("Brand Mark") { model.settings.topBar.leadingIcon = nil }
-                            Divider()
-                            ForEach(Self.iconSuggestions, id: \.self) { name in
-                                Button {
-                                    model.settings.topBar.leadingIcon = name
-                                } label: {
-                                    Label(name, systemImage: name)
-                                }
-                            }
-                        } label: {
-                            Image(systemName: "chevron.up.chevron.down")
-                        }
-                        .menuStyle(.borderlessButton)
-                        .fixedSize()
-                        .help("Suggested icons")
-                    }
-                }
-            } header: {
-                Text("Leading title and icon")
-            } footer: {
-                SectionFooter(
-                    text: iconIsValid
-                        ? "Any SF Symbol name works. Leave the icon empty to show the brand mark."
-                        : "There is no SF Symbol named \"\(topBar.leadingIcon ?? "")\", so the top bar shows no icon.",
-                    isResettable: topBar.leadingTitle != "Home" || topBar.leadingIcon != nil,
+            if topBar.showsTopBar {
+                SectionCard(
+                    title: "Title",
+                    isModified: topBar.leadingTitle != defaults.leadingTitle || topBar.leadingIcon != nil,
                     reset: {
-                        model.settings.topBar.leadingTitle = PlaygroundSettings.TopBar().leadingTitle
+                        model.settings.topBar.leadingTitle = defaults.leadingTitle
                         model.settings.topBar.leadingIcon = nil
                     }
+                ) {
+                    TextRow(title: "Title", text: $model.settings.topBar.leadingTitle, prompt: "Home")
+                    iconRow
+                }
+            }
+
+            SectionCard(
+                title: "Notch",
+                help: "What happens in the band beside the notch while the top bar is hidden.",
+                isModified: notchIsModified,
+                reset: {
+                    model.settings.topBar.notchClearance = defaults.notchClearance
+                    model.settings.topBar.notchAccessories = defaults.notchAccessories
+                }
+            ) {
+                SegmentedRow(
+                    title: "Clearance",
+                    selection: $model.settings.topBar.notchClearance,
+                    choices: [Choice(.automatic, "Automatic"), Choice(.manual, "Manual")],
+                    help: "Automatic starts the content below the notch. Manual lets it run up beside the notch."
+                )
+                SwitchRow(
+                    title: "Header beside notch",
+                    isOn: $model.settings.topBar.notchAccessories,
+                    help: "Moves the home view's header into the band beside the notch, with "
+                        + "nookNotchAccessories(leading:trailing:)."
                 )
             }
 
-            Section {
-                TextField("Settings breadcrumb", text: $model.settings.labels.settingsBreadcrumb)
-                TextField("Keep-open tooltip", text: $model.settings.labels.keepOpenHelp)
-                TextField("Settings tooltip", text: $model.settings.labels.settingsHelp)
-                TextField("Dismiss tooltip", text: $model.settings.labels.dismissHelp)
-            } header: {
-                Text("Labels")
-            } footer: {
-                SectionFooter(
-                    text: "The chrome's own strings, for localization or product naming.",
-                    isResettable: model.settings.labels != .init(),
-                    reset: { model.settings.labels = .init() }
-                )
+            CollapsibleCard(
+                title: "Labels",
+                help: "The chrome's own strings, for localization or product naming.",
+                isExpanded: $showsLabels,
+                isModified: model.settings.labels != .init(),
+                reset: { model.settings.labels = .init() }
+            ) {
+                TextRow(title: "Breadcrumb", text: $model.settings.labels.settingsBreadcrumb)
+                TextRow(title: "Lock tooltip", text: $model.settings.labels.keepOpenHelp)
+                TextRow(title: "Gear tooltip", text: $model.settings.labels.settingsHelp)
+                TextRow(title: "Close tooltip", text: $model.settings.labels.dismissHelp)
             }
 
-            Section {
-                TextField("Message", text: $model.demo.statusMessage)
-                Picker("Severity", selection: $model.demo.statusSeverity) {
-                    ForEach(NookStatusSeverity.allCases, id: \.self) { severity in
-                        Text(severity.rawValue.capitalized).tag(severity.rawValue)
-                    }
-                }
-                .pickerStyle(.segmented)
-                HStack {
-                    Button("Post Banner") { model.postStatus() }
-                    Button("Clear Banner") { model.clearStatus() }
-                }
-            } header: {
-                Text("Status banner demo")
-            } footer: {
-                SectionFooter(
-                    text: "Posts the message with AppState.showStatus(_:severity:), opening the nook first. "
-                        + "The banner needs the top bar and its banner switched on."
+            SectionCard(title: "Banner Preview") {
+                TextRow(title: "Message", text: $model.demo.statusMessage)
+                SegmentedRow(
+                    title: "Severity",
+                    selection: $model.demo.statusSeverity,
+                    choices: NookStatusSeverity.allCases.map { Choice($0.rawValue, $0.rawValue.capitalized) }
                 )
+            } accessory: {
+                Button(action: model.clearStatus) {
+                    Label("Clear", systemImage: "xmark")
+                }
+                .buttonStyle(IconButtonStyle())
+                .help("Clear the banner")
+                PreviewButton(help: bannerPreviewHelp, action: { model.postStatus() })
+                    .disabled(!bannerIsShown)
             }
         }
-        .formStyle(.grouped)
     }
 
     private var topBar: PlaygroundSettings.TopBar { model.settings.topBar }
+    private var defaults: PlaygroundSettings.TopBar { .init() }
+
+    private var bannerIsShown: Bool {
+        topBar.showsTopBar && topBar.showsStatusBanner
+    }
+
+    private var bannerPreviewHelp: String {
+        bannerIsShown ? "Post the message in the nook" : "The banner needs the top bar and its status banner"
+    }
 
     private var flagsAreModified: Bool {
         var flags = topBar
-        flags.leadingTitle = PlaygroundSettings.TopBar().leadingTitle
+        flags.leadingTitle = defaults.leadingTitle
         flags.leadingIcon = nil
-        return flags != PlaygroundSettings.TopBar()
+        flags.notchClearance = defaults.notchClearance
+        flags.notchAccessories = defaults.notchAccessories
+        return flags != defaults
     }
 
-    /// Resets the switches and the width, leaving the title and icon to their own section.
+    private var notchIsModified: Bool {
+        topBar.notchClearance != defaults.notchClearance || topBar.notchAccessories != defaults.notchAccessories
+    }
+
+    /// Resets the switches and the width, leaving the title and the notch to their cards.
     private func resetFlags() {
-        var reset = PlaygroundSettings.TopBar()
+        var reset = defaults
         reset.leadingTitle = topBar.leadingTitle
         reset.leadingIcon = topBar.leadingIcon
+        reset.notchClearance = topBar.notchClearance
+        reset.notchAccessories = topBar.notchAccessories
         model.settings.topBar = reset
+    }
+
+    private var iconRow: some View {
+        ControlRow(
+            title: "Icon",
+            help: "Any SF Symbol name. Leave it empty for the brand mark.",
+            isModified: topBar.leadingIcon != nil
+        ) {
+            HStack(spacing: 8) {
+                TextField("Icon", text: iconName, prompt: Text("Brand mark"))
+                    .labelsHidden()
+                    .playgroundField()
+                iconPreview
+                Menu {
+                    Button("Brand Mark") { model.settings.topBar.leadingIcon = nil }
+                    Divider()
+                    ForEach(Self.iconSuggestions, id: \.self) { name in
+                        Button {
+                            model.settings.topBar.leadingIcon = name
+                        } label: {
+                            Label(name, systemImage: name)
+                        }
+                    }
+                } label: {
+                    Image(systemName: "square.grid.2x2")
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .modifier(HoverCircle(size: 26))
+                .help("Suggested icons")
+                .accessibilityLabel("Suggested icons")
+            }
+        } reset: {
+            model.settings.topBar.leadingIcon = nil
+        }
     }
 
     private var iconName: Binding<String> {
@@ -158,73 +207,128 @@ struct TopBarPage: View {
         return NSImage(systemSymbolName: name, accessibilityDescription: nil) != nil
     }
 
-    @ViewBuilder
     private var iconPreview: some View {
         Group {
             if let name = topBar.leadingIcon {
-                Image(systemName: iconIsValid ? name : "questionmark.square.dashed")
+                if iconIsValid {
+                    Image(systemName: name)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Image(systemName: "exclamationmark.triangle")
+                        .foregroundStyle(.orange)
+                        .help("No SF Symbol has this name, so the top bar shows no icon")
+                }
             } else {
                 Image(systemName: "seal")
+                    .foregroundStyle(.tertiary)
             }
         }
-        .foregroundStyle(.secondary)
-        .frame(width: 20)
-        .accessibilityHidden(true)
+        .font(.system(size: 13, weight: .light))
+        .frame(width: 18)
     }
 }
 
 // MARK: - Companions
 
-/// `NookConfiguration.addCompanion`, one section per companion.
+/// `NookConfiguration.addCompanion`: a list of companions, and an editor for the selected one.
 struct CompanionsPage: View {
     @ObservedObject var model: PlaygroundModel
+    @State private var selectedID: String?
+    @State private var editorTab = CompanionEditor.Tab.placement
+    @State private var isAdding = false
 
     var body: some View {
-        Form {
-            Section {
-                if model.settings.companions.isEmpty {
-                    Text("No companions yet. Add one to float a view beside the nook.")
-                        .foregroundStyle(.secondary)
-                }
-                HStack {
-                    Menu("Add Companion") {
-                        ForEach(PlaygroundSettings.Companion.Kind.allCases, id: \.self) { kind in
-                            Button(kind.title) { add(kind) }
-                        }
+        PlaygroundPageView(page: .companions) {
+            if companions.isEmpty {
+                emptyState
+            } else {
+                SectionCard(
+                    title: "Companions",
+                    help: "Views that float beside the nook. Companions on the same side form a row, in this order."
+                ) {
+                    ForEach(companions) { companion in
+                        CompanionListRow(
+                            companion: companion,
+                            isSelected: companion.id == selection?.id,
+                            canMoveUp: companion.id != companions.first?.id,
+                            canMoveDown: companion.id != companions.last?.id,
+                            select: { selectedID = companion.id },
+                            move: { move(companion.id, by: $0) },
+                            remove: { remove(companion.id) }
+                        )
                     }
-                    .fixedSize()
-                    Button("Move the Lock and Gear into a Companion", action: moveControlsIntoCompanion)
-                        .disabled(controlsAreInCompanion)
+                } accessory: {
+                    addButton
                 }
-            } header: {
-                Text("Companions")
-            } footer: {
-                SectionFooter(
-                    text: "Companions share an anchor to form a row, in the order listed here. Most show only "
-                        + "while the nook is expanded; choose Compact or Both to keep one beside the collapsed "
-                        + "pill.",
-                    isResettable: !model.settings.companions.isEmpty,
-                    reset: { model.settings.companions = [] }
-                )
             }
 
-            ForEach($model.settings.companions) { $companion in
+            if let selection, let binding = binding(for: selection.id) {
                 CompanionEditor(
-                    companion: $companion,
-                    otherIDs: Set(model.settings.companions.map(\.id)).subtracting([companion.id]),
-                    canMoveUp: model.settings.companions.first?.id != companion.id,
-                    canMoveDown: model.settings.companions.last?.id != companion.id,
-                    move: { offset in move(companion.id, by: offset) },
-                    remove: { remove(companion.id) }
+                    companion: binding,
+                    tab: $editorTab,
+                    otherIDs: Set(companions.map(\.id)).subtracting([selection.id])
                 )
             }
         }
-        .formStyle(.grouped)
     }
 
-    private var controlsAreInCompanion: Bool {
-        !model.settings.topBar.showsKeepOpenButton && !model.settings.topBar.showsSettingsButton
-            && model.settings.companions.contains { $0.kind == .controls }
+    private var companions: [PlaygroundSettings.Companion] {
+        model.settings.companions
+    }
+
+    /// The selected companion, or the first one when nothing valid is selected.
+    private var selection: PlaygroundSettings.Companion? {
+        companions.first { $0.id == selectedID } ?? companions.first
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 12) {
+            Text("No companions yet")
+                .font(.system(size: 15, weight: .light))
+            Text("Views that float beside the nook.")
+                .font(PlaygroundTheme.caption)
+                .foregroundStyle(.secondary)
+            addButton
+                .padding(.top, 4)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 28)
+        .surface()
+    }
+
+    private var addButton: some View {
+        Button {
+            isAdding = true
+        } label: {
+            Label("Add", systemImage: "plus")
+        }
+        .buttonStyle(PillButtonStyle(kind: .primary))
+        .help("Add a companion")
+        .popover(isPresented: $isAdding, arrowEdge: .bottom) {
+            AddCompanionList(
+                canAddControls: !companions.contains { $0.kind == .controls },
+                add: { kind in
+                    isAdding = false
+                    add(kind)
+                }
+            )
+        }
+    }
+
+    /// A binding that follows the companion by id, and moves the selection along when the id
+    /// is edited.
+    private func binding(for id: String) -> Binding<PlaygroundSettings.Companion>? {
+        guard let current = companions.first(where: { $0.id == id }) else { return nil }
+        return Binding(
+            get: { model.settings.companions.first { $0.id == id } ?? current },
+            set: { companion in
+                guard let index = model.settings.companions.firstIndex(where: { $0.id == id }) else { return }
+                model.settings.companions[index] = companion
+                if companion.id != id {
+                    selectedID = companion.id
+                }
+            }
+        )
     }
 
     private func newCompanion(_ kind: PlaygroundSettings.Companion.Kind) -> PlaygroundSettings.Companion {
@@ -233,10 +337,7 @@ struct CompanionsPage: View {
             kind: kind,
             accessibilityLabel: kind.suggestedAccessibilityLabel
         )
-        companion.id = PlaygroundSettings.uniqueID(
-            for: companion,
-            avoiding: Set(model.settings.companions.map(\.id))
-        )
+        companion.id = PlaygroundSettings.uniqueID(for: companion, avoiding: Set(companions.map(\.id)))
         switch kind {
             case .button:
                 companion.outline = .circle
@@ -249,134 +350,298 @@ struct CompanionsPage: View {
         return companion
     }
 
+    /// Nook controls move the lock and gear out of the top bar, as CompanionNook does; the
+    /// companion stays up in Settings, since its gear is the way back out.
     private func add(_ kind: PlaygroundSettings.Companion.Kind) {
-        model.settings.companions.append(newCompanion(kind))
-    }
-
-    /// The same move CompanionNook makes: the lock and gear leave the top bar for a companion
-    /// that stays up in Settings, since its gear is the way back out.
-    private func moveControlsIntoCompanion() {
         var settings = model.settings
-        settings.topBar.showsKeepOpenButton = false
-        settings.topBar.showsSettingsButton = false
-        if !settings.companions.contains(where: { $0.kind == .controls }) {
-            settings.companions.append(newCompanion(.controls))
+        let companion = newCompanion(kind)
+        settings.companions.append(companion)
+        if kind == .controls {
+            settings.topBar.showsKeepOpenButton = false
+            settings.topBar.showsSettingsButton = false
         }
         model.settings = settings
+        selectedID = companion.id
     }
 
     private func move(_ id: String, by offset: Int) {
-        guard let index = model.settings.companions.firstIndex(where: { $0.id == id }) else { return }
+        guard let index = companions.firstIndex(where: { $0.id == id }) else { return }
         let destination = index + offset
-        guard model.settings.companions.indices.contains(destination) else { return }
+        guard companions.indices.contains(destination) else { return }
         model.settings.companions.swapAt(index, destination)
     }
 
+    /// Removing the last Nook controls companion puts the lock and gear back in the top bar,
+    /// so they are never lost.
     private func remove(_ id: String) {
-        model.settings.companions.removeAll { $0.id == id }
+        guard let index = companions.firstIndex(where: { $0.id == id }) else { return }
+        var settings = model.settings
+        let removed = settings.companions.remove(at: index)
+        if removed.kind == .controls, !settings.companions.contains(where: { $0.kind == .controls }) {
+            settings.topBar.showsKeepOpenButton = true
+            settings.topBar.showsSettingsButton = true
+        }
+        model.settings = settings
+        if selectedID == id {
+            let remaining = settings.companions
+            selectedID = remaining.isEmpty ? nil : remaining[min(index, remaining.count - 1)].id
+        }
     }
 }
 
-private struct CompanionEditor: View {
-    @Binding var companion: PlaygroundSettings.Companion
-    let otherIDs: Set<String>
+extension PlaygroundSettings.Companion.Kind {
+    var symbol: String {
+        switch self {
+            case .actions: "capsule"
+            case .button: "circle"
+            case .controls: "gearshape"
+            case .chip: "tag"
+        }
+    }
+
+    fileprivate var blurb: String {
+        switch self {
+            case .actions: "A pill of icon buttons"
+            case .button: "One round button"
+            case .controls: "The lock and gear, out of the top bar"
+            case .chip: "A short status label"
+        }
+    }
+}
+
+/// The kinds of companion to add, each with a line on what it is.
+private struct AddCompanionList: View {
+    let canAddControls: Bool
+    let add: (PlaygroundSettings.Companion.Kind) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            ForEach(PlaygroundSettings.Companion.Kind.allCases, id: \.self) { kind in
+                let isEnabled = kind != .controls || canAddControls
+                Button {
+                    add(kind)
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: kind.symbol)
+                            .font(.system(size: 13, weight: .light))
+                            .foregroundStyle(.tint)
+                            .frame(width: 28, height: 28)
+                            .background(Circle().fill(PlaygroundTheme.controlFill))
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(kind.title)
+                                .font(PlaygroundTheme.body)
+                            Text(isEnabled ? kind.blurb : "Already added")
+                                .font(PlaygroundTheme.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(HighlightRowButtonStyle())
+                .disabled(!isEnabled)
+            }
+        }
+        .padding(8)
+        .frame(width: 280)
+    }
+}
+
+private struct CompanionListRow: View {
+    let companion: PlaygroundSettings.Companion
+    let isSelected: Bool
     let canMoveUp: Bool
     let canMoveDown: Bool
+    let select: () -> Void
     let move: (Int) -> Void
     let remove: () -> Void
 
     var body: some View {
-        Section {
-            CompanionIDField(id: $companion.id, otherIDs: otherIDs)
-            Picker("Content", selection: $companion.kind) {
-                ForEach(PlaygroundSettings.Companion.Kind.allCases, id: \.self) { kind in
-                    Text(kind.title).tag(kind)
+        HStack(spacing: 8) {
+            Button(action: select) {
+                HStack(spacing: 10) {
+                    Image(systemName: companion.kind.symbol)
+                        .font(.system(size: 13, weight: .light))
+                        .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                        .frame(width: 28, height: 28)
+                        .background(Circle().fill(PlaygroundTheme.controlFill))
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(companion.id)
+                            .font(PlaygroundTheme.body)
+                            .lineLimit(1)
+                        Text(summary)
+                            .font(PlaygroundTheme.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 0)
+                    if isSelected {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.tint)
+                    }
                 }
+                .padding(.horizontal, 6)
+                .padding(.vertical, 4)
+                .contentShape(Rectangle())
             }
-            TextField("Accessibility label", text: accessibilityLabel, prompt: Text("None"))
-            Picker("Anchor", selection: $companion.anchor) {
-                Text("Below").tag(PlaygroundSettings.Companion.Anchor.below)
-                Text("Leading").tag(PlaygroundSettings.Companion.Anchor.leading)
-                Text("Trailing").tag(PlaygroundSettings.Companion.Anchor.trailing)
+            .buttonStyle(HighlightRowButtonStyle(isSelected: isSelected))
+            .accessibilityLabel("\(companion.id), \(summary)")
+            .accessibilityAddTraits(isSelected ? .isSelected : [])
+
+            Menu {
+                Button("Move Up") { move(-1) }
+                    .disabled(!canMoveUp)
+                Button("Move Down") { move(1) }
+                    .disabled(!canMoveDown)
+                Divider()
+                Button("Remove", role: .destructive, action: remove)
+            } label: {
+                Image(systemName: "ellipsis")
             }
-            .pickerStyle(.segmented)
-            Picker("Alignment", selection: $companion.alignment) {
-                Text(companion.anchor == .below ? "Leading" : "Top").tag(
-                    PlaygroundSettings.Companion.AnchorAlignment.start
-                )
-                Text("Center").tag(PlaygroundSettings.Companion.AnchorAlignment.center)
-                Text(companion.anchor == .below ? "Trailing" : "Bottom").tag(
-                    PlaygroundSettings.Companion.AnchorAlignment.end
-                )
-            }
-            .pickerStyle(.segmented)
-            NumberRow(
-                title: "Spacing",
-                value: $companion.spacing,
-                range: 0...40,
-                defaultValue: Double(NookCompanionSurface.defaultSpacing)
-            )
-            Picker("Shown", selection: $companion.visibility) {
-                Text("Expanded").tag(PlaygroundSettings.Companion.Visibility.expanded)
-                Text("Compact").tag(PlaygroundSettings.Companion.Visibility.compact)
-                Text("Both").tag(PlaygroundSettings.Companion.Visibility.both)
-            }
-            .pickerStyle(.segmented)
-            Picker("Shape", selection: $companion.outline) {
-                Text("Capsule").tag(PlaygroundSettings.Companion.Outline.capsule)
-                Text("Circle").tag(PlaygroundSettings.Companion.Outline.circle)
-                Text("Rounded").tag(PlaygroundSettings.Companion.Outline.roundedRectangle)
-            }
-            .pickerStyle(.segmented)
-            if companion.outline == .roundedRectangle {
-                NumberRow(title: "Corner radius", value: $companion.cornerRadius, range: 0...30, defaultValue: 12)
-            }
-            Picker("Backdrop", selection: $companion.backdrop) {
-                Text("Chrome").tag(PlaygroundSettings.Companion.Backdrop.inherit)
-                Text("Solid").tag(PlaygroundSettings.Companion.Backdrop.solid)
-                Text("Glass").tag(PlaygroundSettings.Companion.Backdrop.glass)
-                Text("None").tag(PlaygroundSettings.Companion.Backdrop.none)
-            }
-            .pickerStyle(.segmented)
-            if companion.backdrop == .solid || companion.backdrop == .glass {
-                ColorPicker(
-                    companion.backdrop == .solid ? "Fill" : "Tint",
-                    selection: backdropColor,
-                    supportsOpacity: true
-                )
-            }
-            Toggle("Step aside while Settings is showing", isOn: $companion.hidesInSettings)
-        } header: {
-            HStack {
-                Text(companion.id)
-                    .font(.headline.monospaced())
-                Text(companion.kind.title)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Button {
-                    move(-1)
-                } label: {
-                    Image(systemName: "arrow.up")
-                }
-                .disabled(!canMoveUp)
-                .help("Move up")
-                .accessibilityLabel("Move \(companion.id) up")
-                Button {
-                    move(1)
-                } label: {
-                    Image(systemName: "arrow.down")
-                }
-                .disabled(!canMoveDown)
-                .help("Move down")
-                .accessibilityLabel("Move \(companion.id) down")
-                Button(role: .destructive, action: remove) {
-                    Image(systemName: "trash")
-                }
-                .help("Remove")
-                .accessibilityLabel("Remove \(companion.id)")
-            }
-            .buttonStyle(.borderless)
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .modifier(HoverCircle(size: 26))
+            .help("Move or remove")
+            .accessibilityLabel("Actions for \(companion.id)")
         }
+        .contextMenu {
+            Button("Move Up") { move(-1) }
+                .disabled(!canMoveUp)
+            Button("Move Down") { move(1) }
+                .disabled(!canMoveDown)
+            Divider()
+            Button("Remove", role: .destructive, action: remove)
+        }
+    }
+
+    private var summary: String {
+        let side =
+            switch companion.anchor {
+                case .below: "below"
+                case .leading: "leading side"
+                case .trailing: "trailing side"
+            }
+        let shown =
+            switch companion.visibility {
+                case .expanded: "when expanded"
+                case .compact: "when collapsed"
+                case .both: "always"
+            }
+        return "\(companion.kind.title), \(side), \(shown)"
+    }
+}
+
+/// The selected companion's settings, a few at a time.
+struct CompanionEditor: View {
+    enum Tab: Hashable {
+        case placement
+        case style
+        case details
+    }
+
+    @Binding var companion: PlaygroundSettings.Companion
+    @Binding var tab: Tab
+    let otherIDs: Set<String>
+
+    private typealias Companion = PlaygroundSettings.Companion
+
+    var body: some View {
+        SectionCard(title: companion.id) {
+            switch tab {
+                case .placement: placementRows
+                case .style: styleRows
+                case .details: detailRows
+            }
+        } accessory: {
+            PillPicker(
+                title: "Editor",
+                selection: $tab,
+                choices: [Choice(.placement, "Placement"), Choice(.style, "Style"), Choice(.details, "Details")]
+            )
+            .frame(width: 230)
+        }
+    }
+
+    @ViewBuilder
+    private var placementRows: some View {
+        SegmentedRow(
+            title: "Side",
+            selection: $companion.anchor,
+            choices: [Choice(.below, "Below"), Choice(.leading, "Leading"), Choice(.trailing, "Trailing")],
+            help: "The edge of the nook it hangs from."
+        )
+        SegmentedRow(
+            title: "Align",
+            selection: $companion.alignment,
+            choices: companion.anchor == .below
+                ? [Choice(.start, "Leading"), Choice(.center, "Center"), Choice(.end, "Trailing")]
+                : [Choice(.start, "Top"), Choice(.center, "Center"), Choice(.end, "Bottom")],
+            help: "Where it sits along that edge."
+        )
+        SliderRow(
+            title: "Spacing",
+            value: $companion.spacing,
+            range: 0...40,
+            defaultValue: Double(NookCompanionSurface.defaultSpacing),
+            help: "The gap to the nook, or to the companion before it."
+        )
+        SegmentedRow(
+            title: "Shown",
+            selection: $companion.visibility,
+            choices: [Choice(.expanded, "Expanded"), Choice(.compact, "Collapsed"), Choice(.both, "Always")],
+            help: "Whether it shows with the nook expanded, beside the collapsed pill, or both."
+        )
+    }
+
+    @ViewBuilder
+    private var styleRows: some View {
+        SegmentedRow(
+            title: "Shape",
+            selection: $companion.outline,
+            choices: [Choice(.capsule, "Capsule"), Choice(.circle, "Circle"), Choice(.roundedRectangle, "Rounded")]
+        )
+        if companion.outline == .roundedRectangle {
+            SliderRow(title: "Corners", value: $companion.cornerRadius, range: 0...30, defaultValue: 12)
+        }
+        SegmentedRow(
+            title: "Backdrop",
+            selection: $companion.backdrop,
+            choices: [
+                Choice(.inherit, "Chrome"), Choice(.solid, "Solid"), Choice(.glass, "Glass"), Choice(.none, "None"),
+            ],
+            help: "Chrome matches the nook. None leaves the content to draw its own."
+        )
+        if companion.backdrop == .solid || companion.backdrop == .glass {
+            ControlRow(title: companion.backdrop == .solid ? "Fill" : "Tint") {
+                ColorSwatch(title: "Backdrop color", color: backdropColor, supportsOpacity: true)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var detailRows: some View {
+        CompanionIDField(id: $companion.id, otherIDs: otherIDs)
+        SegmentedRow(
+            title: "Content",
+            selection: $companion.kind,
+            choices: Companion.Kind.allCases.map { Choice($0, $0.shortTitle) },
+            help: "The demo view the companion shows."
+        )
+        TextRow(
+            title: "VoiceOver label",
+            text: accessibilityLabel,
+            prompt: "None",
+            help: "What VoiceOver reads for the companion."
+        )
+        SwitchRow(
+            title: "Hide in Settings",
+            isOn: $companion.hidesInSettings,
+            help: "Steps aside while the Settings screen is showing."
+        )
     }
 
     private var accessibilityLabel: Binding<String> {
@@ -394,8 +659,19 @@ private struct CompanionEditor: View {
     }
 }
 
-/// Edits a companion id. The id is the companion's identity - in the list here and in the
-/// chrome - so it changes only when editing ends, and only to a unique, non-empty value
+extension PlaygroundSettings.Companion.Kind {
+    fileprivate var shortTitle: String {
+        switch self {
+            case .actions: "Pill"
+            case .button: "Button"
+            case .controls: "Controls"
+            case .chip: "Chip"
+        }
+    }
+}
+
+/// Edits a companion id. The id is the companion's identity, in the list here and in the
+/// chrome, so it changes only when editing ends, and only to a unique, non-empty value
 /// (`NookConfiguration.addCompanion` traps on a duplicate).
 private struct CompanionIDField: View {
     @Binding var id: String
@@ -404,18 +680,19 @@ private struct CompanionIDField: View {
     @FocusState private var isFocused: Bool
 
     var body: some View {
-        LabeledContent("ID") {
-            VStack(alignment: .trailing, spacing: 2) {
+        ControlRow(title: "ID", help: "The companion's identity. It must be unique.") {
+            HStack(spacing: 6) {
+                if let problem {
+                    Image(systemName: "exclamationmark.circle")
+                        .foregroundStyle(.red)
+                        .help(problem)
+                        .accessibilityLabel(problem)
+                }
                 TextField("ID", text: $draft)
                     .labelsHidden()
-                    .multilineTextAlignment(.trailing)
+                    .playgroundField()
                     .focused($isFocused)
                     .onSubmit(commit)
-                if let problem {
-                    Text(problem)
-                        .font(.caption)
-                        .foregroundStyle(.red)
-                }
             }
         }
         .onAppear { draft = id }
@@ -430,8 +707,8 @@ private struct CompanionIDField: View {
     }
 
     private var problem: String? {
-        if trimmedDraft.isEmpty { return "An ID cannot be empty." }
-        if otherIDs.contains(trimmedDraft) { return "Another companion uses this ID." }
+        if trimmedDraft.isEmpty { return "An ID cannot be empty" }
+        if otherIDs.contains(trimmedDraft) { return "Another companion uses this ID" }
         return nil
     }
 
@@ -454,91 +731,89 @@ struct EffectsPage: View {
     private let fadeDefaults = PlaygroundSettings.ScrollEdgeFade()
 
     var body: some View {
-        Form {
-            Section {
-                Toggle("Light the rim", isOn: $model.demo.rimGlowLit)
-                ColorPicker("Rim color", selection: rimColor, supportsOpacity: false)
-            } header: {
-                Text("Rim glow demo")
-            } footer: {
-                SectionFooter(
-                    text: "While this is on, the home view and the compact slots light the rim with "
-                        + "nookRimGlow(_:), so it stays lit after the nook collapses. The round button companion "
-                        + "toggles it too."
-                )
-            }
-
-            Section {
-                NumberRow(
+        PlaygroundPageView(page: .effects) {
+            SectionCard(
+                title: "Rim Glow",
+                isModified: model.settings.rimGlow != rimDefaults,
+                reset: { model.settings.rimGlow = rimDefaults }
+            ) {
+                ControlRow(
+                    title: "Light it",
+                    help: "The home view and the compact slots light the rim with nookRimGlow(_:), so it stays lit "
+                        + "after the nook collapses."
+                ) {
+                    HStack(spacing: 10) {
+                        ColorSwatch(title: "Rim color", color: rimColor)
+                        Toggle("Light the rim", isOn: $model.demo.rimGlowLit)
+                            .toggleStyle(.switch)
+                            .controlSize(.small)
+                            .labelsHidden()
+                    }
+                }
+                SliderRow(
                     title: "Line width",
                     value: $model.settings.rimGlow.lineWidth,
                     range: 0...6,
                     step: 0.5,
-                    defaultValue: rimDefaults.lineWidth
+                    defaultValue: rimDefaults.lineWidth,
+                    help: "Increase Contrast draws it bolder."
                 )
-                NumberRow(
-                    title: "Glow radius",
+                SliderRow(
+                    title: "Glow",
                     value: $model.settings.rimGlow.glowRadius,
                     range: 0...30,
-                    defaultValue: rimDefaults.glowRadius
+                    defaultValue: rimDefaults.glowRadius,
+                    help: "The halo's radius. Reduce Transparency drops the halo."
                 )
-                NumberRow(
+                SliderRow(
                     title: "Intensity",
                     value: $model.settings.rimGlow.intensity,
                     range: 0...1,
                     step: 0.01,
                     defaultValue: rimDefaults.intensity,
-                    unit: ""
+                    format: .percent
                 )
-                Toggle("Breathe while lit", isOn: $model.settings.rimGlow.pulses)
-                Toggle(
-                    "Follow the ambient color when nothing lights it",
-                    isOn: $model.settings.rimGlow.followsAmbientColor
+                SwitchRow(
+                    title: "Breathe",
+                    isOn: $model.settings.rimGlow.pulses,
+                    help: "The halo pulses slowly while lit. Reduce Motion stills it."
                 )
-            } header: {
-                Text("Rim glow style")
-            } footer: {
-                SectionFooter(
-                    text: "Reduce Motion stills the breathing, Increase Contrast draws a bolder line, and Reduce "
-                        + "Transparency drops the halo.",
-                    isResettable: model.settings.rimGlow != rimDefaults,
-                    reset: { model.settings.rimGlow = rimDefaults }
+                SwitchRow(
+                    title: "Ambient color",
+                    isOn: $model.settings.rimGlow.followsAmbientColor,
+                    help: "With nothing lighting the rim, it takes the ambient color content reports."
                 )
             }
 
-            Section {
-                Toggle("Fade scrolling content at the panel's edges", isOn: $model.settings.scrollEdgeFade.isEnabled)
-                LabeledContent("Edges") {
-                    HStack(spacing: 12) {
-                        Toggle("Top", isOn: $model.settings.scrollEdgeFade.top)
-                        Toggle("Bottom", isOn: $model.settings.scrollEdgeFade.bottom)
-                        Toggle("Leading", isOn: $model.settings.scrollEdgeFade.leading)
-                        Toggle("Trailing", isOn: $model.settings.scrollEdgeFade.trailing)
-                    }
-                    .toggleStyle(.checkbox)
-                }
-                .disabled(!model.settings.scrollEdgeFade.isEnabled)
-                NumberRow(
-                    title: "Length",
-                    value: $model.settings.scrollEdgeFade.length,
-                    range: 0...60,
-                    defaultValue: fadeDefaults.length
+            SectionCard(
+                title: "Scroll Edge Fade",
+                isModified: model.settings.scrollEdgeFade != fadeDefaults,
+                reset: { model.settings.scrollEdgeFade = fadeDefaults }
+            ) {
+                SwitchRow(
+                    title: "Fade edges",
+                    isOn: $model.settings.scrollEdgeFade.isEnabled,
+                    help: "Scroll views that opt in with nookScrollEdgeFade(axes:) fade where they meet the "
+                        + "panel's edges."
                 )
-                .disabled(!model.settings.scrollEdgeFade.isEnabled)
-                Toggle("Show the scrolling demo in the nook", isOn: $model.demo.showsScrollDemo)
-            } header: {
-                Text("Scroll edge fade")
-            } footer: {
-                SectionFooter(
-                    text: "On macOS 26 the top and bottom edges use the system's soft scroll edge effect; the "
-                        + "sides, and every edge on earlier systems, use a gradient mask. The demo list and chips "
-                        + "opt in with nookScrollEdgeFade(axes:), as the Settings screen does.",
-                    isResettable: model.settings.scrollEdgeFade != fadeDefaults,
-                    reset: { model.settings.scrollEdgeFade = fadeDefaults }
+                if model.settings.scrollEdgeFade.isEnabled {
+                    ControlRow(title: "Edges") {
+                        EdgeToggles(fade: $model.settings.scrollEdgeFade)
+                    }
+                    SliderRow(
+                        title: "Length",
+                        value: $model.settings.scrollEdgeFade.length,
+                        range: 0...60,
+                        defaultValue: fadeDefaults.length
+                    )
+                }
+                SwitchRow(
+                    title: "Scrolling demo",
+                    isOn: $model.demo.showsScrollDemo,
+                    help: "A scrolling list and tag row in the nook to try the fade on."
                 )
             }
         }
-        .formStyle(.grouped)
     }
 
     private var rimColor: Binding<Color> {
@@ -549,6 +824,56 @@ struct EffectsPage: View {
     }
 }
 
+/// The four fade edges as round toggles.
+private struct EdgeToggles: View {
+    @Binding var fade: PlaygroundSettings.ScrollEdgeFade
+
+    var body: some View {
+        HStack(spacing: 6) {
+            edge("Top", "arrow.up.to.line", $fade.top)
+            edge("Bottom", "arrow.down.to.line", $fade.bottom)
+            edge("Leading", "arrow.left.to.line", $fade.leading)
+            edge("Trailing", "arrow.right.to.line", $fade.trailing)
+        }
+    }
+
+    private func edge(_ title: String, _ symbol: String, _ isOn: Binding<Bool>) -> some View {
+        EdgeToggle(title: title, symbol: symbol, isOn: isOn)
+    }
+}
+
+private struct EdgeToggle: View {
+    let title: String
+    let symbol: String
+    @Binding var isOn: Bool
+    @State private var isHovered = false
+
+    var body: some View {
+        Button {
+            isOn.toggle()
+        } label: {
+            Image(systemName: symbol)
+                .font(.system(size: 11, weight: .regular))
+                .foregroundStyle(isOn ? AnyShapeStyle(Color.white) : AnyShapeStyle(isHovered ? .primary : .secondary))
+                .frame(width: 26, height: 26)
+                .background(Circle().fill(fill))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .trackingHover($isHovered)
+        .help(isOn ? "Fade the \(title.lowercased()) edge: on" : "Fade the \(title.lowercased()) edge: off")
+        .accessibilityLabel("Fade the \(title.lowercased()) edge")
+        .accessibilityAddTraits(isOn ? .isSelected : [])
+    }
+
+    private var fill: AnyShapeStyle {
+        if isOn {
+            return AnyShapeStyle(PlaygroundTheme.accent.opacity(isHovered ? 0.85 : 1))
+        }
+        return AnyShapeStyle(isHovered ? PlaygroundTheme.controlHoverFill : PlaygroundTheme.controlFill)
+    }
+}
+
 // MARK: - Behavior
 
 /// `NookChromeBehavior.hoverBehavior`, applied with `replaceChromeBehavior(_:)`.
@@ -556,22 +881,23 @@ struct BehaviorPage: View {
     @ObservedObject var model: PlaygroundModel
 
     var body: some View {
-        Form {
-            Section {
-                Toggle("Stay visible while hovered", isOn: $model.settings.behavior.hoverKeepsVisible)
-                Toggle("Haptic feedback on hover", isOn: $model.settings.behavior.hoverHaptics)
-            } header: {
-                Text("Hover")
-            } footer: {
-                SectionFooter(
-                    text: "Stay visible makes a request to hide the nook wait until the pointer leaves it. The "
-                        + "haptic plays on a Force Touch trackpad as the pointer enters and leaves the nook. Both "
-                        + "apply at once, through AppCoordinator.replaceChromeBehavior(_:).",
-                    isResettable: model.settings.behavior != .init(),
-                    reset: { model.settings.behavior = .init() }
+        PlaygroundPageView(page: .behavior) {
+            SectionCard(
+                title: "Hover",
+                isModified: model.settings.behavior != .init(),
+                reset: { model.settings.behavior = .init() }
+            ) {
+                SwitchRow(
+                    title: "Stay open while hovered",
+                    isOn: $model.settings.behavior.hoverKeepsVisible,
+                    help: "A request to hide the nook waits until the pointer leaves it."
+                )
+                SwitchRow(
+                    title: "Hover haptics",
+                    isOn: $model.settings.behavior.hoverHaptics,
+                    help: "A tap on a Force Touch trackpad as the pointer enters and leaves the nook."
                 )
             }
         }
-        .formStyle(.grouped)
     }
 }

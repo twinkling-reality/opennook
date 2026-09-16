@@ -27,13 +27,13 @@ enum PlaygroundPage: String, CaseIterable, Identifiable, Hashable {
         switch self {
             case .appearance: "Appearance"
             case .theme: "Theme"
-            case .panel: "Size and Shape"
+            case .panel: "Panel"
             case .typeAndMotion: "Type and Motion"
             case .topBar: "Top Bar"
             case .companions: "Companions"
-            case .effects: "Rim Glow and Fade"
+            case .effects: "Effects"
             case .behavior: "Behavior"
-            case .presets: "Presets and Export"
+            case .presets: "Presets"
         }
     }
 
@@ -47,7 +47,7 @@ enum PlaygroundPage: String, CaseIterable, Identifiable, Hashable {
             case .companions: "capsule.on.rectangle"
             case .effects: "sparkles"
             case .behavior: "cursorarrow.motionlines"
-            case .presets: "square.and.arrow.up"
+            case .presets: "square.stack"
         }
     }
 
@@ -78,113 +78,62 @@ enum PlaygroundPage: String, CaseIterable, Identifiable, Hashable {
     }
 }
 
+/// The controls window: a floating sidebar, the page, and the code in a card beside it, over a
+/// quiet gradient. The window has no toolbar; its few actions sit at the top right.
 struct PlaygroundControlsView: View {
     @ObservedObject var model: PlaygroundModel
     @ObservedObject var appState: AppState
-    @State private var page: PlaygroundPage? = .appearance
-    @State private var showsExport = true
+    @State private var page = PlaygroundPage.appearance
+    @AppStorage("playground.showsCode") private var showsCode = true
+    /// The strip the traffic lights sit in, centered on them. The window's own actions share it,
+    /// and the cards start a little below it.
+    var titleBarHeight: CGFloat = 50
 
     var body: some View {
-        NavigationSplitView {
-            sidebar
-        } detail: {
-            detail
-                .navigationTitle("Playground")
-                .navigationSubtitle((page ?? .appearance).title)
-                .toolbar { toolbar }
-                .inspector(isPresented: $showsExport) {
-                    PlaygroundExportView(model: model, appState: appState)
-                        .inspectorColumnWidth(min: 320, ideal: 420, max: 680)
+        content
+            .ignoresSafeArea()
+            .background(PlaygroundBackdrop())
+            .animation(.snappy(duration: 0.3), value: showsCode)
+            .alert(
+                "Playground",
+                isPresented: Binding(
+                    get: { model.alertMessage != nil },
+                    set: { if !$0 { model.alertMessage = nil } }
+                )
+            ) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(model.alertMessage ?? "")
+            }
+    }
+
+    private var content: some View {
+        HStack(spacing: 12) {
+            PlaygroundSidebar(page: $page, model: model, appState: appState)
+                .frame(width: 208)
+            pageView
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .overlay(alignment: .bottom) {
+                    ToastView(model: model)
                 }
+            if showsCode {
+                CodePanel(model: model, appState: appState)
+                    .frame(width: 380)
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
+            }
         }
-        .alert(
-            "Playground",
-            isPresented: Binding(
-                get: { model.alertMessage != nil },
-                set: { if !$0 { model.alertMessage = nil } }
-            )
-        ) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(model.alertMessage ?? "")
+        .padding(.horizontal, 12)
+        .padding(.top, titleBarHeight + 6)
+        .padding(.bottom, 12)
+        .overlay(alignment: .top) {
+            titleBar
+                .frame(height: titleBarHeight)
         }
     }
-
-    // MARK: Sidebar
-
-    private var sidebar: some View {
-        List(selection: $page) {
-            Section("Look") {
-                row(.appearance)
-                row(.theme)
-                row(.panel)
-                row(.typeAndMotion)
-            }
-            Section("Chrome") {
-                row(.topBar)
-                row(.companions)
-                row(.effects)
-                row(.behavior)
-            }
-            Section("Share") {
-                row(.presets)
-            }
-        }
-        .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 300)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            nookStatus
-        }
-    }
-
-    private func row(_ page: PlaygroundPage) -> some View {
-        Label {
-            HStack {
-                Text(page.title)
-                Spacer(minLength: 4)
-                if page.isModified(model.settings, appearance: appState.appearancePreferences) {
-                    Circle()
-                        .fill(.tint)
-                        .frame(width: 6, height: 6)
-                        .help("Changed from the defaults")
-                        .accessibilityLabel("Changed")
-                }
-            }
-        } icon: {
-            Image(systemName: page.systemImage)
-        }
-        .tag(page)
-    }
-
-    private var nookStatus: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(appState.isNookVisible ? Color.green : Color.secondary.opacity(0.5))
-                    .frame(width: 7, height: 7)
-                Text(appState.isNookVisible ? "Nook is expanded" : "Nook is collapsed")
-                    .font(.callout.weight(.medium))
-            }
-            // A line limit rather than an unbounded height: the split view measures the sidebar
-            // at tiny widths, where unbounded text wraps a word per line and props the window up
-            // to the height of the screen.
-            Text(
-                "Hover the notch or press \(appState.hotkey.display) to open it. "
-                    + "Keep Expanded holds it open while you work here."
-            )
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .lineLimit(4)
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.bar)
-    }
-
-    // MARK: Detail
 
     @ViewBuilder
-    private var detail: some View {
-        switch page ?? .appearance {
+    private var pageView: some View {
+        switch page {
             case .appearance: AppearancePage(model: model, appState: appState)
             case .theme: ThemePage(model: model, appState: appState)
             case .panel: PanelPage(model: model)
@@ -197,26 +146,17 @@ struct PlaygroundControlsView: View {
         }
     }
 
-    // MARK: Toolbar
-
-    @ToolbarContentBuilder
-    private var toolbar: some ToolbarContent {
-        ToolbarItem(placement: .primaryAction) {
-            Picker("Layout", selection: presentation) {
-                Text("Auto").tag(NookPresentation.auto)
-                Text("Notch").tag(NookPresentation.notch)
-                Text("Floating").tag(NookPresentation.floating)
-            }
-            .pickerStyle(.segmented)
-            .help("Where the nook sits: fused to the notch, floating below the menu bar, or chosen per display")
-        }
-        ToolbarItem(placement: .primaryAction) {
+    /// The strip beside the traffic lights: a drag area, with the window's actions on the right.
+    private var titleBar: some View {
+        HStack(spacing: 10) {
+            Spacer(minLength: 0)
             Toggle(isOn: keepsExpanded) {
-                Label("Keep Expanded", systemImage: appState.keepNookOpen ? "lock.fill" : "lock.open")
+                Label("Keep Open", systemImage: appState.keepNookOpen ? "lock.fill" : "lock.open")
             }
-            .help("Keep the nook expanded when the pointer leaves it")
-        }
-        ToolbarItem(placement: .primaryAction) {
+            .toggleStyle(TopPillToggleStyle())
+            .help(appState.keepNookOpen ? "Let the nook collapse again" : "Keep the nook expanded while you work")
+            .accessibilityIdentifier("toolbar.keepExpanded")
+
             Button {
                 if appState.isNookVisible {
                     model.collapseNook()
@@ -230,23 +170,24 @@ struct PlaygroundControlsView: View {
                         ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right"
                 )
             }
+            .buttonStyle(TopPillButtonStyle())
             .help(appState.isNookVisible ? "Collapse the nook" : "Expand the nook")
-        }
-        ToolbarItem(placement: .primaryAction) {
-            Button {
-                showsExport.toggle()
-            } label: {
-                Label("Export", systemImage: "chevron.left.forwardslash.chevron.right")
-            }
-            .help(showsExport ? "Hide the export" : "Show the Swift and JSON export")
-        }
-    }
+            .accessibilityIdentifier("toolbar.expand")
 
-    private var presentation: Binding<NookPresentation> {
-        Binding(
-            get: { appState.appearancePreferences.presentation },
-            set: { presentation in model.updateAppearance { $0.presentation = presentation } }
-        )
+            Toggle(isOn: $showsCode) {
+                Label("Code", systemImage: "chevron.left.forwardslash.chevron.right")
+            }
+            .toggleStyle(TopPillToggleStyle())
+            .help(showsCode ? "Hide the code" : "Show the code")
+            .accessibilityIdentifier("toolbar.code")
+        }
+        .padding(.horizontal, 18)
+        .frame(maxHeight: .infinity)
+        .background {
+            Color.clear
+                .contentShape(Rectangle())
+                .gesture(WindowDragGesture())
+        }
     }
 
     private var keepsExpanded: Binding<Bool> {
@@ -254,5 +195,113 @@ struct PlaygroundControlsView: View {
             get: { appState.keepNookOpen },
             set: { model.setKeepsNookExpanded($0) }
         )
+    }
+}
+
+/// The page list, floating on the backdrop.
+private struct PlaygroundSidebar: View {
+    @Binding var page: PlaygroundPage
+    @ObservedObject var model: PlaygroundModel
+    @ObservedObject var appState: AppState
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 2) {
+                ForEach(PlaygroundPage.Group.allCases) { group in
+                    Text(group.title)
+                        .font(PlaygroundTheme.caption)
+                        .foregroundStyle(.tertiary)
+                        .padding(.horizontal, 10)
+                        .padding(.top, group == .look ? 2 : 14)
+                        .padding(.bottom, 4)
+                        .accessibilityAddTraits(.isHeader)
+                    ForEach(group.pages) { item in
+                        row(item)
+                    }
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 14)
+        }
+        .scrollIndicators(.never)
+        .surface(PlaygroundTheme.panel, radius: PlaygroundTheme.panelRadius)
+        .focusable()
+        .focusEffectDisabled()
+        .onMoveCommand { direction in
+            let pages = PlaygroundPage.allCases
+            guard let index = pages.firstIndex(of: page) else { return }
+            switch direction {
+                case .up where index > 0: page = pages[index - 1]
+                case .down where index < pages.count - 1: page = pages[index + 1]
+                default: break
+            }
+        }
+    }
+
+    private func row(_ item: PlaygroundPage) -> some View {
+        let isSelected = item == page
+        let isModified = item.isModified(model.settings, appearance: appState.appearancePreferences)
+        return Button {
+            page = item
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: item.systemImage)
+                    .font(.system(size: 14, weight: .light))
+                    .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                    .frame(width: 20)
+                Text(item.title)
+                    .font(PlaygroundTheme.body)
+                    .lineLimit(1)
+                Spacer(minLength: 4)
+                if isModified {
+                    ModifiedDot()
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(HighlightRowButtonStyle(isSelected: isSelected))
+        .accessibilityIdentifier("page.\(item.rawValue)")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .contextMenu {
+            if item != .presets {
+                Button("Reset \(item.title)") { model.reset(item) }
+                    .disabled(!isModified)
+            }
+        }
+    }
+}
+
+/// The model's current confirmation, floating over the bottom of the page.
+private struct ToastView: View {
+    @ObservedObject var model: PlaygroundModel
+
+    var body: some View {
+        ZStack {
+            if let toast = model.toast {
+                HStack(spacing: 12) {
+                    Text(toast.message)
+                        .font(PlaygroundTheme.body)
+                        .lineLimit(1)
+                    if toast.canUndo {
+                        Button(action: model.undo) {
+                            Label("Undo", systemImage: "arrow.uturn.backward")
+                        }
+                        .buttonStyle(PillButtonStyle(kind: .primary))
+                    }
+                }
+                .padding(.leading, 16)
+                .padding(.trailing, toast.canUndo ? 6 : 16)
+                .padding(.vertical, 6)
+                .frame(minHeight: 36)
+                .background(.regularMaterial, in: Capsule())
+                .overlay { Capsule().strokeBorder(PlaygroundTheme.stroke) }
+                .shadow(color: .black.opacity(0.15), radius: 12, y: 4)
+                .padding(.bottom, 16)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.snappy(duration: 0.25), value: model.toast)
     }
 }

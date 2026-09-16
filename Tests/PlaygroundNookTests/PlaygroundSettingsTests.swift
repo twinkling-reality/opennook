@@ -48,6 +48,7 @@ final class PlaygroundSettingsTests: XCTestCase {
         XCTAssertEqual(topBar.showsSettingsButton, stock.topBar.showsSettingsButton)
         XCTAssertEqual(topBar.showsStatusBanner, stock.topBar.showsStatusBanner)
         XCTAssertEqual(topBar.width, stock.topBar.width)
+        XCTAssertEqual(topBar.notchClearance, stock.topBar.notchClearance)
         XCTAssertNil(topBar.leadingIcon)
     }
 
@@ -104,6 +105,7 @@ final class PlaygroundSettingsTests: XCTestCase {
         settings.topBar.showsKeepOpenButton = false
         settings.topBar.showsStatusBanner = false
         settings.topBar.width = .intrinsic
+        settings.topBar.notchClearance = .manual
         settings.topBar.leadingTitle = "Today"
         settings.topBar.leadingIcon = "sun.max"
         settings.rimGlow = PlaygroundSettings.RimGlow()
@@ -143,6 +145,7 @@ final class PlaygroundSettingsTests: XCTestCase {
         XCTAssertFalse(configuration.topBar.showsStatusBanner)
         XCTAssertTrue(configuration.topBar.showsSettingsButton)
         XCTAssertEqual(configuration.topBar.width, .intrinsic)
+        XCTAssertEqual(configuration.topBar.notchClearance, .manual)
         XCTAssertEqual(configuration.topBar.leadingTitle(AppState()), "Today")
         XCTAssertEqual(configuration.topBar.leadingIcon, "sun.max")
         XCTAssertEqual(configuration.rimGlow, NookRimGlowStyle(lineWidth: 3, followsAmbientColor: true))

@@ -16,80 +16,138 @@ struct PresetsPage: View {
     @ObservedObject var model: PlaygroundModel
     @State private var isConfirmingReset = false
 
+    private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
+
     var body: some View {
-        Form {
-            Section {
-                ForEach(PlaygroundPreset.samples) { sample in
-                    LabeledContent {
-                        Button("Apply") { model.apply(sample.preset) }
-                            .accessibilityLabel("Apply \(sample.name)")
+        PlaygroundPageView(page: .presets) {
+            VStack(alignment: .leading, spacing: 8) {
+                CardTitle(title: "Starting Points", help: "Applying one replaces every setting. You can undo it.") {
+                    EmptyView()
+                }
+                LazyVGrid(columns: columns, spacing: 12) {
+                    ForEach(PlaygroundPreset.samples) { sample in
+                        PresetTile(sample: sample) {
+                            model.apply(sample.preset, announcing: "Applied \(sample.name)")
+                        }
+                    }
+                }
+            }
+
+            SectionCard(title: "Share") {
+                ControlRow(
+                    title: "Swift",
+                    help: "What differs from the defaults, as a single-module NookConfiguration."
+                ) {
+                    Button {
+                        model.copySwift()
                     } label: {
-                        Text(sample.name)
-                        Text(sample.summary)
+                        Label("Copy", systemImage: "doc.on.doc")
                     }
+                    .buttonStyle(PillButtonStyle(kind: .primary))
                 }
-            } header: {
-                Text("Starting points")
-            } footer: {
-                SectionFooter(text: "Applying a preset replaces every setting and appearance preference.")
-            }
-
-            Section {
-                LabeledContent("Swift") {
-                    Button("Copy Swift", action: model.copySwift)
-                }
-                LabeledContent("JSON preset") {
-                    HStack {
-                        Button("Copy JSON", action: model.copyJSON)
-                        Button("Save JSON\u{2026}", action: model.saveJSON)
-                    }
-                }
-                LabeledContent("Open a preset") {
-                    HStack {
-                        Button("Paste JSON", action: model.pasteJSON)
-                        Button("Open JSON\u{2026}", action: model.openJSON)
-                    }
-                }
-                if let toast = model.toast {
-                    Text(toast)
-                        .foregroundStyle(.secondary)
-                }
-            } header: {
-                Text("Export and import")
-            } footer: {
-                SectionFooter(
-                    text: "The Swift sets only what differs from the defaults, for a single-module "
-                        + "NookConfiguration; replace the placeholder views with your own. A JSON preset holds "
-                        + "the same settings plus the appearance preferences, and opens here or with "
+                ControlRow(
+                    title: "Preset",
+                    help: "The settings and appearance as JSON. Open a file at launch with "
                         + "swift run PlaygroundNook --preset <file>."
-                )
+                ) {
+                    HStack(spacing: 8) {
+                        Button {
+                            model.copyJSON()
+                        } label: {
+                            Label("Copy", systemImage: "doc.on.doc")
+                        }
+                        Button(action: model.saveJSON) {
+                            Label("Save", systemImage: "square.and.arrow.down")
+                        }
+                    }
+                    .buttonStyle(PillButtonStyle())
+                }
+                ControlRow(title: "Import", help: "Apply a preset from the clipboard or a file. You can undo it.") {
+                    HStack(spacing: 8) {
+                        Button(action: model.pasteJSON) {
+                            Label("Paste", systemImage: "doc.on.clipboard")
+                        }
+                        Button(action: model.openJSON) {
+                            Label("Open", systemImage: "folder")
+                        }
+                    }
+                    .buttonStyle(PillButtonStyle())
+                }
             }
 
-            Section {
-                Button("Reset Everything\u{2026}", role: .destructive) {
-                    isConfirmingReset = true
+            SectionCard(title: "Reset") {
+                ControlRow(title: "Everything", help: "Every setting and appearance preference back to its default.") {
+                    Button {
+                        isConfirmingReset = true
+                    } label: {
+                        Label("Reset", systemImage: "arrow.counterclockwise")
+                    }
+                    .buttonStyle(PillButtonStyle(kind: .destructive))
                 }
-            } footer: {
-                SectionFooter(text: "Returns every setting and appearance preference to the framework default.")
             }
         }
-        .formStyle(.grouped)
         .confirmationDialog("Reset everything to the defaults?", isPresented: $isConfirmingReset) {
             Button("Reset Everything", role: .destructive, action: model.resetEverything)
         } message: {
-            Text("Your current settings are replaced. Copy or save them first to keep them.")
+            Text("You can undo it right after.")
         }
     }
 }
 
-// MARK: - Export inspector
+/// A built-in preset as a tile that applies it.
+private struct PresetTile: View {
+    let sample: PlaygroundPreset.Sample
+    let apply: () -> Void
 
-/// The live export beside the controls: the Swift snippet or the JSON preset.
-struct PlaygroundExportView: View {
+    var body: some View {
+        Button(action: apply) {
+            HStack(alignment: .center, spacing: 12) {
+                Image(systemName: symbol)
+                    .font(.system(size: 15, weight: .light))
+                    .foregroundStyle(.tint)
+                    .frame(width: 36, height: 36)
+                    .background(Circle().fill(PlaygroundTheme.controlFill))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(sample.name)
+                        .font(PlaygroundTheme.body)
+                    Text(sample.summary)
+                        .font(PlaygroundTheme.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(HighlightRowButtonStyle())
+        .surface()
+        .help("Apply \(sample.name)")
+        .accessibilityLabel("Apply \(sample.name)")
+        .accessibilityHint(sample.summary)
+    }
+
+    private var symbol: String {
+        switch sample.id {
+            case "media": "music.note"
+            case "glass": "drop"
+            case "glance": "rectangle.compress.vertical"
+            default: "circle.dashed"
+        }
+    }
+}
+
+// MARK: - Code panel
+
+/// The live export in a floating card beside the page: the Swift snippet or the JSON preset.
+struct CodePanel: View {
     @ObservedObject var model: PlaygroundModel
     /// Observed so the export follows appearance changes too.
     @ObservedObject var appState: AppState
     @State private var format = Format.swift
+    @State private var copiedFormat: Format?
+    @State private var copiedReset: Task<Void, Never>?
 
     enum Format: Hashable {
         case swift
@@ -98,36 +156,42 @@ struct PlaygroundExportView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker("Format", selection: $format) {
-                Text("Swift").tag(Format.swift)
-                Text("JSON").tag(Format.json)
+            HStack(spacing: 10) {
+                PillPicker(
+                    title: "Format",
+                    selection: $format,
+                    choices: [Choice(.swift, "Swift"), Choice(.json, "JSON")]
+                )
+                .frame(width: 128)
+                Spacer(minLength: 8)
+                Text("\(lineCount) lines")
+                    .font(PlaygroundTheme.caption.monospacedDigit())
+                    .foregroundStyle(.tertiary)
+                Button(action: copy) {
+                    Label(copyTitle, systemImage: copiedFormat == format ? "checkmark" : "doc.on.doc")
+                        .contentTransition(.symbolEffect(.replace))
+                }
+                .buttonStyle(IconButtonStyle(size: 26))
+                .help(copyTitle)
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .padding(12)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
 
-            Divider()
+            Rectangle()
+                .fill(PlaygroundTheme.hairline)
+                .frame(height: 1)
 
             CodeView(text: text, language: format == .swift ? .swift : .json)
                 .accessibilityLabel(format == .swift ? "Swift export" : "JSON preset")
-
-            Divider()
-
-            HStack(spacing: 8) {
-                Text(model.toast ?? caption)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                Spacer(minLength: 8)
-                Button(format == .swift ? "Copy Swift" : "Copy JSON") {
-                    if format == .swift {
-                        model.copySwift()
-                    } else {
-                        model.copyJSON()
-                    }
-                }
-            }
-            .padding(12)
+        }
+        .background(
+            RoundedRectangle(cornerRadius: PlaygroundTheme.panelRadius, style: .continuous)
+                .fill(PlaygroundTheme.codeBackground)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: PlaygroundTheme.panelRadius, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: PlaygroundTheme.panelRadius, style: .continuous)
+                .strokeBorder(PlaygroundTheme.stroke)
         }
     }
 
@@ -135,11 +199,27 @@ struct PlaygroundExportView: View {
         format == .swift ? model.swiftSnippet : model.presetJSON
     }
 
-    private var caption: String {
-        let lines = text.split(separator: "\n", omittingEmptySubsequences: false).count - 1
-        return format == .swift
-            ? "\(lines) lines. Only values that differ from the defaults are set."
-            : "\(lines) lines. Save it, or paste it into another playground."
+    private var lineCount: Int {
+        text.split(separator: "\n", omittingEmptySubsequences: false).count - 1
+    }
+
+    private var copyTitle: String {
+        format == .swift ? "Copy the Swift" : "Copy the JSON"
+    }
+
+    private func copy() {
+        if format == .swift {
+            model.copySwift(announcing: false)
+        } else {
+            model.copyJSON(announcing: false)
+        }
+        copiedFormat = format
+        copiedReset?.cancel()
+        copiedReset = Task {
+            try? await Task.sleep(for: .seconds(1.5))
+            guard !Task.isCancelled else { return }
+            copiedFormat = nil
+        }
     }
 }
 
@@ -164,9 +244,10 @@ struct CodeView: NSViewRepresentable {
         textView.isEditable = false
         textView.isSelectable = true
         textView.isRichText = false
-        textView.drawsBackground = true
-        textView.backgroundColor = .textBackgroundColor
-        textView.textContainerInset = NSSize(width: 8, height: 10)
+        // The card behind it provides the background.
+        scrollView.drawsBackground = false
+        textView.drawsBackground = false
+        textView.textContainerInset = NSSize(width: 12, height: 12)
         textView.isHorizontallyResizable = true
         textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         textView.textContainer?.widthTracksTextView = false

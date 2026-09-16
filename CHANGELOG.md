@@ -60,10 +60,10 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   tells content where the notch falls in its frame. See "Layout and content insets".
 - `Examples/PlaygroundNook` (`swift run PlaygroundNook`): a live customization
   playground. A controls window changes the running nook's appearance, theme, size
-  and shape, typography and motion, top bar, companion surfaces, rim glow, scroll
-  edge fade, and hover behavior, and exports the result as Swift that sets only
-  what differs from the defaults, or as a JSON preset it can open again
-  (`--preset <file>`). Its settings model and exporters are the tested
+  and shape, typography and motion, top bar and notch clearance, companion surfaces,
+  rim glow, scroll edge fade, and hover behavior, and exports the result as Swift
+  that sets only what differs from the defaults, or as a JSON preset it can open
+  again (`--preset <file>`). Its settings model and exporters are the tested
   `PlaygroundNookCore` target. New site guide: "Playground".
 
 ### Changed

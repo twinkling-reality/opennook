@@ -342,11 +342,17 @@ extension PlaygroundSettings {
         }
     }
 
-    /// `NookTopBarConfiguration`, minus the trailing items, which are host content.
+    /// `NookTopBarConfiguration`, minus the trailing items, which are host content, plus where
+    /// the home view puts its header.
     public struct TopBar: Equatable, Sendable {
         public enum Width: String, Codable, CaseIterable, Sendable {
             case contentColumn
             case intrinsic
+        }
+
+        public enum NotchClearance: String, Codable, CaseIterable, Sendable {
+            case automatic
+            case manual
         }
 
         public var showsTopBar = TopBar.base.showsTopBar
@@ -355,6 +361,10 @@ extension PlaygroundSettings {
         public var showsSettingsButton = TopBar.base.showsSettingsButton
         public var showsStatusBanner = TopBar.base.showsStatusBanner
         public var width: Width = .contentColumn
+        public var notchClearance: NotchClearance = .automatic
+        /// Whether the home view's header goes beside the notch, with
+        /// `nookNotchAccessories(leading:trailing:)`, rather than in the content.
+        public var notchAccessories = false
         /// The framework's default title, restated because it is only reachable through a
         /// closure that takes an `AppState`.
         public var leadingTitle = "Home"
@@ -375,6 +385,11 @@ extension PlaygroundSettings {
                 switch width {
                     case .contentColumn: .contentColumn
                     case .intrinsic: .intrinsic
+                }
+            topBar.notchClearance =
+                switch notchClearance {
+                    case .automatic: .automatic
+                    case .manual: .manual
                 }
             if leadingTitle != TopBar().leadingTitle {
                 let title = leadingTitle
@@ -776,6 +791,8 @@ extension PlaygroundSettings.TopBar: Codable {
         showsSettingsButton = try container.value(.showsSettingsButton, or: fallback.showsSettingsButton)
         showsStatusBanner = try container.value(.showsStatusBanner, or: fallback.showsStatusBanner)
         width = try container.value(.width, or: fallback.width)
+        notchClearance = try container.value(.notchClearance, or: fallback.notchClearance)
+        notchAccessories = try container.value(.notchAccessories, or: fallback.notchAccessories)
         leadingTitle = try container.value(.leadingTitle, or: fallback.leadingTitle)
         leadingIcon = try container.decodeIfPresent(String.self, forKey: .leadingIcon)
     }

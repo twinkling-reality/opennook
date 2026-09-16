@@ -22,26 +22,33 @@ final class PlaygroundControlsWindowController: NSWindowController, NSWindowDele
         let hostingController = NSHostingController(
             rootView: PlaygroundControlsView(model: model, appState: appState)
         )
-        // Lets the SwiftUI toolbar and inspector become the window's own.
-        hostingController.sceneBridgingOptions = [.toolbars]
+        // The window's actions are drawn by the page itself, so nothing is bridged to AppKit.
+        hostingController.sceneBridgingOptions = []
         // Otherwise the window takes the forms' ideal height, which can be taller than the screen.
         hostingController.sizingOptions = []
         // The window takes its content size from this frame when the controller is installed.
-        hostingController.view.frame = NSRect(x: 0, y: 0, width: 1040, height: 700)
+        hostingController.view.frame = NSRect(origin: .zero, size: Self.defaultSize)
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 1040, height: 700),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            contentRect: NSRect(origin: .zero, size: Self.defaultSize),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
         window.contentViewController = hostingController
         window.title = "OpenNook Playground"
+        // A see-through title bar with an empty toolbar, which makes the strip tall enough for
+        // the traffic lights and the window's own buttons to sit clear of the cards below.
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.titlebarSeparatorStyle = .none
+        window.toolbar = NSToolbar(identifier: "PlaygroundNook.Controls")
         window.toolbarStyle = .unified
         // The nook shows on every space, including beside a full-screen app, so the window that
         // edits it comes to whichever space it is opened from.
         window.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
-        window.minSize = NSSize(width: 760, height: 520)
+        // Room for the sidebar, a page, and the code beside it.
+        window.minSize = NSSize(width: 1000, height: 560)
         window.isReleasedWhenClosed = false
         window.center()
         // Restores the frame from the last run, when there is one, and saves it from now on.
@@ -49,9 +56,25 @@ final class PlaygroundControlsWindowController: NSWindowController, NSWindowDele
         window.setFrameAutosaveName(Self.frameName)
         super.init(window: window)
         window.delegate = self
+        hostingController.rootView = PlaygroundControlsView(
+            model: model,
+            appState: appState,
+            titleBarHeight: Self.titleBarHeight(of: window)
+        )
     }
 
-    private static let frameName = "PlaygroundNook.Controls"
+    private static let defaultSize = NSSize(width: 1240, height: 780)
+
+    /// A strip centered on the traffic lights, so the window's own buttons can share their line.
+    private static func titleBarHeight(of window: NSWindow) -> CGFloat {
+        window.layoutIfNeeded()
+        guard let closeButton = window.standardWindowButton(.closeButton) else {
+            return window.frame.height - window.contentLayoutRect.height
+        }
+        let buttonFrame = closeButton.convert(closeButton.bounds, to: nil)
+        return ((window.frame.height - buttonFrame.midY) * 2).rounded()
+    }
+    private static let frameName = "PlaygroundNook.ControlsWindow"
 
     @available(*, unavailable)
     required init?(coder: NSCoder) {
