@@ -16,8 +16,10 @@ import Foundation
 ///
 /// A module is built by its factory with an isolated ``NookModuleContext``; conventionally
 /// it captures the context and persists through `context.defaults` / `context.containerURL`.
-/// ``onActivate()`` / ``onDeactivate()`` bracket the spans where the module is the
-/// foreground module filling the surface.
+/// ``onActivate()`` / ``onDeactivate()`` mark module switches: a switch deactivates the
+/// outgoing module and activates the incoming one. The module the host launches with is
+/// constructed already in the foreground and gets no ``onActivate()``, so work it runs while
+/// in the foreground starts in its initializer as well (see ``onActivate()``).
 @MainActor
 public protocol NookModule: AnyObject {
     /// The module's registration-time identity. Must equal the descriptor it was
@@ -25,12 +27,24 @@ public protocol NookModule: AnyObject {
     var descriptor: NookModuleDescriptor { get }
 
     /// Builds the surface configuration - home/compact content, theme, chrome opt-outs,
-    /// lifecycle hooks. Called when the module becomes active; the result is cached by
-    /// the host until the next activation.
+    /// lifecycle hooks. Called when the module becomes active, including for the launch
+    /// module right after it is constructed; the result is cached by the host until the
+    /// next activation.
     func makeConfiguration() -> NookConfiguration
 
-    /// Called when the module becomes the foreground module. The surface is about to
-    /// show this module's content.
+    /// Called when a module switch makes this module the foreground module. The surface is
+    /// about to show this module's content.
+    ///
+    /// Not called for the module the host launches with: that module is constructed as the
+    /// foreground module, so there is no switch to report. Start launch-time work (a timer,
+    /// an observer) in the module's initializer too, and make this method safe to call
+    /// while that work is already running:
+    ///
+    /// ```swift
+    /// init() { startTimer() }
+    /// func onActivate() { startTimer() }     // no-op when already running
+    /// func onDeactivate() { stopTimer() }
+    /// ```
     func onActivate()
 
     /// Called when the user switches away. The module's content is no longer on the
@@ -49,10 +63,10 @@ public protocol NookModule: AnyObject {
     func prepareForSwitchAway() async
 }
 
-public extension NookModule {
-    func onActivate() {}
-    func onDeactivate() {}
-    func prepareForSwitchAway() async {}
+extension NookModule {
+    public func onActivate() {}
+    public func onDeactivate() {}
+    public func prepareForSwitchAway() async {}
 }
 
 /// Adapts a plain ``NookConfiguration`` into a ``NookModule``.

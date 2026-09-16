@@ -367,6 +367,32 @@ final class ActivityModule: NookModule {
 and teardown (start/stop timers, attach/detach observers). Anything that has
 to *join* in-flight work belongs in `prepareForSwitchAway`.
 
+`onActivate` reports a switch, so the module the host launches with never gets
+one: it is constructed already in the foreground, and the framework only calls
+its `makeConfiguration()`. Start launch-time work in the module's initializer as
+well, and let `onActivate` start it again only when it is not already running:
+
+```swift
+@MainActor
+final class TickerModule: NookModule {
+    private var timer: Timer?
+
+    init() { startTimer() }                  // the launch module gets no onActivate
+    func onActivate() { startTimer() }       // later switches back to this module
+    func onDeactivate() {
+        timer?.invalidate()
+        timer = nil
+    }
+
+    private func startTimer() {
+        guard timer == nil else { return }
+        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in /* tick */ }
+    }
+}
+```
+
+`Examples/ActivityNook` starts its sample-activity timer this way.
+
 ### Background policy
 
 `NookModuleDescriptor.backgroundPolicy` controls what happens to a module on
