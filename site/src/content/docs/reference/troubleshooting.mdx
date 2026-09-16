@@ -39,6 +39,13 @@ removes the whole bar (gear included). Settings stays reachable from the
 menu-bar fallback unless `showsSettings` is off. (See
 [Settings chrome](/guides/settings-chrome/).)
 
+## Content is hidden behind the notch
+
+With `topBar.notchClearance` set to `.manual`, content starts at the top of the panel,
+where the notch covers the middle of it. Leave it at `.automatic` to start below the
+notch, and use `nookNotchAccessories(leading:trailing:)` for icons that belong beside it.
+(See [Layout and content insets](/guides/layout-and-insets/#clearing-the-notch).)
+
 ## The file shelf is empty after a relaunch
 
 Under the App Sandbox a lost security-scoped grant can make the shelf look empty;

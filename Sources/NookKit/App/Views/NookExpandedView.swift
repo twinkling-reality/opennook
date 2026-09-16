@@ -75,6 +75,10 @@ public struct NookExpandedView: View {
     /// own frame, not the outer one.
     @Environment(\.nookContentInsets) private var outerContentInsets
 
+    /// The notch relative to this view's outer frame, re-injected relative to the column and
+    /// to the content the same way as the insets.
+    @Environment(\.nookNotchCutout) private var outerNotchCutout
+
     public init(
         appState: AppState,
         services: AppServices,
@@ -133,6 +137,47 @@ public struct NookExpandedView: View {
         NookContentInsets(top: columnGutter.top, bottom: columnGutter.bottom)
     }
 
+    /// The notch relative to the column, which sits inside the edge padding and, for
+    /// ``NookTopBarConfiguration/Width/contentColumn``, the column gutter.
+    private var columnNotchCutout: NookNotchCutout {
+        let gutter = topBar.width == .contentColumn ? columnGutter : .zero
+        return outerNotchCutout.insetBy(
+            top: metrics.edgePadding,
+            leading: metrics.edgePadding + gutter.leading,
+            trailing: metrics.edgePadding + gutter.trailing
+        )
+    }
+
+    private var notchLayout: NookNotchLayout {
+        NookNotchLayout.resolve(
+            clearance: topBar.notchClearance,
+            band: columnNotchCutout.isEmpty ? 0 : columnNotchCutout.height,
+            showsTopBar: topBar.showsTopBar,
+            spacing: metrics.expandedColumnSpacing
+        )
+    }
+
+    /// The notch relative to the home and Settings content. Below the top bar it is measured
+    /// from the bar's bottom edge; the transient status banner is left out, so the value can
+    /// only overstate how far the notch reaches.
+    private var contentNotchCutout: NookNotchCutout {
+        let layout = notchLayout
+        guard topBar.showsTopBar else {
+            return columnNotchCutout.insetBy(top: layout.contentTopPadding)
+        }
+        return columnNotchCutout.insetBy(
+            top: max(metrics.topBarHeight, layout.topBarMinHeight) + metrics.expandedColumnSpacing
+        )
+    }
+
+    /// The band left free above the content while the top bar is hidden, for
+    /// `nookNotchAccessories(leading:trailing:)`.
+    private var contentNotchBand: NookNotchBand {
+        let layout = notchLayout
+        guard !topBar.showsTopBar, layout.contentTopPadding > 0 else { return .none }
+        return NookNotchBand(reservedHeight: layout.contentTopPadding, cutout: columnNotchCutout)
+    }
+
     public var body: some View {
         expandedColumn
             .frame(width: width)
@@ -167,6 +212,7 @@ public struct NookExpandedView: View {
         let stack = VStack(alignment: .leading, spacing: metrics.expandedColumnSpacing) {
             if topBar.showsTopBar {
                 topBarRow
+                    .frame(minHeight: notchLayout.topBarMinHeight)
 
                 if topBar.showsStatusBanner {
                     NookTransientStatusBanner(appState: appState, theme: resolvedTheme)
@@ -194,6 +240,10 @@ public struct NookExpandedView: View {
                         )
                 }
             }
+            // Inside the clip, so views drawn into the band above the content stay visible.
+            .padding(.top, notchLayout.contentTopPadding)
+            .environment(\.nookNotchCutout, contentNotchCutout)
+            .environment(\.nookNotchBand, contentNotchBand)
             .frame(maxWidth: .infinity, alignment: .leading)
             .clipped()
             .animation(motion.viewModeChange, value: appState.viewMode)
@@ -204,9 +254,11 @@ public struct NookExpandedView: View {
                 .padding(.leading, columnGutter.leading)
                 .padding(.trailing, columnGutter.trailing)
                 .environment(\.nookContentInsets, verticalContentInsets)
+                .environment(\.nookNotchCutout, columnNotchCutout)
         } else {
             stack
                 .environment(\.nookContentInsets, columnGutter)
+                .environment(\.nookNotchCutout, columnNotchCutout)
         }
     }
 

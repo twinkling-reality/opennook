@@ -52,6 +52,8 @@ Expanded layout stacks three responsibilities:
 | `NookStyle.expandedContentInsets` | NookSurface | Per-edge `.safeAreaInset` strip the chrome reserves around expanded content. Default: top `0`, other edges `8`. |
 | `NookStyle.topCornerRadius` / `bottomCornerRadius` | NookSurface | Panel corner radii; drive clip shape and `nookContentInsets` derivation. |
 | `EnvironmentValues.nookContentInsets` | Surface -> host | Residual curve clearance **relative to the host content frame**. Use for edge/corner-pinned layout - not as a substitute for centering. |
+| `NookTopBarConfiguration.notchClearance` | NookKit | Whether expanded content starts below the hardware notch (`.automatic`, the default) or may run up beside it (`.manual`). See [Clearing the notch](#clearing-the-notch). |
+| `EnvironmentValues.nookNotchCutout` | Surface -> host | Where the hardware notch falls in the host content frame. `.none` in the floating form. |
 
 `expandedContentInsets` and `edgePadding` both default to **8 pt** on the sides for
 historical parity, but they are **independent knobs** on different layers.
@@ -185,6 +187,74 @@ VStack { … }
 If the panel feels narrower than the glass, check for fixed horizontal padding on
 the registered home view before tuning `expandedWidth`.
 
+## Clearing the notch
+
+In the notch form the panel's top edge is the top of the screen, so the camera housing
+covers the middle of a band across the top of the expanded content. The top bar fills
+that band: its title sits left of the notch, and the lock and gear sit right of it.
+Anything else drawn in the middle of the band is hidden.
+
+`NookTopBarConfiguration.notchClearance` decides what the content does about it:
+
+| Value | Top bar showing | Top bar hidden |
+|-------|-----------------|----------------|
+| `.automatic` (default) | The bar grows to fill the band when the notch is taller than `metrics.topBarHeight`. | The content starts where it would below the bar. The band stays empty, apart from views placed there with `nookNotchAccessories(leading:trailing:)`. |
+| `.manual` | The content starts right below the bar. | The content starts at the top of the panel, beside and under the notch. Lay it out around the notch yourself. |
+
+The floating form has no notch, so both values lay out the same there.
+
+### Views beside the notch
+
+Apply `nookNotchAccessories(leading:trailing:)` to the outermost view of your home
+view's body to put small views, such as icons and buttons, on either side of the notch:
+
+```swift
+struct PlayerHome: View {
+    var body: some View {
+        PlayerView()
+            .nookNotchAccessories {
+                Image(systemName: "music.note")
+            } trailing: {
+                NookKeepOpenButton()
+            }
+    }
+}
+
+var configuration = NookConfiguration()
+configuration.topBar.showsTopBar = false
+configuration.setHome { PlayerHome() }
+```
+
+With `.automatic` the accessories take the band and the rest of the view starts below
+the notch. With `.manual` they fill the band at the top of the view and the content
+follows them. Where there is no band to take, below the top bar or in the floating form,
+they are the view's first row. The modifier goes inside a view type because
+`setHome(_:)` takes a `Sendable` view, which a modified view is not.
+
+Each side only gets the width between the content's edge and the notch: about 150 pt at
+the default 520 pt width, and about 80 pt at 380 pt, beside a 185 pt notch. Wrap a label
+in `ViewThatFits` to fall back to an icon when it does not fit, as
+`Examples/PlaygroundNook` does.
+
+### Laying out around the notch yourself
+
+`@Environment(\.nookNotchCutout)` describes the notch relative to the view that reads
+it: its `width`, how far it reaches down into the frame (`height`), and how far its center
+sits from the frame's center (`centerOffset`). It is `.none` in the floating form.
+`NookNotchRow` uses it to split a row around the notch:
+
+```swift
+NookNotchRow {
+    Label("Today", systemImage: "sun.max")
+} trailing: {
+    Button("Refresh", systemImage: "arrow.clockwise", action: refresh)
+}
+```
+
+Like `nookContentInsets`, the value is relative to the reading view's frame. A wrapper
+that pads its content should re-inject an adjusted copy made with
+`insetBy(top:leading:trailing:)`.
+
 ## See also
 
 - `Examples/LayoutNook/main.swift` - working 600 pt host with trimmed bottom inset
@@ -197,3 +267,5 @@ the registered home view before tuning `expandedWidth`.
   list layout inside the framework.
 - `Tests/NookKitTests/NookContentInsetsTests.swift` - executable spec for inset
   derivation math.
+- `Tests/NookKitTests/NookNotchClearanceTests.swift` - where the content, the top bar,
+  and notch accessories land around the notch.
