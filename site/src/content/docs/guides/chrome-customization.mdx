@@ -336,6 +336,12 @@ widths. Keep these to compact glyph-style buttons matching the lock and gear
 weight - not wide labeled pills. Leaving `trailingItems` unset reproduces the
 framework chrome exactly: just the lock and gear.
 
+The lock and gear themselves can leave the bar: `topBar.showsKeepOpenButton` and
+`topBar.showsSettingsButton` remove them without removing their features, and
+`NookKeepOpenButton`, `NookSettingsButton`, and `\.nookChromeActions` put them
+anywhere else - see [Moving the lock and
+gear](/guides/companion-surfaces/#moving-the-lock-and-gear).
+
 ## Top-bar width: `.contentColumn`
 
 `topBar.width` controls how the icon row spans the expanded content column. It
@@ -397,6 +403,9 @@ its own banner can read the message and severity directly from
 
 ## See also
 
+- [Companion surfaces](/guides/companion-surfaces/) and [Rim glow and edge
+  fade](/guides/panel-effects/) - the configuration seams that float host views
+  beside the nook and add effects to the panel itself.
 - `Examples/ChromeNook/main.swift` - the working example this guide mirrors:
   launch defaults, chrome behavior, labels/metrics/motion, a custom brand mark,
   trailing items, and the status banner in one host.

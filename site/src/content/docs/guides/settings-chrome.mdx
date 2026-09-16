@@ -18,6 +18,10 @@ configuration.topBar.leadingIcon = "house"  // SF Symbol override; nil keeps the
 // Chrome flags.
 configuration.topBar.showsTopBar = true   // false strips top bar + gear + lock
 configuration.topBar.showsSettings = true // false drops the gear (top bar stays)
+
+// Move the lock or the gear somewhere else, keeping the feature.
+configuration.topBar.showsKeepOpenButton = true  // false takes the lock out of the bar
+configuration.topBar.showsSettingsButton = true  // false takes the gear out of the bar
 ```
 
 ## `showsTopBar`
@@ -32,6 +36,23 @@ When `false`, the top bar remains (so the lock and any leading identity are
 still visible) but the gear is removed. Use this when you ship without
 exposing the framework's Settings panels.
 
+## `showsKeepOpenButton` / `showsSettingsButton`
+
+Each removes one glyph from the top bar *without* removing its feature. Keep-open
+stays in Settings and the menu bar, and Settings stays reachable from the menu bar
+and `AppCoordinator.showSettings()`. Use them to show the controls somewhere else -
+typically in a [companion surface](/guides/companion-surfaces/#moving-the-lock-and-gear)
+with the framework's `NookKeepOpenButton` and `NookSettingsButton`, or in your own
+controls through the `\.nookChromeActions` environment value:
+
+```swift
+configuration.topBar.showsKeepOpenButton = false
+configuration.topBar.showsSettingsButton = false
+configuration.addCompanion(id: "chrome-controls", anchor: .trailing, hidesInSettings: false) {
+    ChromeControls()  // a VStack of NookKeepOpenButton() and NookSettingsButton()
+}
+```
+
 ## `topBar.leadingTitle` / `topBar.leadingIcon`
 
 The leading cluster is the home glyph plus a label on the home surface. Both
@@ -44,6 +65,8 @@ if you want a title-only cluster with no icon override.
 
 ## See also
 
+- [Companion surfaces](/guides/companion-surfaces/) - floating the lock and gear, or
+  any host control, beside the nook.
 - [Theming](/guides/theming/#custom-settings-surface) - replace the built-in
   Settings screen with `setSettings(_:)`, the companion to `showsSettings`.
 - [Your first nook](/start/first-nook/#2-customize-via-nookconfiguration) - where

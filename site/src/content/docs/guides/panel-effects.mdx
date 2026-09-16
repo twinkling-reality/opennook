@@ -1,0 +1,150 @@
+---
+title: Rim glow and edge fade
+description: Light a glowing rim around the panel to signal state, and soften scrolling content where it meets the panel's edges
+---
+
+Two opt-in effects for the panel itself. The **rim glow** lights the chrome's edge
+in a color your content chooses - blue while work is running, say - so the user
+catches the state at the edge of vision. The **scroll edge fade** softens
+scrolling content where it meets the panel's edges instead of cutting it off.
+
+Both are off until you opt in, and both work in the notch, floating, and auto
+layouts. `Examples/CompanionNook/main.swift` uses both: its rim glows blue while
+the sleep timer runs, and its Up Next and Library lists fade at the edges.
+
+## Rim glow
+
+The rim is two layers: a crisp line traced just inside the chrome's edge, and a
+soft halo that spills past it and slowly breathes.
+
+### Lighting it
+
+Publish a color from your content with `nookRimGlow(_:)`; publish `nil` to turn it
+off:
+
+```swift
+struct SyncStatus: View {
+    @ObservedObject var sync: SyncModel
+
+    var body: some View {
+        SyncBadge(sync: sync)
+            .nookRimGlow(sync.isRunning ? .blue : nil)
+    }
+}
+```
+
+This is the same seam as the ambient wash (`nookAmbientColor(_:)`, backed by
+`NookAmbientColorPreferenceKey`): content publishes a color through a SwiftUI
+preference, `NookRimGlowPreferenceKey`, and the surface draws it without knowing
+why it was chosen. When several views publish, the last non-nil color wins.
+
+One difference matters. The ambient wash is read from expanded content only; the
+rim is read from **everything the chrome hosts** - the compact slots, the expanded
+content, and every [companion surface](/guides/companion-surfaces/) - because a
+state signal must survive the nook collapsing. Publish from both your compact and
+expanded content, or from a companion, whose content stays mounted in both states.
+
+### Styling it
+
+`NookConfiguration.rimGlow` sets the look; the defaults are shown:
+
+```swift
+configuration.rimGlow = NookRimGlowStyle(
+    lineWidth: 1.5,             // the crisp line inside the edge
+    glowRadius: 8,              // the halo's blur; 0 draws the line alone
+    intensity: 0.9,             // 0...1 peak strength
+    pulses: true,               // the halo breathes while lit
+    followsAmbientColor: false  // see below
+)
+```
+
+With `followsAmbientColor: true`, the rim takes the ambient wash color whenever no
+content publishes a rim color, so a host that tints its surface gets a matching
+edge. It is off by default, so a host already using the ambient wash never gains a
+rim it did not ask for.
+
+### Accessibility
+
+The rim adapts to the user's settings on its own:
+
+| Setting | Rim |
+|---|---|
+| Reduce Motion | The halo stays lit but stops breathing. Colors cross-fade without motion. |
+| Increase Contrast | No soft halo and no breathing; the line is drawn twice as heavy and fully opaque. |
+| Reduce Transparency | No translucent halo; the line stays. |
+
+### Notch and floating
+
+In the notch layout the chrome's top edge is fused with the menu bar and the
+hardware notch, so the rim fades out across that band and rises out of the menu
+bar instead of outlining it; the compact pill glows mostly along its bottom edge.
+The floating panel glows all the way around.
+
+The rim is drawn by the surface for the chrome itself. Companion surfaces do not
+glow, but they can light the chrome's rim.
+
+## Scroll edge fade
+
+### Turning it on for the panel
+
+Set the fade once on the configuration:
+
+```swift
+configuration.scrollEdgeFade = .standard  // every edge, 20 pt deep
+```
+
+The framework's own scroll views follow it - the built-in Settings screen and the
+`NookComponents` [file shelf](/guides/file-shelf/) - and yours do too once you mark
+them with `nookScrollEdgeFade(axes:)`:
+
+```swift
+ScrollView {
+    LazyVStack { rows }
+}
+.nookScrollEdgeFade(axes: .vertical)
+
+ScrollView(.horizontal) {
+    HStack { chips }
+}
+.nookScrollEdgeFade(axes: .horizontal)
+```
+
+A scroll view only fades the edges along its own scroll axes, and does nothing
+while the panel's fade is off - so the modifier is safe to leave in place.
+
+### One scroll view on its own
+
+To fade a single scroll view regardless of the panel setting, pass a fade
+directly:
+
+```swift
+ScrollView { rows }
+    .nookScrollEdgeFade(NookScrollEdgeFade(edges: .bottom, length: 28))
+```
+
+`NookScrollEdgeFade` has two fields: `edges` (default `.all`) and `length`, the
+depth of the fade in points (default 20).
+
+### How it is drawn
+
+- **macOS 26 and later, top and bottom edges** - Apple's soft scroll edge effect
+  (`scrollEdgeEffectStyle(.soft, for:)`). The system draws it only where content
+  scrolls under a bar, so the fade reserves a `safeAreaBar` of `length` on each
+  faded edge.
+- **macOS 26, leading and trailing edges, and every edge on macOS 15-25** - a
+  gradient mask. The system effect does not exist on earlier systems and is not
+  drawn for side edges.
+
+Either way, `length` is reserved as a content margin on each faded edge, so content
+at rest is never faded - only content that scrolls into the margin is. Like the
+Liquid Glass backdrop, the system path is gated at compile time as well as at run
+time, so the package still builds with an Xcode older than 26.
+
+## See also
+
+- [Companion surfaces](/guides/companion-surfaces/) - floating your own views beside
+  the nook, and a convenient place to light the rim from.
+- [Surface materials](/guides/surface-materials/) - the backdrop the rim is drawn
+  on.
+- `Sources/NookSurface/NookRimGlow.swift` and
+  `Sources/NookSurface/NookScrollEdgeFade.swift` - the types behind this guide.

@@ -153,13 +153,15 @@ jobs:
             fi
           done < <(find Sources Tests Examples App -name '*.swift' -not -path 'Sources/NookSurface/*' \
                    -not -path 'Tests/NookKitTests/NookSurfaceConcurrencyTests.swift' \
-                   -not -path 'Tests/NookKitTests/NookShapeTests.swift')
+                   -not -path 'Tests/NookKitTests/NookShapeTests.swift' \
+                   -not -path 'Tests/NookKitTests/NookCompanionSurfaceTests.swift')
 
-          # The two cross-boundary test files belong with NookSurface (MIT) because
-          # they @testable import it.
+          # The cross-boundary test files belong with NookSurface (MIT) because they
+          # @testable import it.
           for f in \
             Tests/NookKitTests/NookSurfaceConcurrencyTests.swift \
-            Tests/NookKitTests/NookShapeTests.swift; do
+            Tests/NookKitTests/NookShapeTests.swift \
+            Tests/NookKitTests/NookCompanionSurfaceTests.swift; do
             if [ -f "$f" ] && ! head -3 "$f" | grep -q 'SPDX-License-Identifier: MIT'; then
               echo "::error file=$f::missing 'SPDX-License-Identifier: MIT' header (cross-boundary test)"
               fail=1

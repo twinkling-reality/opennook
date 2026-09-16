@@ -82,6 +82,16 @@ protocol NookSurfaceDriving: AnyObject {
     /// Open/close/conversion animation curves.
     var transitionConfiguration: NookTransitionConfiguration { get set }
 
+    /// Host surfaces floated beside the chrome. Re-projected on a module switch, so the
+    /// outgoing module's companions leave with it.
+    var companions: [NookCompanionSurface] { get set }
+
+    /// How the chrome draws its rim glow. Re-projected on a module switch.
+    var rimGlowStyle: NookRimGlowStyle { get set }
+
+    /// The panel-wide scroll edge fade, or `nil` for none. Re-projected on a module switch.
+    var scrollEdgeFade: NookScrollEdgeFade? { get set }
+
     /// `true` while the chrome has a live `NSWindow` mounted. The coordinator uses
     /// this to decide whether a re-placement after a display change should reach
     /// for the surface or wait for the next expand/compact to rebuild.

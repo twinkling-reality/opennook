@@ -6,6 +6,42 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Companion surfaces - host views floated beside the nook. Register one with
+  `NookConfiguration.addCompanion(...)` (`NookCompanion`): anchor it below, leading,
+  or trailing the chrome with an alignment and spacing (`NookCompanionAnchor`),
+  show it in the compact state, the expanded state, or both
+  (`NookCompanionVisibility`), and pick its shape and backdrop
+  (`NookCompanionShape`, `NookCompanionBackdrop`). Companions render in the nook's
+  own panel, so they move with its expand and collapse in the notch, floating, and
+  auto layouts and on every display, share its backdrop (Liquid Glass included) and
+  palette, share one hover region with it, and never take focus from it or get in
+  the way of the global hotkey. Each carries an `opennook.companion.<id>`
+  accessibility identifier, and a module's companions leave the surface when it is
+  switched away. At the engine level: `Nook.companions` (`NookCompanionSurface`),
+  the `nookCompanionVisibility(_:)` / `nookCompanionHidden(_:)` modifiers, and
+  `\.nookCompanionIsPresented`.
+- Movable top bar controls: `NookTopBarConfiguration.showsKeepOpenButton` and
+  `showsSettingsButton` take the lock or the gear out of the top bar without
+  removing the feature, and `NookKeepOpenButton`, `NookSettingsButton`, and the
+  `\.nookChromeActions` environment value (`NookChromeActions`) put them anywhere
+  else, such as a companion surface.
+- Rim glow: `nookRimGlow(_:)` (`NookRimGlowPreferenceKey`) lights a glowing rim
+  around the chrome from any compact, expanded, or companion content - the rim's
+  counterpart to the ambient color seam, for signaling state such as blue while
+  work is running. Styled by `NookConfiguration.rimGlow` (`NookRimGlowStyle`,
+  `Nook.rimGlowStyle`), which can also follow the ambient color. Respects Reduce
+  Motion, Increase Contrast, and Reduce Transparency.
+- Scroll edge fade: `NookConfiguration.scrollEdgeFade` (`NookScrollEdgeFade`,
+  `Nook.scrollEdgeFade`) softens scrolling content where it meets the panel's
+  edges - Apple's soft scroll edge effect on macOS 26, a gradient mask on
+  macOS 15. The built-in Settings screen and the `NookComponents` shelf follow it;
+  host scroll views opt in with `nookScrollEdgeFade(axes:)`, or fade on their own
+  with `nookScrollEdgeFade(_:axes:)`.
+- `Examples/CompanionNook` (`swift run CompanionNook`), and the site guides
+  "Companion surfaces" and "Rim glow and edge fade".
+
 ### Changed
 
 - The GitHub repository moved to [twinkling-reality/opennook](https://github.com/twinkling-reality/opennook) (organization rename from `twinkling-reality`). Update your Swift package URL; GitHub redirects the old `twinkling-reality/opennook` path.
@@ -18,6 +54,9 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `chevron.right` separator and misread as browser back/forward buttons; the bar
   now reads as a breadcrumb (`[mark] > Settings`), and the glyph is still the
   click-to-go-back control with the same hover title reveal.
+- The notch panel grows downward when a companion surface hangs below the top half
+  of the screen. Without companions it keeps its size, and the file-drag region
+  stays the top half of the screen either way.
 
 ### Fixed
 

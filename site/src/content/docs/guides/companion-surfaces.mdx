@@ -1,0 +1,343 @@
+---
+title: Companion surfaces
+description: Float your own views beside the nook - an action pill below it, a round button beside it - anchored to the chrome and moving with it
+---
+
+A *companion surface* is a host view that floats outside the nook but belongs to
+it: a pill of actions under the expanded panel, a round button beside the compact
+pill, the framework's own lock and gear moved out of the top bar. You register one
+on `NookConfiguration` with any SwiftUI view, say where it hangs, and the framework
+does the rest:
+
+- it anchors the view to the chrome and keeps it there as the nook expands and
+  collapses, in the notch, floating, and auto layouts, on any display;
+- it paints the view with the chrome's backdrop - solid, translucent, or Liquid
+  Glass - and gives it the chrome's palette and environment;
+- it treats the chrome and its companions as one hover region, so moving the
+  pointer onto a companion never collapses the nook;
+- clicking a companion never takes focus from the nook or activates the app, and
+  the global hotkey keeps working;
+- it takes a module's companions off the surface when the module is switched away.
+
+The working example is `Examples/CompanionNook/main.swift`: a media player with a
+pill of three section buttons and a separate round sleep-timer button below it,
+and the lock and gear moved into a capsule beside it. Run it with
+`swift run CompanionNook`.
+
+## When to use one
+
+- **Controls that act on the home view but should not take its space** - section
+  tabs, quick actions, a "Show results" pill.
+- **A glance that stays beside the compact pill while something runs** - a timer,
+  a download, a recording indicator.
+- **The chrome's own controls, somewhere else** - see [Moving the lock and
+  gear](#moving-the-lock-and-gear).
+
+For a couple of glyphs that belong *in* the top bar, use
+`setTopBarTrailingItems` (see [Chrome
+customization](/guides/chrome-customization/#top-bar-trailing-items)). For an
+announcement that briefly takes over the panel, use the [activity
+queue](/guides/activity-queue/).
+
+## Minimal setup
+
+```swift
+import NookApp
+import SwiftUI
+
+var configuration = NookConfiguration()
+configuration.setHome { PlayerView() }
+configuration.addCompanion(id: "actions") { ActionPill() }
+NookApp.main(configuration)
+```
+
+With no other arguments the companion hangs centered below the expanded panel,
+8 pt under it, in a capsule painted with the chrome's backdrop, and steps aside
+while Settings is showing. Every argument has a default:
+
+```swift
+configuration.addCompanion(
+    id: "actions",                  // unique; keys hover and the accessibility identifier
+    anchor: .below,                 // .below, .leading, .trailing (+ alignment)
+    spacing: 8,                     // gap to the chrome, or to the companion before it
+    visibility: .expanded,          // .compact, .expanded, .both
+    shape: .capsule,                // .capsule, .circle, .roundedRectangle(cornerRadius:)
+    backdrop: .inherit,             // .inherit, .custom(NookBackdrop), .none
+    hidesInSettings: true,          // step aside while Settings fills the panel
+    accessibilityLabel: "Actions",  // read by VoiceOver before the contents
+    theme: nil                      // nil uses the configuration's theme
+) {
+    ActionPill()
+}
+```
+
+Registering two companions with the same `id` on one configuration traps: the id
+keys each companion's hover tracking and its accessibility identifier.
+
+## Placement
+
+### Anchor and alignment
+
+`NookCompanionAnchor` says which chrome edge a companion hangs from and where
+along that edge:
+
+| Anchor | Hangs | Alignment moves it |
+|---|---|---|
+| `.below` | under the bottom edge | left to right: `.start`, `.center`, `.end` |
+| `.leading` | beside the left edge | top to bottom: `.start`, `.center`, `.end` |
+| `.trailing` | beside the right edge | top to bottom: `.start`, `.center`, `.end` |
+
+The shorthands center on their edge; pass an alignment for the rest:
+
+```swift
+anchor: .below                      // centered under the panel
+anchor: .below(alignment: .end)     // under the panel, flush with its right side
+anchor: .trailing(alignment: .start) // beside the panel, level with its top
+```
+
+Placement is measured from the chrome's *body* - the visible panel - not from the
+notch ears that flare into the menu bar, so the gap you ask for is the gap the user
+sees in both the notch and the floating layout.
+
+### Rows and spacing
+
+Companions that share an anchor form one row, in registration order. A `.below`
+row runs left to right under the chrome; a `.leading` or `.trailing` row runs
+outward, the first companion nearest the chrome.
+
+`spacing` is the gap between a companion and whatever is on its chrome side: the
+chrome itself, or the companion before it in the row. A `.below` companion uses it
+both for its drop under the chrome and for its gap to its left neighbour. The
+media player's two companions share the `.below` row:
+
+```swift
+configuration.addCompanion(id: "sections", spacing: 10) {
+    MediaSectionsPill(player: player)
+}
+configuration.addCompanion(id: "sleep-timer", spacing: 10, visibility: .both, shape: .circle) {
+    SleepTimerButton(player: player)
+}
+```
+
+Only companions that are shown take up room in a row, so a hidden companion never
+leaves a hole.
+
+### Presentation modes and displays
+
+Companions are laid out against the chrome's own frame inside the chrome's own
+panel, so they follow it through `NookPresentation` - `.notch`, `.floating`, and
+`.auto` - and onto whichever display the user picks, with nothing to re-anchor.
+
+The panel normally covers the top half of the screen. When a companion hangs lower
+than that - a tall expanded surface on a small display, say - the panel grows
+downward to fit it, top edge pinned. The file-drag region stays the top half of the
+screen it has always been.
+
+## Visibility
+
+`visibility` is the set of nook states a companion is shown in:
+
+- `.expanded` (the default) - beside the expanded panel;
+- `.compact` - beside the compact pill;
+- `.both` - in both states.
+
+A companion that is not shown in the current state stays mounted and folds into
+the chrome edge it hangs from, so it grows out of the panel as the nook expands and
+folds back in as it collapses, on the same animation. Because the content stays
+mounted, read `\.nookCompanionIsPresented` to pause timers or animations while it
+is folded away:
+
+```swift
+struct LiveGlance: View {
+    @Environment(\.nookCompanionIsPresented) private var isPresented
+
+    var body: some View {
+        Waveform(isAnimating: isPresented)
+    }
+}
+```
+
+### Showing and hiding from inside
+
+The registered visibility is the most a companion can be shown. Its content can
+narrow that at runtime with `nookCompanionVisibility(_:)`, or hide it entirely with
+`nookCompanionHidden(_:)`; the change animates like a chrome state change. The
+media player's sleep-timer button is registered for `.both` and stays beside the
+compact pill only while its timer runs:
+
+```swift
+struct SleepTimerButton: View {
+    @ObservedObject var player: MediaPlayer
+
+    var body: some View {
+        Button { player.toggleSleepTimer() } label: { TimerGlyph(player: player) }
+            .buttonStyle(.plain)
+            .nookCompanionVisibility(player.isSleepTimerRunning ? .both : .expanded)
+    }
+}
+```
+
+A "Show results" pill that appears once there are results is
+`.nookCompanionHidden(results.isEmpty)`.
+
+### Settings
+
+While the built-in Settings screen fills the expanded panel, companions with
+`hidesInSettings: true` (the default) step aside - they usually act on the home
+view that Settings replaces. The compact state is unaffected. Pass `false` for a
+companion that should stay, such as one holding the gear.
+
+## Look
+
+### Shape
+
+`shape` is the outline the companion is filled and hit-tested with:
+
+- `.capsule` (the default) - a pill;
+- `.circle` - the companion is squared to its content's larger dimension, so
+  size the content square;
+- `.roundedRectangle(cornerRadius:)` - a card.
+
+The content is not clipped to the shape, so a badge can overhang the edge. Pad
+your content for the shape you pick; the framework adds no padding of its own.
+
+### Backdrop
+
+`backdrop` decides what is painted behind the content:
+
+- `.inherit` (the default) - the chrome's current backdrop, so the companion
+  follows the user's surface style (solid, translucent, or Liquid Glass) and
+  Reduce Transparency along with the panel;
+- `.custom(NookBackdrop)` - a backdrop of its own, for example
+  `.custom(.solid(.accentColor))`;
+- `.none` - nothing; the content draws its own background.
+
+### Theme and environment
+
+Companion content renders in the same chrome environment as the home view:
+
+- the resolved palette, `\.nookResolvedTheme` - the configuration's `theme`, or the
+  companion's own `theme` when you pass one;
+- `AppState` as an `@EnvironmentObject`;
+- the module's services, `\.appServices`;
+- the chrome labels, metrics, motion, and typography;
+- the chrome actions, `\.nookChromeActions` (see below);
+- the panel-wide scroll edge fade, `\.nookScrollEdgeFade` (see [Rim glow and edge
+  fade](/guides/panel-effects/#scroll-edge-fade)).
+
+## Moving the lock and gear
+
+The top bar's keep-open lock and Settings gear can live in a companion instead.
+Turn them off in the top bar and drop the framework's own controls into a
+companion - they look and behave exactly like the top bar's:
+
+```swift
+configuration.topBar.showsKeepOpenButton = false
+configuration.topBar.showsSettingsButton = false
+
+configuration.addCompanion(
+    id: "chrome-controls",
+    anchor: .trailing,
+    hidesInSettings: false  // its gear is the way back out of Settings
+) {
+    ChromeControls()
+}
+
+struct ChromeControls: View {
+    var body: some View {
+        VStack(spacing: 4) {
+            NookKeepOpenButton()
+            NookSettingsButton()
+        }
+        .padding(6)
+    }
+}
+```
+
+Unlike `showsSettings`, `showsSettingsButton` removes only the gear: Settings stays
+reachable from the menu bar, `AppCoordinator.showSettings()`, and any view that
+calls the chrome actions.
+
+To build your own controls, read the actions from the environment. They are what
+the lock and gear do: `toggleKeepOpen()` flips "stay expanded" and applies it at
+once, `toggleSettings()` switches between home and Settings (expanding the nook
+first when it is collapsed), and `collapse()` returns to the compact pill.
+
+```swift
+struct SettingsChip: View {
+    @Environment(\.nookChromeActions) private var chromeActions
+
+    var body: some View {
+        Button("Settings", systemImage: "gearshape") { chromeActions.toggleSettings() }
+    }
+}
+```
+
+The actions are live in home, compact, and companion content, and inert anywhere
+else.
+
+## Interaction
+
+**Hover.** The chrome and its companions are one hover region. Each companion
+carries a transparent bridge across its gap to the chrome, and while companions are
+shown a hover exit waits a quarter of a second before collapsing, so the pointer can
+cross between surfaces. Hovering a companion keeps the nook open and counts as the
+user engaging it (an [activity queue](/guides/activity-queue/) waits), but it never
+*expands* a compact nook - only the chrome itself does - so a compact-only companion
+cannot fold away under the pointer.
+
+**Clicks and focus.** Companions render in the nook's own non-activating panel.
+Clicking one is clicking the nook: the app is not activated, focus stays where the
+nook left it, and the global show/hide hotkey keeps toggling the nook. Clicks on the
+transparent gaps around a companion fall through to whatever is behind the panel.
+
+**Popovers and menus.** A popover, menu, or sheet opens in a window of its own, so
+the pointer leaves the panel while it is up. Hold the nook open for its duration
+with `nookKeepsExpanded(while:)`, the same modifier home content uses:
+
+```swift
+Button("Pick a time") { isPicking = true }
+    .popover(isPresented: $isPicking) { TimePicker() }
+    .nookKeepsExpanded(while: $isPicking)
+```
+
+**File drops.** Files dropped anywhere on the panel go to `onFileDrop`, companions
+included. A basket-style companion can light up during a drag by reading
+`appState.isDragInFlight`, and list what `onFileDrop` accepted.
+
+## Multiple modules
+
+Companions belong to the `NookConfiguration` that registered them. In a
+[multi-module host](/guides/multiple-modules/) a switch takes the outgoing module's
+companions off the surface in the same transaction that brings the incoming
+module's in, cross-fading with the content. Their views disappear, so
+`onDisappear` runs, a presentation pin they held is released, and any hover they
+held ends.
+
+Work a module runs *for* its companions - a timer, a download - is the module's to
+stop, in `onDeactivate()` or `prepareForSwitchAway()`, the way `ActivityNook`
+quiesces its queue. `CompanionNook` stops its playback clock in `onDeactivate()`.
+Note that the host calls `onActivate()` only when the user switches to a module,
+not for the module it launches with, so start launch-time work in the module's
+initializer.
+
+## Accessibility
+
+- Every companion is an accessibility group with the identifier
+  `opennook.companion.` followed by its `id`, next to the panel's own
+  `opennook.panel`. Use them in UI tests.
+- `accessibilityLabel` names the group for VoiceOver.
+- A companion that is not shown is hidden from VoiceOver.
+- Under Reduce Motion a companion fades in and out without the scale and blur of
+  its fold.
+
+## See also
+
+- `Examples/CompanionNook/main.swift` - the media player with two companions below
+  the panel and the lock and gear beside it.
+- [Rim glow and edge fade](/guides/panel-effects/) - the two panel effects the
+  example also uses.
+- [Settings chrome](/guides/settings-chrome/) - the top bar flags, including
+  `showsKeepOpenButton` and `showsSettingsButton`.
+- `Sources/NookSurface/NookCompanionSurface.swift` and
+  `Sources/NookKit/App/NookCompanion.swift` - the types behind this guide.

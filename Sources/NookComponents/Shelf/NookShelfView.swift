@@ -7,6 +7,7 @@
 
 import AppKit
 import NookKit
+import NookSurface
 import SwiftUI
 
 /// The file-shelf surface. Register it as a host home view - either as the whole home
@@ -116,6 +117,9 @@ public struct NookShelfView: View {
             }
             .padding(.vertical, metrics.shelfRowVerticalPadding)
         }
+        // Follows the host's panel-wide opt-in (`NookConfiguration.scrollEdgeFade`), so
+        // chips overflowing the row fade out at its ends; a no-op while it is off.
+        .nookScrollEdgeFade(axes: .horizontal)
     }
 }
 

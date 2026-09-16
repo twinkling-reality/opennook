@@ -103,7 +103,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     let compactLeadingContent: CompactLeading
     let compactTrailingContent: CompactTrailing
     /// Construction-time flags set by the no-compact convenience init. Immutable so
-    /// they can't be flipped mid-flight and trip the view's transition heuristics - 
+    /// they can't be flipped mid-flight and trip the view's transition heuristics -
     /// the no-compact case is a build-time choice, not runtime state.
     let disableCompactLeading: Bool
     let disableCompactTrailing: Bool
@@ -177,6 +177,55 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// What the chrome paints behind compact + expanded content - vibrancy or solid.
     @Published public var backdrop: NookBackdrop = .solidBlack
 
+    /// Host surfaces floated beside the chrome and anchored to it - an action pill under the
+    /// expanded panel, a round button beside the compact pill. See ``NookCompanionSurface``.
+    ///
+    /// Empty by default, which renders the chrome exactly as it renders without the feature.
+    /// Replacing the array swaps the set in place: removed companions fade out and release
+    /// any hover they held, so a host switching content never leaves the surface pinned
+    /// open by a companion that is gone.
+    @Published public var companions: [NookCompanionSurface] = [] {
+        didSet { companionsDidChange() }
+    }
+
+    /// How the chrome draws its glowing rim when content lights one with
+    /// `nookRimGlow(_:)`. The rim only appears while some content publishes a
+    /// color, so this style alone never draws anything. See ``NookRimGlowStyle``.
+    @Published public var rimGlowStyle: NookRimGlowStyle = .standard
+
+    /// A panel-wide soft fade where scrolling content meets the panel's edges, or `nil` (the
+    /// default) for none. Published to the chrome's content as
+    /// `\.nookScrollEdgeFade`; each scroll view opts in with
+    /// `nookScrollEdgeFade(axes:)`, so turning this on never fades content
+    /// that is not scrolling.
+    @Published public var scrollEdgeFade: NookScrollEdgeFade?
+
+    /// `true` while the pointer is over the chrome's own shape. Tracked apart from companion
+    /// hover so the pointer crossing from the chrome onto a companion reads as one
+    /// continuous hover instead of an exit followed by an entry. See `Nook+Companions.swift`.
+    var isChromeHovered = false
+
+    /// Companions the pointer is currently over.
+    var hoveredCompanionIDs: Set<String> = []
+
+    /// The visibility each companion's content has narrowed itself to, keyed by companion id.
+    /// Absent means unrestricted.
+    var companionVisibilityRestrictions: [String: NookCompanionVisibility] = [:]
+
+    /// A pending hover exit, deferred while companions are on screen so the pointer can
+    /// cross the gap between the chrome and a companion (or between two companions).
+    var companionHoverExitTask: Task<Void, Never>?
+
+    /// How long a pointer may be off both the chrome and every companion before it counts
+    /// as a hover exit, while companions are shown.
+    var companionHoverExitGrace: Duration = .milliseconds(250)
+
+    /// The lowest point, in the panel's coordinates, each companion reaches.
+    var companionExtents: [String: CGFloat] = [:]
+
+    /// `true` while a panel resize to fit companions is queued for the next main-actor turn.
+    var isPanelGrowthScheduled = false
+
     /// Pins the chrome window's `NSAppearance`. `nil` follows the system appearance.
     ///
     /// This is the only thing that makes a forced light/dark theme render correctly: the
@@ -235,7 +284,8 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// so rapid layout churn extends the grace window.
     private var layoutGraceTask: Task<Void, Never>?
 
-    private var cancellables = Set<AnyCancellable>()
+    /// Internal rather than private so the observers in `Nook+Companions.swift` share it.
+    var cancellables = Set<AnyCancellable>()
 
     public init(
         hoverBehavior: NookHoverBehavior = .all,
@@ -255,6 +305,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
         observeScreenParameters()
         observeStateForPendingFeedback()
         observeStateForLifecycleHooks()
+        observeStateForCompanions()
     }
 
     /// Internal designated init for the no-compact-content case. The `disableCompact*`
@@ -281,6 +332,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
         observeStateForPendingFeedback()
         observeStateForLifecycleHooks()
         observeStateForLayoutGrace()
+        observeStateForCompanions()
     }
 
     /// Convenience for the no-compact-content case. Compact mode collapses to hide.
@@ -302,7 +354,9 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
 
     var effectiveOpeningAnimation: Animation { transitionConfiguration.openingAnimation ?? style.openingAnimation }
     var effectiveClosingAnimation: Animation { transitionConfiguration.closingAnimation ?? style.closingAnimation }
-    var effectiveConversionAnimation: Animation { transitionConfiguration.conversionAnimation ?? style.conversionAnimation }
+    var effectiveConversionAnimation: Animation {
+        transitionConfiguration.conversionAnimation ?? style.conversionAnimation
+    }
 
     /// When the chrome becomes visible (state transitions out of `.hidden`), replay any
     /// feedback that was requested during the boot race. Single sink keeps lifetime tied
@@ -331,9 +385,9 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
             .sink { [weak self] newState in
                 guard let self else { return }
                 switch newState {
-                case .expanded: self.onExpand?()
-                case .compact: self.onCompact?()
-                case .hidden: self.onHide?()
+                    case .expanded: self.onExpand?()
+                    case .compact: self.onCompact?()
+                    case .hidden: self.onHide?()
                 }
             }
             .store(in: &cancellables)
@@ -403,11 +457,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
         guard state != .hidden, hovering != isHovering else { return }
 
         isHovering = hovering
-
-        if hoverBehavior.contains(.hapticFeedback) {
-            let performer = NSHapticFeedbackManager.defaultPerformer
-            performer.perform(.alignment, performanceTime: .default)
-        }
+        performHoverHapticIfEnabled()
 
         guard hovering || !suppressesHoverExitCompact else {
             return
@@ -422,6 +472,21 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
                 await self._compact(on: screen, skipHide: true, generation: generation)
             }
         }
+    }
+
+    /// Writes ``isHovering`` without the hover-grow or hover-exit transition that
+    /// ``updateHoverState(_:)`` drives. The setter is private to this file; companion hover
+    /// (`Nook+Companions.swift`) needs exactly this narrow write and nothing more.
+    func setHoveringWithoutTransition(_ hovering: Bool) {
+        isHovering = hovering
+    }
+
+    /// The hover haptic, when ``hoverBehavior`` asks for one. Shared by chrome and companion
+    /// hover so both feel the same.
+    func performHoverHapticIfEnabled() {
+        guard hoverBehavior.contains(.hapticFeedback) else { return }
+        let performer = NSHapticFeedbackManager.defaultPerformer
+        performer.perform(.alignment, performanceTime: .default)
     }
 
     /// Claims the next transition generation **synchronously**, cancels any in-flight
@@ -481,10 +546,10 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
 
 // MARK: - Public lifecycle
 
-public extension Nook {
+extension Nook {
     /// Expand the chrome. Pass `nil` (the default) to let ``resolvedScreen`` pick the
     /// target - typically the host's persisted display preference via ``screenProvider``.
-    func expand(on screen: NSScreen? = nil) async {
+    public func expand(on screen: NSScreen? = nil) async {
         guard let target = screen ?? resolvedScreen else { return }
         let skipHide = transitionConfiguration.skipIntermediateHides
         await runTransition { [weak self] generation in
@@ -494,7 +559,7 @@ public extension Nook {
 
     /// Collapse the chrome to its compact pill. Pass `nil` (the default) to let
     /// ``resolvedScreen`` pick the target.
-    func compact(on screen: NSScreen? = nil) async {
+    public func compact(on screen: NSScreen? = nil) async {
         guard let target = screen ?? resolvedScreen else { return }
         let skipHide = transitionConfiguration.skipIntermediateHides
         await runTransition { [weak self] generation in
@@ -502,11 +567,11 @@ public extension Nook {
         }.value
     }
 
-    /// Hide the chrome and tear the window down. Routed through ``runTransition(_:)`` - 
+    /// Hide the chrome and tear the window down. Routed through ``runTransition(_:)`` -
     /// exactly like `expand`/`compact` - so the hide and its teardown live fully inside
     /// the generation system: a newer transition reliably supersedes an in-flight hide,
     /// cancelling its task before its `fadeOutWindow`/`deinitializeWindow` can run.
-    func hide() async {
+    public func hide() async {
         await runTransition { [weak self] generation in
             await self?._hide(generation: generation)
         }.value
@@ -515,7 +580,7 @@ public extension Nook {
 
 // MARK: - Peripheral feedback
 
-public extension Nook {
+extension Nook {
     /// Play a one-shot peripheral cue along the chrome's perimeter. Default is the shimmer sweep.
     ///
     /// Use this for low-priority "something happened" signals the user can catch in
@@ -523,7 +588,7 @@ public extension Nook {
     /// timing - no internal queueing or debouncing; rapid successive calls re-anchor
     /// `startedAt` and the in-flight animation restarts. A cue requested while the chrome
     /// is hidden is queued and replayed the next time the nook becomes visible.
-    func playFeedback(
+    public func playFeedback(
         _ effect: NookFeedback = .shimmer,
         tint: Color = Color(nsColor: .controlAccentColor),
         duration: TimeInterval = 0.85,
@@ -540,17 +605,17 @@ public extension Nook {
             repeats: repeats
         )
         switch state {
-        case .compact, .expanded:
-            // Chrome is visible (either as compact pill or expanded surface) - fire
-            // immediately. The shimmer overlay strokes the same `NookShape` perimeter in
-            // both states, so the visual reads on either.
-            setFeedbackEvent(event)
-            pendingFeedback = nil
-        case .hidden:
-            // Boot race or user-hidden: queue for the next visible transition. The overlay
-            // can't paint without chrome, but we don't want to drop the request entirely
-            // because the cue's whole job is "tell the user when they're not looking."
-            pendingFeedback = event
+            case .compact, .expanded:
+                // Chrome is visible (either as compact pill or expanded surface) - fire
+                // immediately. The shimmer overlay strokes the same `NookShape` perimeter in
+                // both states, so the visual reads on either.
+                setFeedbackEvent(event)
+                pendingFeedback = nil
+            case .hidden:
+                // Boot race or user-hidden: queue for the next visible transition. The overlay
+                // can't paint without chrome, but we don't want to drop the request entirely
+                // because the cue's whole job is "tell the user when they're not looking."
+                pendingFeedback = event
         }
     }
 }
@@ -701,7 +766,8 @@ extension Nook {
         // newer transition supersedes us, or if hover behavior stops requesting deferral.
         if hoverBehavior.contains(.keepVisible), isHovering {
             while isCurrent(generation), isHovering,
-                  hoverBehavior.contains(.keepVisible), !Task.isCancelled {
+                hoverBehavior.contains(.keepVisible), !Task.isCancelled
+            {
                 try? await Task.sleep(for: Self.keepVisiblePollInterval)
             }
             // Superseded (or cancelled) while waiting for the cursor to leave: a newer
@@ -715,6 +781,9 @@ extension Nook {
             state = .hidden
             isHovering = false
         }
+        // The hover flag is cleared by hand here, so the per-source hover it summarizes has
+        // to go with it; a deferred companion exit must not fire into the hidden surface.
+        resetHoverSources()
 
         try? await Task.sleep(for: intermediateHideDuration)
         // A newer transition took over across the close-animation dwell - it owns the
@@ -850,13 +919,24 @@ extension Nook {
     }
 }
 
-private extension Nook {
-    func initializeWindow(screen: NSScreen, orderFront: Bool = true) {
+extension Nook {
+    fileprivate func initializeWindow(screen: NSScreen, orderFront: Bool = true) {
         deinitializeWindow()
 
         notchSize = screen.notchFrameWithMenubarAsBackup.size
         menubarHeight = screen.menubarHeight
         layoutForm = presentation.isFloating(screenHasNotch: screen.hasNotch) ? .floating : .notch
+        // Extents were measured in the window being replaced; the new one re-reports them.
+        companionExtents.removeAll()
+
+        let size = NSSize(
+            width: screen.frame.width,
+            height: screen.frame.height / 2
+        )
+        let origin = NSPoint(
+            x: screen.frame.midX - (size.width / 2),
+            y: screen.frame.maxY - size.height
+        )
 
         // Two modifiers used to live on a `NookContentView` shim: a full-bleed
         // top-anchored frame and a conversion animation on hover. Inlining the
@@ -883,15 +963,20 @@ private extension Nook {
         container.wantsLayer = true
         container.addSubview(hostingView)
         container.addSubview(dragInterceptor)
+        let dragRegionHeight = dragInterceptor.heightAnchor.constraint(equalToConstant: size.height)
         NSLayoutConstraint.activate([
             hostingView.topAnchor.constraint(equalTo: container.topAnchor),
             hostingView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
             hostingView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             hostingView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
             dragInterceptor.topAnchor.constraint(equalTo: container.topAnchor),
-            dragInterceptor.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            // Pinned to the panel's starting height rather than its bottom edge. The panel
+            // only ever grows to make room for companion surfaces (see
+            // `growPanelToFitCompanions`), and the file-drag region must stay the top half
+            // of the screen it has always been rather than grow with it.
+            dragRegionHeight,
             dragInterceptor.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            dragInterceptor.trailingAnchor.constraint(equalTo: container.trailingAnchor)
+            dragInterceptor.trailingAnchor.constraint(equalTo: container.trailingAnchor),
         ])
 
         let panel = NookPanel(
@@ -903,16 +988,10 @@ private extension Nook {
         panel.contentView = container
         panel.appearance = chromeAppearance
 
-        let size = NSSize(
-            width: screen.frame.width,
-            height: screen.frame.height / 2
-        )
-        let origin = NSPoint(
-            x: screen.frame.midX - (size.width / 2),
-            y: screen.frame.maxY - size.height
-        )
-
         panel.setFrame(NSRect(origin: origin, size: size), display: false)
+        // AppKit rounds the frame to whole points; match the drag region to the panel it
+        // actually got, as the bottom-pinned region always did.
+        dragRegionHeight.constant = panel.frame.height
         panel.layoutIfNeeded()
 
         if orderFront {
@@ -924,7 +1003,7 @@ private extension Nook {
 
     /// Show with the hosting layer starting at opacity 0, then animate to 1. The window itself
     /// is at full alpha - only the SwiftUI content fades in, masking any first-frame layout pop.
-    func showWindow() {
+    fileprivate func showWindow() {
         guard let window = windowController?.window else { return }
 
         let layer = hostingLayer
@@ -943,7 +1022,10 @@ private extension Nook {
         layer.opacity = 1
     }
 
-    func deinitializeWindow() {
+    fileprivate func deinitializeWindow() {
+        // The views that reported hover are going away with the window, and SwiftUI does
+        // not report an exit for a view it tears down.
+        resetHoverSources()
         guard let windowController else { return }
         windowController.close()
         self.windowController = nil

@@ -29,6 +29,12 @@ struct NookTopBar: View {
     /// breadcrumb is moot. See ``NookConfiguration/showsSettings``.
     let showsSettings: Bool
 
+    /// Whether the lock and the gear render here. Off when the host shows them somewhere
+    /// else, such as a companion surface. See ``NookTopBarConfiguration/showsKeepOpenButton``
+    /// and ``NookTopBarConfiguration/showsSettingsButton``.
+    var showsKeepOpenButton = true
+    var showsSettingsButton = true
+
     /// Host actions for the trailing cluster, rendered left of the keep-open lock and
     /// gear. `nil` (the default) leaves the cluster as just the framework's lock/gear.
     /// See ``NookTopBarConfiguration/trailingItems``.
@@ -150,16 +156,18 @@ struct NookTopBar: View {
                 trailingItems()
             }
 
-            HeaderIcon(
-                systemName: appState.keepNookOpen ? "lock.fill" : "lock.open",
-                isActive: appState.keepNookOpen,
-                activeColor: chromeInteractionAccent,
-                help: labels.keepOpenHelp
-            ) {
-                toggleKeepOpen()
+            if showsKeepOpenButton {
+                HeaderIcon(
+                    systemName: appState.keepNookOpen ? "lock.fill" : "lock.open",
+                    isActive: appState.keepNookOpen,
+                    activeColor: chromeInteractionAccent,
+                    help: labels.keepOpenHelp
+                ) {
+                    toggleKeepOpen()
+                }
             }
 
-            if showsSettings {
+            if showsSettings && showsSettingsButton {
                 HeaderIcon(
                     systemName: "gearshape",
                     isActive: appState.isSettingsView,

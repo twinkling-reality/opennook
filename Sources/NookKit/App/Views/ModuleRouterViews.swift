@@ -20,6 +20,8 @@ struct ModuleRouterExpandedView: View {
     let hide: () -> Void
     let resetAllSettings: () -> Void
     let switchModule: (String) -> Void
+    /// What the lock and gear do, for host content that shows them outside the top bar.
+    var chromeActions: NookChromeActions = .inert
 
     var body: some View {
         let configuration = moduleHost.configuration
@@ -50,6 +52,7 @@ struct ModuleRouterExpandedView: View {
         // Host-product identity (brand mark, About card, show-hide hotkey label) lives on
         // `ModuleHost`; surface it so the chrome can read it without an init-time plumb.
         .environment(\.nookHostBranding, moduleHost.branding)
+        .environment(\.nookChromeActions, chromeActions)
     }
 
     /// The in-surface switcher payload, built only when the host opted into
@@ -80,6 +83,7 @@ struct ModuleRouterCompactView: View {
     @ObservedObject var moduleHost: ModuleHost
     @ObservedObject var appState: AppState
     let slot: Slot
+    var chromeActions: NookChromeActions = .inert
 
     var body: some View {
         let configuration = moduleHost.configuration
@@ -94,5 +98,6 @@ struct ModuleRouterCompactView: View {
         // glyphs read `compactSlotSize` / `compactLeadingGlyph` from them.
         .environment(\.nookChromeMetrics, configuration.metrics)
         .environment(\.nookChromeTypography, configuration.typography)
+        .environment(\.nookChromeActions, chromeActions)
     }
 }

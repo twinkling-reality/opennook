@@ -9,6 +9,7 @@ import AppKit
 import Combine
 import NookSurface
 import SwiftUI
+
 @testable import NookKit
 
 /// A windowless ``NookSurfaceDriving`` stand-in for exercising ``AppCoordinator``
@@ -67,6 +68,9 @@ final class FakeNookSurface: NookSurfaceDriving {
     var chromeAppearance: NSAppearance?
     var backdrop: NookBackdrop = .solidBlack
     var transitionConfiguration = NookTransitionConfiguration()
+    var companions: [NookCompanionSurface] = []
+    var rimGlowStyle: NookRimGlowStyle = .standard
+    var scrollEdgeFade: NookScrollEdgeFade?
 
     /// Mirrors the real surface's `hasLiveWindow` - tests flip this to drive the
     /// coordinator's display-change-while-visible branch without mounting a real
@@ -84,16 +88,16 @@ final class FakeNookSurface: NookSurfaceDriving {
         feedbackCount += 1
     }
 
-    /// Applies a state change, records it, and fires the matching lifecycle hook - 
+    /// Applies a state change, records it, and fires the matching lifecycle hook -
     /// mirroring the real surface, whose hooks fire on every distinct transition.
     private func transition(to newState: NookState) {
         guard newState != stateSubject.value else { return }
         stateSubject.send(newState)
         transitions.append(newState)
         switch newState {
-        case .expanded: onExpand?()
-        case .compact: onCompact?()
-        case .hidden: onHide?()
+            case .expanded: onExpand?()
+            case .compact: onCompact?()
+            case .hidden: onHide?()
         }
     }
 }

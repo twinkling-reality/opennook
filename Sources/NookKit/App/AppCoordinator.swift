@@ -183,35 +183,46 @@ public final class AppCoordinator: ObservableObject {
         appState: AppState,
         coordinatorBox: CoordinatorBox
     ) -> Nook<AnyView, AnyView, AnyView> {
-        Nook<AnyView, AnyView, AnyView>(
+        let chromeActions = coordinatorBox.chromeActions
+        return Nook<AnyView, AnyView, AnyView>(
             hoverBehavior: moduleHost.chromeBehavior.hoverBehavior,
-            style: moduleHost.configuration.style ?? NookStyle(
-                topCornerRadius: NookAppearance.expandedTopCornerRadius,
-                bottomCornerRadius: NookAppearance.expandedBottomCornerRadius
-            ),
+            style: moduleHost.configuration.style
+                ?? NookStyle(
+                    topCornerRadius: NookAppearance.expandedTopCornerRadius,
+                    bottomCornerRadius: NookAppearance.expandedBottomCornerRadius
+                ),
             expanded: {
-                AnyView(ModuleRouterExpandedView(
-                    moduleHost: moduleHost,
-                    appState: appState,
-                    toggleKeepOpen: { coordinatorBox.coordinator?.toggleKeepNookOpen() },
-                    hide: { coordinatorBox.coordinator?.hideNook() },
-                    resetAllSettings: { coordinatorBox.coordinator?.resetAllSettingsToDefaults() },
-                    switchModule: { id in coordinatorBox.coordinator?.switchModule(to: id) }
-                ))
+                AnyView(
+                    ModuleRouterExpandedView(
+                        moduleHost: moduleHost,
+                        appState: appState,
+                        toggleKeepOpen: { coordinatorBox.coordinator?.toggleKeepNookOpen() },
+                        hide: { coordinatorBox.coordinator?.hideNook() },
+                        resetAllSettings: { coordinatorBox.coordinator?.resetAllSettingsToDefaults() },
+                        switchModule: { id in coordinatorBox.coordinator?.switchModule(to: id) },
+                        chromeActions: chromeActions
+                    )
+                )
             },
             compactLeading: {
-                AnyView(ModuleRouterCompactView(
-                    moduleHost: moduleHost,
-                    appState: appState,
-                    slot: .leading
-                ))
+                AnyView(
+                    ModuleRouterCompactView(
+                        moduleHost: moduleHost,
+                        appState: appState,
+                        slot: .leading,
+                        chromeActions: chromeActions
+                    )
+                )
             },
             compactTrailing: {
-                AnyView(ModuleRouterCompactView(
-                    moduleHost: moduleHost,
-                    appState: appState,
-                    slot: .trailing
-                ))
+                AnyView(
+                    ModuleRouterCompactView(
+                        moduleHost: moduleHost,
+                        appState: appState,
+                        slot: .trailing,
+                        chromeActions: chromeActions
+                    )
+                )
             }
         )
     }
@@ -221,6 +232,17 @@ public final class AppCoordinator: ObservableObject {
     @MainActor
     final class CoordinatorBox {
         weak var coordinator: AppCoordinator?
+
+        /// The chrome actions, resolved through the box so they can be handed to views built
+        /// before the coordinator exists. The box only holds the coordinator weakly, so the
+        /// closures can hold the box itself, like the router closures above do.
+        var chromeActions: NookChromeActions {
+            NookChromeActions(
+                toggleKeepOpen: { self.coordinator?.toggleKeepNookOpen() },
+                toggleSettings: { self.coordinator?.toggleSettingsFromChrome() },
+                collapse: { self.coordinator?.hideNook() }
+            )
+        }
     }
 
     /// Single-module convenience - wraps `configuration` as a lone-module ``ModuleHost``
@@ -268,11 +290,13 @@ public final class AppCoordinator: ObservableObject {
         self.moduleHost = moduleHost
 
         let coordinatorBox = CoordinatorBox()
-        self.surface = surface ?? AppCoordinator.makeDefaultNook(
-            moduleHost: moduleHost,
-            appState: appState,
-            coordinatorBox: coordinatorBox
-        )
+        self.surface =
+            surface
+            ?? AppCoordinator.makeDefaultNook(
+                moduleHost: moduleHost,
+                appState: appState,
+                coordinatorBox: coordinatorBox
+            )
 
         bindBackdropSynchronization()
         // Bind the surface-state mirror at init, not at start: it is pure observation
@@ -292,6 +316,35 @@ public final class AppCoordinator: ObservableObject {
         // reach the host too - not just coordinator-initiated show/hide. `performSwitch`
         // re-wires them across a module switch.
         applyModuleHooks(configuration)
+        applyModuleSurfaceDecorations(configuration)
+    }
+
+    /// The chrome actions a host view uses to show the lock or gear outside the top bar.
+    /// See ``NookChromeActions``.
+    var chromeActions: NookChromeActions {
+        NookChromeActions(
+            toggleKeepOpen: { [weak self] in self?.toggleKeepNookOpen() },
+            toggleSettings: { [weak self] in self?.toggleSettingsFromChrome() },
+            collapse: { [weak self] in self?.hideNook() }
+        )
+    }
+
+    /// What the gear does, wherever it is shown: switch between home and Settings in place
+    /// while expanded, or expand straight into Settings from the compact pill. A no-op when
+    /// the active module disabled Settings.
+    func toggleSettingsFromChrome() {
+        guard configuration.topBar.showsSettings else { return }
+        guard surface.state == .expanded else {
+            showSettings()
+            return
+        }
+        withAnimation(configuration.motion.viewModeChange) {
+            if appState.isSettingsView {
+                appState.showHome()
+            } else {
+                appState.showSettings()
+            }
+        }
     }
 
     deinit {
@@ -302,7 +355,7 @@ public final class AppCoordinator: ObservableObject {
 
     /// Brings the coordinator online: sets the activation policy, syncs the chrome
     /// backdrop, registers global hotkeys, installs the surface bindings, plays the
-    /// cold-launch shimmer, and fires the active module's `onReady`. Idempotent - 
+    /// cold-launch shimmer, and fires the active module's `onReady`. Idempotent -
     /// safe to call more than once.
     public func start() {
         guard !hasStarted else { return }
@@ -418,8 +471,13 @@ public final class AppCoordinator: ObservableObject {
         }
         guard moduleHost.activeModuleID == id else { return }
 
-        // 4. Re-wire surface hooks in this same critical section.
+        // 4. Re-wire surface hooks in this same critical section, and swap the companion
+        //    surfaces with them: the outgoing module's companions leave (releasing any
+        //    hover they held) as the incoming module's arrive, cross-fading like the content.
         applyModuleHooks(moduleHost.configuration)
+        withAnimation(.easeInOut(duration: 0.22)) {
+            applyModuleSurfaceDecorations(moduleHost.configuration)
+        }
 
         // 5. Drop a stranded `.settings` viewMode if the incoming module disables
         //    Settings (see testSwitchToModuleWithSettingsDisabledClearsStrandedSettingsViewMode).
@@ -450,7 +508,7 @@ public final class AppCoordinator: ObservableObject {
         guard moduleHost.registry.isLoaded(outgoingID) else { return }
         enqueueSwitchTail { [weak self] in
             guard let self,
-                  let outgoingModule = self.moduleHost.registry.module(for: outgoingID)
+                let outgoingModule = self.moduleHost.registry.module(for: outgoingID)
             else { return }
             await Self.runWithTimeout(Self.switchAwayTimeout, label: "prepareForSwitchAway[\(outgoingID)]") {
                 await outgoingModule.prepareForSwitchAway()
@@ -486,7 +544,10 @@ public final class AppCoordinator: ObservableObject {
             (try? await Task.sleep(for: timeout)) != nil
         }
         await withTaskGroup(of: Bool.self) { group in
-            group.addTask { await workTask.value; return false }
+            group.addTask {
+                await workTask.value
+                return false
+            }
             group.addTask { await timerTask.value }
             if let timedOut = await group.next(), timedOut {
                 workTask.cancel()
@@ -505,6 +566,46 @@ public final class AppCoordinator: ObservableObject {
         surface.onCompact = configuration.onCompact
         surface.onHide = configuration.onHide
         surface.onFileDrop = configuration.onFileDrop ?? { _ in false }
+    }
+
+    /// Projects a module's surface decorations - its companion surfaces, rim glow style, and
+    /// scroll edge fade - onto the surface. Called beside ``applyModuleHooks(_:)`` at init
+    /// and in the switch transaction, so decorations always belong to the active module.
+    ///
+    /// Each companion is wrapped in ``NookCompanionHost`` here, not in the surface: the chrome
+    /// environment (theme, `AppState`, services) is NookKit's, and the MIT surface only ever
+    /// sees a finished view.
+    private func applyModuleSurfaceDecorations(_ configuration: NookConfiguration) {
+        let appState = appState
+        let services = moduleHost.activeServices
+        let branding = moduleHost.branding
+        let chromeActions = chromeActions
+        surface.companions = configuration.companions.map { companion in
+            NookCompanionSurface(
+                id: companion.id,
+                anchor: companion.anchor,
+                spacing: companion.spacing,
+                visibility: companion.visibility,
+                shape: companion.shape,
+                backdrop: companion.backdrop,
+                accessibilityLabel: companion.accessibilityLabel
+            ) {
+                NookCompanionHost(
+                    appState: appState,
+                    companion: companion,
+                    theme: configuration.theme,
+                    services: services,
+                    labels: configuration.labels,
+                    metrics: configuration.metrics,
+                    motion: configuration.motion,
+                    typography: configuration.typography,
+                    branding: branding,
+                    chromeActions: chromeActions
+                )
+            }
+        }
+        surface.rimGlowStyle = configuration.rimGlow
+        surface.scrollEdgeFade = configuration.scrollEdgeFade
     }
 
     /// Switches to the next registered module, wrapping around. No-op for a host with a
@@ -661,7 +762,8 @@ public final class AppCoordinator: ObservableObject {
         shortcutName: String,
         hotkey: NookHotkey
     ) {
-        let failure = status == noErr
+        let failure =
+            status == noErr
             ? nil
             : HotkeyRegistrationFailure(shortcutName: shortcutName, combination: hotkey.display)
         appState.recordHotkeyRegistration(id: id, failure: failure)
@@ -702,10 +804,10 @@ public final class AppCoordinator: ObservableObject {
             .sink { [weak self] intent in
                 guard let self else { return }
                 switch intent {
-                case .suspended:
-                    self.hotkeyController.unregister(Self.toggleHotkeyID)
-                case .bound:
-                    self.registerGlobalHotkey()
+                    case .suspended:
+                        self.hotkeyController.unregister(Self.toggleHotkeyID)
+                    case .bound:
+                        self.registerGlobalHotkey()
                 }
             }
             .store(in: &cancellables)
