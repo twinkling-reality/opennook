@@ -12,7 +12,7 @@ import SwiftUI
 /// hover side-effects, the cold-launch greeting, and how appearance preferences map to
 /// the surface backdrop.
 ///
-/// These are distinct from ``NookConfiguration``'s per-surface content/theme seams - 
+/// These are distinct from ``NookConfiguration``'s per-surface content/theme seams -
 /// they describe how the single shared notch surface *behaves*, so they live at the
 /// host-process level (``NookHostConfiguration/chromeBehavior``). The single-module path
 /// mirrors them on ``NookConfiguration/chromeBehavior`` and forwards onto the synthesized
@@ -35,8 +35,8 @@ public struct NookChromeBehavior: Sendable {
 
     /// Side-effects to apply while the cursor is over the chrome. Defaults to `[]` (the
     /// framework default - neither hover-keep-visible nor hover haptics). Set to
-    /// ``NookHoverBehavior/all`` (or a subset) to opt in. Read once when the surface is
-    /// built, like ``NookConfiguration/style``.
+    /// `NookHoverBehavior.all` (or a subset) to opt in. Applied when the surface is built;
+    /// ``AppCoordinator/replaceChromeBehavior(_:)`` changes it at runtime.
     public var hoverBehavior: NookHoverBehavior
 
     /// Whether the one-shot perimeter shimmer plays at cold launch. Defaults to `true`

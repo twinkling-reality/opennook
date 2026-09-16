@@ -68,6 +68,8 @@ final class FakeNookSurface: NookSurfaceDriving {
     var chromeAppearance: NSAppearance?
     var backdrop: NookBackdrop = .solidBlack
     var transitionConfiguration = NookTransitionConfiguration()
+    var style = NookConfiguration.defaultStyle
+    var hoverBehavior: NookHoverBehavior = []
     var companions: [NookCompanionSurface] = []
     var rimGlowStyle: NookRimGlowStyle = .standard
     var scrollEdgeFade: NookScrollEdgeFade?

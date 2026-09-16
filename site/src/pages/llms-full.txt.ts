@@ -6,7 +6,7 @@ const SITE = 'https://opennook.dev';
 // Reading order for the concatenated dump - matches the site nav.
 const ORDER = [
   'start/introduction', 'start/install', 'start/first-nook',
-  'guides/theming', 'guides/settings-chrome', 'guides/displays',
+  'guides/playground', 'guides/theming', 'guides/settings-chrome', 'guides/displays',
   'guides/file-shelf', 'guides/activity-queue', 'guides/volume-glyph',
   'guides/multiple-modules',
   'reference/api', 'reference/troubleshooting',

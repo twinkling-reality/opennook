@@ -134,8 +134,8 @@ cannot drift between them.
 
 ## Example apps
 
-Single-file examples under `Examples/` show how to build on OpenNook through
-public API only - no forking:
+Examples under `Examples/` show how to build on OpenNook through public API
+only - no forking. All but the playground are a single `main.swift`:
 
 ```sh
 swift run HelloNook     # register one view, go
@@ -148,6 +148,7 @@ swift run ActivityNook  # a priority live-activity queue (NookComponents)
 swift run VolumeNook    # an ambient volume glyph in the compact pill (NookComponents)
 swift run MultiNook     # multiple interchangeable modules sharing one surface
 swift run CompanionNook # companion surfaces beside the nook, rim glow, scroll edge fade
+swift run PlaygroundNook # change the running nook live, then export Swift or a JSON preset
 ```
 
 ## Start your own notch app
@@ -299,6 +300,17 @@ edge effect on macOS 26, a gradient mask on macOS 15). See
 MyHomeView().nookRimGlow(model.isWorking ? .blue : nil)  // opt in by publishing a color
 configuration.scrollEdgeFade = .standard                   // Settings, the shelf, and
 ScrollView { rows }.nookScrollEdgeFade(axes: .vertical)     // your marked scroll views
+```
+
+**Live configuration.** A module whose configuration depends on runtime state
+rebuilds it in place, and the host's chrome behavior can change while it runs.
+`swift run PlaygroundNook` is built on these: tweak the running nook from a
+controls window, then copy the result as Swift or a JSON preset. See
+[Playground](https://opennook.dev/guides/playground/):
+
+```swift
+withAnimation { coordinator.reloadActiveConfiguration() }    // calls makeConfiguration() again
+coordinator.replaceChromeBehavior(NookChromeBehavior(hoverBehavior: .hapticFeedback))
 ```
 
 **Identity.** Name the product, drop in a custom brand mark (replaces the OpenNook

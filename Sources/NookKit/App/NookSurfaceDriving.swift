@@ -82,6 +82,13 @@ protocol NookSurfaceDriving: AnyObject {
     /// Open/close/conversion animation curves.
     var transitionConfiguration: NookTransitionConfiguration { get set }
 
+    /// Corner radii and expanded-content insets. Set at construction and re-projected by a
+    /// configuration reload.
+    var style: NookStyle { get set }
+
+    /// Hover side-effects. Re-projected when the host replaces its chrome behavior.
+    var hoverBehavior: NookHoverBehavior { get set }
+
     /// Host surfaces floated beside the chrome. Re-projected on a module switch, so the
     /// outgoing module's companions leave with it.
     var companions: [NookCompanionSurface] { get set }

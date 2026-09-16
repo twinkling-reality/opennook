@@ -32,7 +32,8 @@ The app chrome layered over `NookSurface`.
 
 - **Registration** - `NookConfiguration`, `NookTopBarConfiguration`. The
   host-app seam: home/compact content, theme, lifecycle hooks, chrome flags, the
-  shape/animation/width knobs, and `setSettings(_:)`. See
+  shape/animation/width knobs (with `NookConfiguration.defaultStyle`, the
+  framework's own shape), and `setSettings(_:)`. See
   [Your first nook](/start/first-nook/) and
   [Settings chrome](/guides/settings-chrome/). Source:
   `Sources/NookKit/App/NookConfiguration.swift`.
@@ -48,6 +49,12 @@ The app chrome layered over `NookSurface`.
   `toggleKeepNookOpen`), plus `switchModule`/`cycleModule` and the
   `NookSurfacePresenting` conformance. See [Your first nook](/start/first-nook/).
   Source: `Sources/NookKit/App/AppCoordinator.swift`.
+- **Live configuration** - `AppCoordinator.reloadActiveConfiguration()` rebuilds
+  the active module's configuration and applies it to the running chrome, and
+  `AppCoordinator.replaceChromeBehavior(_:)` changes the host's chrome behavior at
+  runtime (`ModuleHost.chromeBehavior` reads it back). See
+  [Playground](/guides/playground/). Source:
+  `Sources/NookKit/App/AppCoordinator.swift`.
 - **State** - `AppState`, `NookViewMode`, `HotkeyRegistrationFailure`. The
   observable chrome state; `replaceAppearancePreferences(_:)` is the persisted
   write path. Source: `Sources/NookKit/App/AppState.swift`.
@@ -83,6 +90,8 @@ The low-level notch window, re-exported through `NookApp`. Most hosts drive
 these through `NookKit` rather than directly; the host-facing knobs are:
 
 - `NookStyle` - corner radii, `expandedContentInsets`, and the built-in animation curves.
+  `Nook.style` and `Nook.hoverBehavior` are settable, so a running chrome can be
+  restyled in place.
 - `NookTransitionConfiguration` - per-instance animation overrides.
 - `NookPresentation` - notch-fused vs free-floating chrome.
 - `NookContentInsets` - curve-derived safe-area insets for edge-pinned host content.

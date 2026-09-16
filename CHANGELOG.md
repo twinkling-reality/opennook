@@ -41,6 +41,22 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   with `nookScrollEdgeFade(_:axes:)`.
 - `Examples/CompanionNook` (`swift run CompanionNook`), and the site guides
   "Companion surfaces" and "Rim glow and edge fade".
+- Live configuration: `AppCoordinator.reloadActiveConfiguration()` calls the active
+  module's `makeConfiguration()` again and applies the result to the running
+  chrome - content, theme, top bar, tokens, width, hooks, companions, rim glow,
+  scroll edge fade, `style`, and `transitions` - without a module switch, and
+  `AppCoordinator.replaceChromeBehavior(_:)` changes the host's hover behavior and
+  backdrop resolver at runtime (`ModuleHost.chromeBehavior` now reads back the live
+  value). `NookConfiguration.defaultStyle` names the framework's own chrome shape.
+  At the engine level, `Nook.style` is now settable and published, and
+  `Nook.hoverBehavior` is settable, so a running chrome restyles in place.
+- `Examples/PlaygroundNook` (`swift run PlaygroundNook`): a live customization
+  playground. A controls window changes the running nook's appearance, theme, size
+  and shape, typography and motion, top bar, companion surfaces, rim glow, scroll
+  edge fade, and hover behavior, and exports the result as Swift that sets only
+  what differs from the defaults, or as a JSON preset it can open again
+  (`--preset <file>`). Its settings model and exporters are the tested
+  `PlaygroundNookCore` target. New site guide: "Playground".
 
 ### Changed
 

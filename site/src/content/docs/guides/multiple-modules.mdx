@@ -178,6 +178,12 @@ final class CounterModule: NookModule {
 }
 ```
 
+The host calls `makeConfiguration()` when the module becomes active and keeps the
+result. When the configuration depends on state that changes while the module is
+on screen - its own preferences, a feature flag - call
+`coordinator.reloadActiveConfiguration()` after the change to build it again and
+apply it in place. See [Playground](/guides/playground/#doing-the-same-in-your-app).
+
 For modules with no extra product state, register a plain `NookConfiguration`
 closure instead - the host wraps it in a `ClosureModule` for you:
 

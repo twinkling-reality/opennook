@@ -66,6 +66,7 @@ export default defineConfig({
         {
           label: 'Customization',
           items: [
+            { label: 'Playground', slug: 'guides/playground' },
             { label: 'Theming', slug: 'guides/theming' },
             { label: 'Surface materials', slug: 'guides/surface-materials' },
             { label: 'Layout and content insets', slug: 'guides/layout-and-insets' },

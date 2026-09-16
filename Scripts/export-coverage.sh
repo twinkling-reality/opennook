@@ -37,6 +37,7 @@ xcrun llvm-cov export "$binary" \
   -instr-profile="$profdata" \
   -format=lcov \
   -ignore-filename-regex='Tests/' \
+  -ignore-filename-regex='Examples/' \
   -ignore-filename-regex='\.build/' \
   > "$OUT"
 
