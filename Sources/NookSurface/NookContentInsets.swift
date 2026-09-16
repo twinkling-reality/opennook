@@ -15,7 +15,7 @@ import SwiftUI
 /// curves unless it's inset by some amount on each affected edge.
 ///
 /// `NookContentInsets` is the geometric equivalent of UIKit's `safeAreaInsets`,
-/// surfaced to SwiftUI through ``EnvironmentValues/nookContentInsets``. The
+/// surfaced to SwiftUI through `\.nookContentInsets`. The
 /// chrome itself consumes this for its own top-bar icon clusters; host apps
 /// read it when laying out content that pins to a corner or to a single edge:
 ///
@@ -41,7 +41,7 @@ import SwiftUI
 /// chrome's geometry doesn't intrude into your frame on that edge."
 ///
 /// Re-injection: a wrapper that adds its own padding around the host content
-/// (the way ``NookExpandedView`` does) should subtract that padding and
+/// (the way `NookExpandedView` does) should subtract that padding and
 /// re-inject the adjusted insets, so descendants see a value relative to their
 /// own frame. Floor at zero so a generously-padded wrapper reports `.zero`
 /// rather than negative numbers.
@@ -103,26 +103,26 @@ extension NookContentInsets {
         let topPrePad = chromeSafeAreaInsets.top
 
         switch form {
-        case .notch:
-            let topV = max(0, topCornerRadius - topPrePad)
-            let bottomV = max(0, bottomCornerRadius - bottomPrePad)
-            // The bottom-leading bezier runs from x = topCornerRadius to
-            // x = topCornerRadius + bottomCornerRadius. Net residual into the
-            // host frame is whatever exceeds the chrome's horizontal pre-pad.
-            let leadingH = max(0, (topCornerRadius + bottomCornerRadius) - leadingPrePad)
-            let trailingH = max(0, (topCornerRadius + bottomCornerRadius) - trailingPrePad)
-            return NookContentInsets(top: topV, bottom: bottomV, leading: leadingH, trailing: trailingH)
-        case .floating:
-            // `NookView.floatingExpandedRadius` uses `bottomCornerRadius` for
-            // every corner. The chrome's horizontal pre-pad still uses
-            // `topCornerRadius` (the `.padding(.horizontal, topCornerRadius)`
-            // on the inner ZStack is form-agnostic).
-            let r = bottomCornerRadius
-            let topV = max(0, r - topPrePad)
-            let bottomV = max(0, r - bottomPrePad)
-            let leadingH = max(0, r - leadingPrePad)
-            let trailingH = max(0, r - trailingPrePad)
-            return NookContentInsets(top: topV, bottom: bottomV, leading: leadingH, trailing: trailingH)
+            case .notch:
+                let topV = max(0, topCornerRadius - topPrePad)
+                let bottomV = max(0, bottomCornerRadius - bottomPrePad)
+                // The bottom-leading bezier runs from x = topCornerRadius to
+                // x = topCornerRadius + bottomCornerRadius. Net residual into the
+                // host frame is whatever exceeds the chrome's horizontal pre-pad.
+                let leadingH = max(0, (topCornerRadius + bottomCornerRadius) - leadingPrePad)
+                let trailingH = max(0, (topCornerRadius + bottomCornerRadius) - trailingPrePad)
+                return NookContentInsets(top: topV, bottom: bottomV, leading: leadingH, trailing: trailingH)
+            case .floating:
+                // `NookView.floatingExpandedRadius` uses `bottomCornerRadius` for
+                // every corner. The chrome's horizontal pre-pad still uses
+                // `topCornerRadius` (the `.padding(.horizontal, topCornerRadius)`
+                // on the inner ZStack is form-agnostic).
+                let r = bottomCornerRadius
+                let topV = max(0, r - topPrePad)
+                let bottomV = max(0, r - bottomPrePad)
+                let leadingH = max(0, r - leadingPrePad)
+                let trailingH = max(0, r - trailingPrePad)
+                return NookContentInsets(top: topV, bottom: bottomV, leading: leadingH, trailing: trailingH)
         }
     }
 
@@ -143,10 +143,10 @@ private struct NookContentInsetsEnvironmentKey: EnvironmentKey {
     static let defaultValue: NookContentInsets = .zero
 }
 
-public extension EnvironmentValues {
+extension EnvironmentValues {
     /// Safe-area insets derived from the chrome's curved panel geometry. See
     /// ``NookContentInsets`` for the semantics and usage pattern.
-    var nookContentInsets: NookContentInsets {
+    public var nookContentInsets: NookContentInsets {
         get { self[NookContentInsetsEnvironmentKey.self] }
         set { self[NookContentInsetsEnvironmentKey.self] = newValue }
     }

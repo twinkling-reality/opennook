@@ -155,7 +155,7 @@ public struct NookExpandedView: View {
             .tint(resolvedTheme.accent)
             .fontDesign(resolvedTheme.fontDesign)
             .preferredColorScheme(appState.appearancePreferences.chromeColorSchemeOverride)
-            .onChange(of: appState.viewMode) { _ in
+            .onChange(of: appState.viewMode) {
                 isHomeIconHovered = false
             }
             .onExitCommand(perform: hide)

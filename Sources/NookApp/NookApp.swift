@@ -7,12 +7,11 @@
 
 import AppKit
 import Combine
-import SwiftUI
-
 // Re-exported so a host app needs only `import NookApp` to reach the registration API
 // (`NookConfiguration`, `NookResolvedTheme`, `AppState`, ...) and the surface types.
 @_exported import NookKit
 @_exported import NookSurface
+import SwiftUI
 
 /// Library entry point shared by the SPM executable trampoline
 /// (`Sources/NookExecutable/main.swift`) and the Xcode app target's
@@ -20,7 +19,7 @@ import SwiftUI
 /// cannot drift between launch surfaces.
 public enum NookApp {
     /// Boots a multi-module notch app: one host process that owns the notch surface and
-    /// lets the user switch between the registered ``NookModule``s at runtime.
+    /// lets the user switch between the registered `NookModule`s at runtime.
     ///
     /// The OS calls this from the process's main thread at startup, so we assert that
     /// invariant via `MainActor.assumeIsolated` and run the actual setup on the main actor.
@@ -35,11 +34,11 @@ public enum NookApp {
         }
     }
 
-    /// Boots a notch app with the given ``NookConfiguration``. The default value
+    /// Boots a notch app with the given `NookConfiguration`. The default value
     /// reproduces the framework demo, so `NookApp.main()` is unchanged.
     ///
     /// This is the single-module path: the configuration is registered as the lone
-    /// module of a ``NookHostConfiguration``, so a single notch app is just a host with
+    /// module of a `NookHostConfiguration`, so a single notch app is just a host with
     /// one module and no switcher.
     public static func main(_ configuration: NookConfiguration = NookConfiguration()) {
         var host = NookHostConfiguration()
@@ -71,7 +70,7 @@ public enum NookApp {
         main(configuration)
     }
 
-    /// Boots a notch app, building the ``NookConfiguration`` on the main actor.
+    /// Boots a notch app, building the `NookConfiguration` on the main actor.
     ///
     /// Use this overload when setup constructs main-actor-isolated types - a
     /// `NookComponents` `ShelfStore` or `NookActivityQueue`, a host view model - which
@@ -151,27 +150,33 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         let hostName = moduleHost.branding.hostName
 
         let menu = NSMenu()
-        menu.addItem(NSMenuItem(
-            title: "Show \(hostName)",
-            action: #selector(showNook),
-            keyEquivalent: ";"
-        ))
+        menu.addItem(
+            NSMenuItem(
+                title: "Show \(hostName)",
+                action: #selector(showNook),
+                keyEquivalent: ";"
+            )
+        )
         // "Settings..." tracks the chrome: dropped when the active module disabled Settings,
         // since there is no Settings UI to open. "Toggle Stay Expanded" is kept regardless
         // - it's chrome-independent and is the only keep-open control left once the top
         // bar (and its lock) is hidden.
         if moduleHost.configuration.topBar.showsSettings {
-            menu.addItem(NSMenuItem(
-                title: "Settings…",
-                action: #selector(showSettings),
-                keyEquivalent: ","
-            ))
+            menu.addItem(
+                NSMenuItem(
+                    title: "Settings…",
+                    action: #selector(showSettings),
+                    keyEquivalent: ","
+                )
+            )
         }
-        menu.addItem(NSMenuItem(
-            title: "Toggle Stay Expanded",
-            action: #selector(toggleKeepOpen),
-            keyEquivalent: "k"
-        ))
+        menu.addItem(
+            NSMenuItem(
+                title: "Toggle Stay Expanded",
+                action: #selector(toggleKeepOpen),
+                keyEquivalent: "k"
+            )
+        )
 
         // Modules - a multi-module host that left switching in the menu bar (the default
         // placement) gets a section here: one item per module, a check on the active one,
@@ -196,13 +201,17 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(
-            title: "Quit",
-            action: #selector(quit),
-            keyEquivalent: "q"
-        ))
+        menu.addItem(
+            NSMenuItem(
+                title: "Quit",
+                action: #selector(quit),
+                keyEquivalent: "q"
+            )
+        )
 
-        menu.items.forEach { $0.target = self }
+        for item in menu.items {
+            item.target = self
+        }
         statusItem.menu = menu
     }
 

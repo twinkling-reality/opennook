@@ -8,7 +8,7 @@
 import SwiftUI
 
 /// Host-tunable fonts for the framework's own text and glyphs - the chrome (top bar,
-/// compact pill, status banner) and the optional ``NookComponents`` add-ons. Defaults
+/// compact pill, status banner) and the optional `NookComponents` add-ons. Defaults
 /// reproduce today's typography exactly.
 ///
 /// Each role is a `Font`; the framework defaults are built with `.system(size:weight:)`
@@ -20,7 +20,7 @@ import SwiftUI
 /// view, custom Settings, or trailing items control their own fonts.
 ///
 /// Set via ``NookConfiguration/typography``. The values reach the views through the chrome
-/// environment (``EnvironmentValues/nookChromeTypography``).
+/// environment (`\.nookChromeTypography`).
 public struct NookChromeTypography: Sendable, Equatable {
 
     // MARK: - Top bar

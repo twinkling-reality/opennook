@@ -23,7 +23,7 @@ import SwiftUI
 ///
 /// Set via ``NookConfiguration/metrics``. The values reach the expanded surface, the top
 /// bar, the status banner, and the compact slots through the chrome environment
-/// (``EnvironmentValues/nookChromeMetrics``).
+/// (`\.nookChromeMetrics`).
 public struct NookChromeMetrics: Sendable, Equatable {
 
     // MARK: - Expanded surface
@@ -33,9 +33,9 @@ public struct NookChromeMetrics: Sendable, Equatable {
     ///
     /// Applied by ``NookExpandedView`` around the inner VStack pinned to
     /// ``NookConfiguration/expandedWidth``. Distinct from
-    /// ``NookStyle/expandedContentInsets`` (the chrome's own `.safeAreaInset` strip on
-    /// ``NookView``). Host home views should not mirror this with extra horizontal
-    /// padding - read ``EnvironmentValues/nookContentInsets`` instead. See
+    /// `NookStyle.expandedContentInsets` (the chrome's own `.safeAreaInset` strip on
+    /// `NookView`). Host home views should not mirror this with extra horizontal
+    /// padding - read `\.nookContentInsets` instead. See
     /// `Examples/LayoutNook/main.swift`.
     public var edgePadding: CGFloat
 

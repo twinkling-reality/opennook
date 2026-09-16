@@ -78,26 +78,29 @@ public final class ShelfStore: ObservableObject {
         // file's *contents*; resolving a bookmark to a URL for comparison does not need
         // it. Bracketing here would start/stop scoped access for no read - pure overhead.
         let existing = Set(items.compactMap { $0.resolveURL()?.standardizedFileURL.path })
-        let candidates = urls
+        let candidates =
+            urls
             .filter { !existing.contains($0.standardizedFileURL.path) }
             .compactMap { ShelfItem.make(from: $0) }
 
         let admitted: [ShelfItem]
         switch acceptanceMode {
-        case .lenient:
-            admitted = candidates
-        case .strict:
-            // Under the sandbox, a non-scoped capture is a durability bomb - refuse it.
-            // Outside the sandbox, a non-scoped fallback is fine and admitted normally.
-            admitted = ShelfRuntime.isSandboxed
-                ? candidates.filter { $0.bookmarkKind == .scoped }
-                : candidates
+            case .lenient:
+                admitted = candidates
+            case .strict:
+                // Under the sandbox, a non-scoped capture is a durability bomb - refuse it.
+                // Outside the sandbox, a non-scoped fallback is fine and admitted normally.
+                admitted =
+                    ShelfRuntime.isSandboxed
+                    ? candidates.filter { $0.bookmarkKind == .scoped }
+                    : candidates
         }
 
         // One-shot diagnostic if we let a sandboxed non-scoped capture through.
         if !hasLoggedSandboxedFallback,
-           ShelfRuntime.isSandboxed,
-           admitted.contains(where: { $0.bookmarkKind == .nonScoped }) {
+            ShelfRuntime.isSandboxed,
+            admitted.contains(where: { $0.bookmarkKind == .nonScoped })
+        {
             hasLoggedSandboxedFallback = true
             ShelfRuntime.log.warning(
                 "Captured non-scoped bookmark under App Sandbox; the entry will not resolve in a future launch but is preserved across the current session."
@@ -129,7 +132,7 @@ public final class ShelfStore: ObservableObject {
         persist()
     }
 
-    /// Drops items whose file is genuinely gone. Called via ``loadAndReconcile()`` on
+    /// Drops items whose file is genuinely gone. Called via `loadAndReconcile()` on
     /// `init`; a host can call this again (e.g. when the shelf surface appears).
     ///
     /// A resolution failure is **ambiguous** at two levels and the rule handles both:
@@ -154,11 +157,11 @@ public final class ShelfStore: ObservableObject {
         let before = items.count
         items = resolutions.compactMap { item, resolved in
             switch item.bookmarkKind {
-            case .scoped:
-                return resolved == nil ? nil : item
-            case .nonScoped, .unknown:
-                // Always preserve: a resolution failure is plausibly recoverable.
-                return item
+                case .scoped:
+                    return resolved == nil ? nil : item
+                case .nonScoped, .unknown:
+                    // Always preserve: a resolution failure is plausibly recoverable.
+                    return item
             }
         }
         if items.count != before { persist() }
@@ -181,7 +184,8 @@ public final class ShelfStore: ObservableObject {
     /// (`load` + `healStaleBookmarks` + `purgeMissing`) and is behaviour-preserving.
     private func loadAndReconcile() {
         guard let data = defaults.data(forKey: persistenceKey),
-              let decoded = try? JSONDecoder().decode([ShelfItem].self, from: data) else {
+            let decoded = try? JSONDecoder().decode([ShelfItem].self, from: data)
+        else {
             return
         }
 
@@ -196,16 +200,16 @@ public final class ShelfStore: ObservableObject {
             return (item, true, false)
         }
 
-        // Among scoped items, purge only when at least one scoped sibling resolved - 
+        // Among scoped items, purge only when at least one scoped sibling resolved -
         // systemic failure preserves everything. Non-scoped/unknown items are always
         // preserved on failure.
         let anyScopedResolved = reconciled.contains { $0.item.bookmarkKind == .scoped && $0.resolved }
         let kept = reconciled.filter { entry in
             switch entry.item.bookmarkKind {
-            case .scoped:
-                return anyScopedResolved ? entry.resolved : true
-            case .nonScoped, .unknown:
-                return true
+                case .scoped:
+                    return anyScopedResolved ? entry.resolved : true
+                case .nonScoped, .unknown:
+                    return true
             }
         }
 

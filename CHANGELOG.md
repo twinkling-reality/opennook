@@ -95,6 +95,15 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `isLayoutGraceActive` set for the rest of the grace window (about 0.6 s), so the
   coordinator kept reporting the user as engaged (`isUserEngaged`) and held back
   surface claims such as activity-queue takeovers after the user had left.
+- The launch smoke check (`AppCoordinator.runLaunchSmokeTest()`, run by
+  `Scripts/smoke-examples.sh` and CI) now waits for `AppState.isNookVisible` to
+  follow the expanded surface. It read the value once, right as the surface
+  expanded, but the value catches up a run-loop pass later, so a few percent of
+  runs failed at random.
+- The package builds without warnings: `NookExpandedView` uses the current
+  `onChange(of:)` overload, and doc comment links that could not resolve (links to
+  another module or to internal symbols) are plain code, so the DocC build is
+  clean too.
 
 ## [0.4.0] - 2026-06-29
 

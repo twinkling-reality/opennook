@@ -67,7 +67,7 @@ public enum NookBackdrop: Equatable, Sendable {
     /// Liquid Glass parameters. The same knobs drive both render paths: on macOS 26+
     /// they configure Apple's real glass material; on macOS 15-25 they drive the
     /// layered approximation. A host can build one directly and return it from a
-    /// ``NookChromeBehavior`` backdrop resolver to paint brand-tinted glass - that
+    /// `NookChromeBehavior` backdrop resolver to paint brand-tinted glass - that
     /// closure, not this struct, is where the "more customizable than off-the-shelf"
     /// flexibility lives.
     public struct LiquidGlass: Equatable, Sendable {

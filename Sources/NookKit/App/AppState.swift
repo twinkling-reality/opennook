@@ -79,7 +79,7 @@ public final class AppState: ObservableObject {
     }
 
     /// `true` while the nook surface is expanded. This is a read-only mirror of the
-    /// surface's own ``NookState`` - the coordinator binds it to `Nook.$state`, so it
+    /// surface's own `NookState` - the coordinator binds it to `Nook.$state`, so it
     /// stays accurate for hover- and drag-driven transitions too, not just
     /// coordinator-initiated show/hide. Drive visibility through ``AppCoordinator``,
     /// never by writing this.

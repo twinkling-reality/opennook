@@ -38,7 +38,7 @@ public struct NookSurfaceClaim: Sendable {
     /// arbiter synthetically releases it (logging a warning).
     ///
     /// **Safety net, not flow control.** Default ``defaultMaxDuration`` (30 s) is sized
-    /// so a well-behaved presenter (e.g. ``NookComponents``' `NookActivityQueue`,
+    /// so a well-behaved presenter (e.g. `NookComponents`' `NookActivityQueue`,
     /// whose per-activity dwell is bounded in seconds) never trips it. The watchdog
     /// exists so a presenter that crashes mid-presentation (or never calls
     /// ``NookSurfacePresenting/endTransientPresentation(_:)``) does not accumulate
@@ -99,7 +99,7 @@ public protocol NookSurfacePresenting: AnyObject {
     ///
     /// **Engagement gates `begin` only.** Engagement that *begins* after a claim has
     /// already been granted does NOT preempt the active claim: the presenter is
-    /// responsible for yielding when the user steps in. ``NookActivityQueue`` does
+    /// responsible for yielding when the user steps in. `NookActivityQueue` does
     /// this by polling ``isUserEngaged`` between dwells; a custom presenter should
     /// observe ``userEngagementChanges`` and `end` its claim when it sees `true`.
     var isUserEngaged: Bool { get }
