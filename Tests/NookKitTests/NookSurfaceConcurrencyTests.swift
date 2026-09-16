@@ -103,7 +103,10 @@ final class NookSurfaceConcurrencyTests: XCTestCase {
     func testDropEndsSessionAndTrailingExitIsNoOp() {
         let nook = makeNook()
         var dropped: [URL] = []
-        nook.onFileDrop = { urls in dropped = urls; return true }
+        nook.onFileDrop = { urls in
+            dropped = urls
+            return true
+        }
 
         _ = nook.nookPanelDraggingEntered([URL(fileURLWithPath: "/tmp/a")])
         let accepted = nook.nookPanelPerformDrop([URL(fileURLWithPath: "/tmp/a")])
@@ -209,8 +212,13 @@ final class NookSurfaceConcurrencyTests: XCTestCase {
 
     private func feedbackEvent(duration: TimeInterval, repeats: Bool) -> NookFeedbackEvent {
         NookFeedbackEvent(
-            id: UUID(), startedAt: Date(), effect: .shimmer, duration: duration,
-            tint: .white, respectsReduceMotion: true, repeats: repeats
+            id: UUID(),
+            startedAt: Date(),
+            effect: .shimmer,
+            duration: duration,
+            tint: .white,
+            respectsReduceMotion: true,
+            repeats: repeats
         )
     }
 
@@ -289,6 +297,35 @@ final class NookSurfaceConcurrencyTests: XCTestCase {
         // Once refreshing stops, it expires.
         await waitUntil { !nook.isLayoutGraceActive }
         XCTAssertFalse(nook.isLayoutGraceActive)
+    }
+
+    /// Regression: the public designated init (the one `AppCoordinator` builds its surface
+    /// with) never subscribed the state observer that ends layout grace, so a collapse left
+    /// `isLayoutGraceActive` set until its timer ran out - holding the coordinator's
+    /// `isUserEngaged` true after the user was gone. The grace here is far longer than the
+    /// poll timeout, so only the observer can clear it in time.
+    func testCompactEndsLayoutGraceOnNookBuiltWithPublicInit() async throws {
+        guard let screen = NSScreen.main else {
+            throw XCTSkip("No main display attached")
+        }
+
+        // `hoverBehavior: []` keeps `hide()` from waiting on a pointer that happens to be
+        // over the notch; compact content keeps `compact` from collapsing to a hide.
+        let nook = Nook(hoverBehavior: [], expanded: { Text("x") }, compactLeading: { Text("L") })
+        nook.transitionConfiguration.layoutGraceDuration = 30
+        nook.transitionConfiguration.animationDuration = 0.05
+        await nook.expand(on: screen)
+        XCTAssertEqual(nook.state, .expanded)
+
+        nook.beginLayoutGrace()
+        XCTAssertTrue(nook.isLayoutGraceActive)
+
+        await nook.compact(on: screen)
+        XCTAssertEqual(nook.state, .compact)
+        await waitUntil { !nook.isLayoutGraceActive }
+        XCTAssertFalse(nook.isLayoutGraceActive, "leaving the expanded state should end layout grace")
+
+        await nook.hide()
     }
 
     /// Hover-exit auto-compact must not run while layout grace is active - the common
