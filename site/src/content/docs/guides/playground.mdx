@@ -19,12 +19,20 @@ swift run PlaygroundNook
 The playground opens a regular, resizable window next to the nook. The nook starts
 as the stock chrome, so everything you see change is something you changed.
 
-- The **sidebar** lists the pages. A dot marks a page with changes.
-- The **toolbar** switches the layout (Auto, Notch, Floating), holds the nook open
-  with **Keep Expanded** while you work in the window, expands or collapses the
-  nook, and shows or hides the export.
-- The **export** on the right is the Swift snippet or the JSON preset for what you
-  have now, updated as you change it.
+- The **sidebar** lists the pages. A dot marks a page with changes, and
+  right-clicking a page resets it.
+- At the top right, **Keep Open** holds the nook open while you work in the window,
+  **Expand** opens or collapses the nook, and **Code** shows or hides the code.
+- The **code** on the right is the Swift snippet or the JSON preset for what you have
+  now, updated as you change it, with a button to copy it.
+
+Each page groups its settings into cards, with one control column so every control
+lines up. Settings most people leave alone - content insets, metrics, extra theme
+colors, the chrome's labels - are folded into a row until you open it; a dot on the row
+means something inside has changed. Hover a label or an info icon to see what it does.
+A changed value shows a reset arrow beside its label, a changed card shows **Reset**,
+and applying a preset or resetting a page can be undone from the confirmation at the
+bottom of the window. The window follows the Mac's light or dark appearance.
 
 The controls are in a window rather than in the nook itself: the nook changes
 shape as you edit it, collapses when the pointer leaves, and has no room for text
@@ -44,20 +52,23 @@ swift run PlaygroundNook --expand                  # open the nook at launch
 
 | Page | Changes | Lands on |
 |---|---|---|
-| Appearance | palette, surface, layout, accent, backdrop strength, completion haptics | `AppState.appearancePreferences` |
+| Appearance | layout, palette, material, backdrop strength, accent, haptics | `AppState.appearancePreferences` |
 | Theme | font design; accent, label, fill, stroke, and inactive icon colors | `NookConfiguration.theme` |
-| Size and Shape | expanded width, corner radii, content insets, a few metrics | `expandedWidth`, `style`, `metrics` |
+| Panel | expanded width, corner radii, content insets, a few metrics | `expandedWidth`, `style`, `metrics` |
 | Type and Motion | four typography roles, the Settings and banner springs | `typography`, `motion` |
-| Top Bar | top bar and Settings switches, width, leading title and icon, labels | `topBar`, `labels` |
-| Companions | add, remove, and reorder; anchor, alignment, spacing, visibility, shape, backdrop | `addCompanion(...)` |
-| Rim Glow and Fade | rim style, scroll edge fade edges and length | `rimGlow`, `scrollEdgeFade` |
+| Top Bar | top bar and Settings switches, width, leading title and icon, notch clearance, labels | `topBar`, `labels` |
+| Companions | add, remove, and reorder; placement, style, and details of the selected one | `addCompanion(...)` |
+| Effects | rim style, scroll edge fade edges and length | `rimGlow`, `scrollEdgeFade` |
 | Behavior | hover keeps visible, hover haptics | `chromeBehavior.hoverBehavior` |
 
-Some controls exist only to show a setting off. The Top Bar page posts a status
-banner, the Type and Motion page switches between home and Settings, and the Rim
-Glow and Fade page lights the rim and fills the nook with a list and a row of chips
-that scroll. The theme colors start as **Live** - the palette the chrome resolves
-from the user's preferences - until you override them.
+Some controls exist only to show a setting off. **Preview** on the Top Bar page posts
+a status banner, and on the Type and Motion page switches between home and Settings.
+The Effects page lights the rim and fills the nook with a list and a row of chips that
+scroll. **Header beside notch** on the Top Bar page moves the nook's own header into the
+band beside the notch with `nookNotchAccessories(leading:trailing:)`; with the top bar
+off, it shows what [clearing the notch](/guides/layout-and-insets/#clearing-the-notch)
+does. The theme colors start as **Live** - the palette the chrome resolves from the
+user's preferences - until you pick a color.
 
 ## How a change reaches the nook
 
@@ -138,8 +149,7 @@ host driving a `Nook` directly can restyle it in place too.
 
 The Swift export targets the single-module `NookConfiguration` path and sets only
 the values that differ from the framework's defaults, so an untouched playground
-exports an empty configuration. Copy it from the export, or with **Copy Swift** on
-the Presets and Export page:
+exports an empty configuration. Copy it from the code card, or from the Presets page:
 
 ```swift
 import NookApp
@@ -163,10 +173,14 @@ NookApp.main(configuration)
 ```
 
 - The playground's own views appear as placeholders - `MyHomeView`, `ActionPill`,
-  `RoundButton`, `ChromeControls`, `StatusChip` - for you to replace with yours.
+  `RoundButton`, `ChromeControls`, `StatusChip`, `HeaderTitle`, `HeaderButtons` - for
+  you to replace with yours.
+- With **Header beside notch** on, the home view is wrapped in a small view type that
+  applies `nookNotchAccessories(leading:trailing:)`, since `setHome(_:)` takes a
+  `Sendable` view.
 - Changed appearance preferences become `preferenceDefaults`, a launch seed: they
-  set the first run, and a choice the user later makes in Settings wins. Keep
-  Expanded is left out, since the playground uses it only to hold the nook open.
+  set the first run, and a choice the user later makes in Settings wins. Keep Open is
+  left out, since the playground uses it only to hold the nook open.
 - A changed shape starts from `NookConfiguration.defaultStyle`, so only the values
   you moved appear.
 - A changed rim glow style comes with a reminder that the rim only shows while some
@@ -179,10 +193,10 @@ In a multi-module host, the configuration lines go in a module's
 ## JSON presets
 
 A preset is the playground's settings plus the appearance preferences they were
-tuned against. The Presets and Export page copies, pastes, saves, and opens them,
-and offers a few built-in starting points. The playground writes every key, sorted,
-so presets diff cleanly under version control, and writes colors as `#RRGGBB` or
-`#RRGGBBAA`. A preset written by hand can be much shorter:
+tuned against. The Presets page copies, pastes, saves, and opens them, and offers a
+few built-in starting points; applying one can be undone. The playground writes every
+key, sorted, so presets diff cleanly under version control, and writes colors as
+`#RRGGBB` or `#RRGGBBAA`. A preset written by hand can be much shorter:
 
 ```json
 {
@@ -216,8 +230,8 @@ Presets are read leniently:
 - Companion ids are made unique and non-empty, and negative lengths become zero,
   since `addCompanion` traps on a duplicate id.
 
-Keep Expanded is never part of a preset, and neither are the demo switches - the
-lit rim, the scrolling demo, the banner message - which the playground remembers
+Keep Open is never part of a preset, and neither are the demo switches - the lit
+rim, the scrolling demo, the banner message - which the playground remembers
 separately.
 
 Under `swift run` the playground is an unbundled, unsandboxed binary, so the save
@@ -230,8 +244,10 @@ Downloads). Use another folder, or copy and paste the JSON.
   `context.defaults` (`opennook.module.com.opennook.example.playground`), like any
   module's state.
 - The appearance preferences live where the framework keeps them for any host.
-- **Reset Everything** on the Presets and Export page returns both to the
-  defaults.
+- The window's own choices, such as which folded rows are open and whether the code
+  shows, live in the app's standard defaults.
+- **Reset** beside Everything on the Presets page returns the settings and the
+  appearance to the defaults.
 
 ## How the example is built
 
@@ -251,6 +267,8 @@ The playground is bigger than the other examples, so it spans several files:
   the playground drives.
 - [Companion surfaces](/guides/companion-surfaces/) and
   [Rim glow and edge fade](/guides/panel-effects/) - the features behind the
-  Companions and Rim Glow and Fade pages.
+  Companions and Effects pages.
+- [Layout and content insets](/guides/layout-and-insets/#clearing-the-notch) - notch
+  clearance and views beside the notch, behind the Top Bar page's Notch card.
 - [Multiple modules](/guides/multiple-modules/) - modules, contexts, and the switch
   lifecycle a reload borrows from.

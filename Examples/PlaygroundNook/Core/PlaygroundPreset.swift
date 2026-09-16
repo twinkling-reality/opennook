@@ -197,25 +197,25 @@ extension PlaygroundPreset {
         Sample(
             id: "defaults",
             name: "Framework defaults",
-            summary: "The stock chrome, every setting at its default.",
+            summary: "The stock chrome",
             preset: PlaygroundPreset()
         ),
         Sample(
             id: "media",
             name: "Media player",
-            summary: "A dark 420 pt panel with section, sleep-timer, and control companions.",
+            summary: "Dark and narrow, with companions",
             preset: mediaPlayer
         ),
         Sample(
             id: "glass",
             name: "Floating glass",
-            summary: "Liquid Glass in the floating layout, rounded type, and softer corners.",
+            summary: "Floating Liquid Glass, rounded type",
             preset: floatingGlass
         ),
         Sample(
             id: "glance",
             name: "Bare glance",
-            summary: "No top bar and no Settings: a narrow surface of content alone.",
+            summary: "Content only, no top bar",
             preset: bareGlance
         ),
     ]

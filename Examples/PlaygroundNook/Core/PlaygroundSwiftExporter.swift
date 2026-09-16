@@ -30,13 +30,8 @@ public enum PlaygroundSwiftExporter {
         ]
         .filter { !$0.isEmpty }
 
-        var lines = [
-            "import NookApp",
-            "import SwiftUI",
-            "",
-            "var configuration = NookConfiguration()",
-            "configuration.setHome { MyHomeView() }  // your home view",
-        ]
+        var lines = ["import NookApp", "import SwiftUI", ""]
+        lines += homeLines(settings.topBar)
         if sections.isEmpty {
             lines += ["", "// Every other setting is at its default."]
         }
@@ -52,6 +47,32 @@ public enum PlaygroundSwiftExporter {
     static let maximumLineLength = 100
 
     // MARK: - Sections
+
+    /// The configuration and its home view. A header beside the notch needs a view type of its
+    /// own, since `setHome` takes a `Sendable` view and a modified view is not one.
+    static func homeLines(_ topBar: PlaygroundSettings.TopBar) -> [String] {
+        guard topBar.notchAccessories else {
+            return [
+                "var configuration = NookConfiguration()",
+                "configuration.setHome { MyHomeView() }  // your home view",
+            ]
+        }
+        return [
+            "struct MyNookHome: View {",
+            "    var body: some View {",
+            "        MyHomeView()  // your home view",
+            "            .nookNotchAccessories {",
+            "                HeaderTitle()  // your view: an icon and a short title",
+            "            } trailing: {",
+            "                HeaderButtons()  // your view: a few icon buttons",
+            "            }",
+            "    }",
+            "}",
+            "",
+            "var configuration = NookConfiguration()",
+            "configuration.setHome { MyNookHome() }",
+        ]
+    }
 
     static func appearanceLines(_ appearance: NookAppearancePreferences) -> [String] {
         let defaults = NookAppearancePreferences.default
@@ -204,6 +225,9 @@ public enum PlaygroundSwiftExporter {
         if topBar.width != defaults.width {
             lines.append("configuration.topBar.width = \(literal(topBar.width))")
         }
+        if topBar.notchClearance != defaults.notchClearance {
+            lines.append("configuration.topBar.notchClearance = \(literal(topBar.notchClearance))")
+        }
         if topBar.leadingTitle != defaults.leadingTitle {
             lines.append("configuration.topBar.leadingTitle = { _ in \(stringLiteral(topBar.leadingTitle)) }")
         }
@@ -355,6 +379,13 @@ public enum PlaygroundSwiftExporter {
         switch width {
             case .contentColumn: ".contentColumn"
             case .intrinsic: ".intrinsic"
+        }
+    }
+
+    static func literal(_ clearance: PlaygroundSettings.TopBar.NotchClearance) -> String {
+        switch clearance {
+            case .automatic: ".automatic"
+            case .manual: ".manual"
         }
     }
 

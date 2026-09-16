@@ -12,105 +12,78 @@ import SwiftUI
 
 // MARK: - Appearance
 
-/// The user's own appearance preferences - the same ones the built-in Settings screen shows.
+/// The user's own appearance preferences, the ones the built-in Settings screen shows.
 struct AppearancePage: View {
     @ObservedObject var model: PlaygroundModel
     @ObservedObject var appState: AppState
 
     var body: some View {
-        Form {
-            Section {
-                Picker("Palette", selection: binding(\.chromePalette)) {
-                    Text("Match Mac").tag(NookChromePalette.followSystem)
-                    Text("Dark").tag(NookChromePalette.dark)
-                    Text("Light").tag(NookChromePalette.light)
-                }
-                .pickerStyle(.segmented)
-                Picker("Surface", selection: binding(\.surfaceStyle)) {
-                    Text("Solid").tag(NookSurfaceStyle.solid)
-                    Text("Translucent").tag(NookSurfaceStyle.translucent)
-                    Text("Liquid Glass").tag(NookSurfaceStyle.liquidGlass)
-                }
-                .pickerStyle(.segmented)
-                LabeledContent("Backdrop strength") {
-                    HStack(spacing: 8) {
-                        Slider(value: binding(\.backdropStrength), in: 0.15...1)
-                            .frame(width: NumberRow.sliderWidth)
-                            .accessibilityLabel("Backdrop strength")
-                        Text(
-                            appState.appearancePreferences.backdropStrength.formatted(
-                                .percent.precision(.fractionLength(0))
-                            )
-                        )
-                        .monospacedDigit()
-                        .foregroundStyle(.secondary)
-                        .frame(width: 58, alignment: .trailing)
-                        ResetButton(isVisible: appState.appearancePreferences.backdropStrength != 1) {
-                            model.updateAppearance { $0.backdropStrength = 1 }
-                        }
-                    }
-                }
-                .disabled(appState.appearancePreferences.surfaceStyle == .solid)
-            } header: {
-                Text("Palette and material")
-            } footer: {
-                SectionFooter(
-                    text: "Backdrop strength scales the darkening behind content on the translucent and "
-                        + "Liquid Glass surfaces."
+        PlaygroundPageView(page: .appearance) {
+            SectionCard(title: "Style", isModified: styleIsModified, reset: resetStyle) {
+                SegmentedRow(
+                    title: "Layout",
+                    selection: binding(\.presentation),
+                    choices: [Choice(.auto, "Auto"), Choice(.notch, "Notch"), Choice(.floating, "Floating")],
+                    help: "Auto fuses the nook to the notch on a notched display and floats it elsewhere."
                 )
-            }
-
-            Section {
-                Picker("Layout", selection: binding(\.presentation)) {
-                    Text("Auto").tag(NookPresentation.auto)
-                    Text("Notch").tag(NookPresentation.notch)
-                    Text("Floating").tag(NookPresentation.floating)
+                SegmentedRow(
+                    title: "Palette",
+                    selection: binding(\.chromePalette),
+                    choices: [Choice(.followSystem, "System"), Choice(.dark, "Dark"), Choice(.light, "Light")],
+                    help: "Dark or light chrome, or the Mac's own appearance."
+                )
+                SegmentedRow(
+                    title: "Material",
+                    selection: binding(\.surfaceStyle),
+                    choices: [
+                        Choice(.solid, "Solid"), Choice(.translucent, "Translucent"), Choice(.liquidGlass, "Glass"),
+                    ],
+                    help: "What the panel is made of. Glass is Liquid Glass on macOS 26."
+                )
+                if preferences.surfaceStyle != .solid {
+                    SliderRow(
+                        title: "Backdrop",
+                        value: binding(\.backdropStrength),
+                        range: 0.15...1,
+                        step: 0.01,
+                        defaultValue: NookAppearancePreferences.default.backdropStrength,
+                        format: .percent,
+                        help: "How much the backdrop darkens behind the content."
+                    )
                 }
-                .pickerStyle(.segmented)
-                LabeledContent("Accent") {
+                ControlRow(title: "Accent", help: "The chrome's tint. An accent picked on the Theme page wins.") {
                     AccentSwatches(selection: binding(\.accentPreset))
                 }
-            } header: {
-                Text("Layout and accent")
-            } footer: {
-                SectionFooter(
-                    text: "Auto fuses the nook to the notch on a notched display and floats it elsewhere. "
-                        + "A theme accent override on the Theme page wins over this accent."
-                )
             }
 
-            Section {
-                Toggle("Keep the nook expanded", isOn: keepsExpanded)
-                Toggle("Completion haptics", isOn: binding(\.hapticFeedbackEnabled))
-            } header: {
-                Text("Behavior")
-            } footer: {
-                SectionFooter(
-                    text: "These are the user's own preferences, which the framework saves. The Swift export "
-                        + "turns them into launch defaults; Keep Expanded is left out, since it is only a "
-                        + "working aid here.",
-                    isResettable: isModified,
-                    reset: resetSection
+            SectionCard(title: "Feedback") {
+                SwitchRow(
+                    title: "Haptics",
+                    isOn: binding(\.hapticFeedbackEnabled),
+                    help: "A tap on a Force Touch trackpad when the nook confirms an action."
                 )
             }
         }
-        .formStyle(.grouped)
     }
 
-    private var isModified: Bool {
-        PlaygroundPage.appearance.isModified(model.settings, appearance: appState.appearancePreferences)
+    private var preferences: NookAppearancePreferences {
+        appState.appearancePreferences
     }
 
-    private func resetSection() {
+    private var styleIsModified: Bool {
+        var style = preferences
+        style.keepNookOpen = NookAppearancePreferences.default.keepNookOpen
+        style.hapticFeedbackEnabled = NookAppearancePreferences.default.hapticFeedbackEnabled
+        return style != .default
+    }
+
+    private func resetStyle() {
         model.updateAppearance { preferences in
-            let keepsOpen = preferences.keepNookOpen
-            preferences = .default
-            preferences.keepNookOpen = keepsOpen
+            var reset = NookAppearancePreferences.default
+            reset.keepNookOpen = preferences.keepNookOpen
+            reset.hapticFeedbackEnabled = preferences.hapticFeedbackEnabled
+            preferences = reset
         }
-    }
-
-    private var keepsExpanded: Binding<Bool> {
-        Binding(get: { appState.keepNookOpen }, set: { model.setKeepsNookExpanded($0) })
     }
 
     private func binding<Value>(
@@ -123,10 +96,11 @@ struct AppearancePage: View {
     }
 }
 
-/// The accent presets as a row of swatches, the way the built-in Settings screen shows them.
-/// A menu would draw its symbols without their colors.
+/// The accent presets as swatches, the way the built-in Settings screen shows them. A menu
+/// would draw its symbols without their colors.
 private struct AccentSwatches: View {
     @Binding var selection: NookAccentPreset
+    @State private var hovered: NookAccentPreset?
 
     var body: some View {
         HStack(spacing: 8) {
@@ -136,21 +110,35 @@ private struct AccentSwatches: View {
                 } label: {
                     Circle()
                         .fill(preset.color())
-                        .frame(width: 18, height: 18)
+                        .frame(width: 16, height: 16)
                         .overlay {
                             Circle()
-                                .strokeBorder(Color.primary.opacity(selection == preset ? 0.85 : 0), lineWidth: 2)
+                                .strokeBorder(Color.primary.opacity(ringOpacity(preset)), lineWidth: 1.5)
                                 .padding(-3)
                         }
                         .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
+                .onHover { hovering in
+                    withAnimation(.easeOut(duration: 0.12)) {
+                        if hovering {
+                            hovered = preset
+                        } else if hovered == preset {
+                            hovered = nil
+                        }
+                    }
+                }
                 .help(preset.displayName)
                 .accessibilityLabel(preset.displayName)
                 .accessibilityAddTraits(selection == preset ? .isSelected : [])
             }
         }
         .padding(.vertical, 3)
+    }
+
+    private func ringOpacity(_ preset: NookAccentPreset) -> Double {
+        if selection == preset { return 0.8 }
+        return hovered == preset ? 0.3 : 0
     }
 }
 
@@ -160,47 +148,69 @@ private struct AccentSwatches: View {
 struct ThemePage: View {
     @ObservedObject var model: PlaygroundModel
     @ObservedObject var appState: AppState
+    @AppStorage("playground.theme.showsMoreColors") private var showsMoreColors = false
+
+    private typealias Role = PlaygroundSettings.Theme.ColorRole
+    private static let mainRoles: [Role] = [.accent, .primaryLabel, .secondaryLabel, .tertiaryLabel]
+    private static let moreRoles: [Role] = [.quaternaryLabel, .subtleFill, .subtleStroke, .headerInactiveIcon]
 
     var body: some View {
-        Form {
-            Section {
-                Picker("Font design", selection: $model.settings.theme.fontDesign) {
-                    Text("Default").tag(PlaygroundSettings.FontDesign.default)
-                    Text("Rounded").tag(PlaygroundSettings.FontDesign.rounded)
-                    Text("Serif").tag(PlaygroundSettings.FontDesign.serif)
-                    Text("Monospaced").tag(PlaygroundSettings.FontDesign.monospaced)
-                }
-                .pickerStyle(.segmented)
-            } header: {
-                Text("Type")
-            } footer: {
-                SectionFooter(text: "Restyles the chrome's own text: the top bar, the banner, and Settings.")
-            }
+        PlaygroundPageView(page: .theme) {
+            ThemePreview(theme: previewPalette, isDark: previewIsDark)
 
-            Section {
-                ForEach(PlaygroundSettings.Theme.ColorRole.allCases) { role in
-                    ColorOverrideRow(
-                        title: role.title,
-                        override: $model.settings.theme[role],
-                        liveColor: role.color(in: livePalette)
-                    )
-                }
-            } header: {
-                Text("Colors")
-            } footer: {
-                SectionFooter(
-                    text: "A live color follows the palette and accent preferences. An override is fixed, "
-                        + "so pick one that reads on both light and dark chrome, or fix the palette.",
-                    isResettable: model.settings.theme != .init(),
-                    reset: { model.settings.theme = .init() }
+            SectionCard(title: "Type") {
+                SegmentedRow(
+                    title: "Font",
+                    selection: $model.settings.theme.fontDesign,
+                    choices: [
+                        Choice(.default, "Default"), Choice(.rounded, "Rounded"), Choice(.serif, "Serif"),
+                        Choice(.monospaced, "Mono"),
+                    ],
+                    help: "The design of the chrome's own text: the top bar, the banner, and Settings."
                 )
             }
 
-            Section("Preview") {
-                ThemePreview(theme: previewPalette, isDark: previewIsDark)
+            SectionCard(
+                title: "Colors",
+                help: "Live colors follow the palette and accent. Pick a color to override one.",
+                isModified: Self.mainRoles.contains { theme[$0] != nil },
+                reset: { reset(Self.mainRoles) }
+            ) {
+                ForEach(Self.mainRoles) { role in
+                    colorRow(role)
+                }
+            }
+
+            CollapsibleCard(
+                title: "More Colors",
+                isExpanded: $showsMoreColors,
+                isModified: Self.moreRoles.contains { theme[$0] != nil },
+                reset: { reset(Self.moreRoles) }
+            ) {
+                ForEach(Self.moreRoles) { role in
+                    colorRow(role)
+                }
             }
         }
-        .formStyle(.grouped)
+    }
+
+    private var theme: PlaygroundSettings.Theme { model.settings.theme }
+
+    private func colorRow(_ role: Role) -> some View {
+        ColorRow(
+            title: role.title,
+            override: $model.settings.theme[role],
+            liveColor: role.color(in: livePalette),
+            help: role.help
+        )
+    }
+
+    private func reset(_ roles: [Role]) {
+        var theme = theme
+        for role in roles {
+            theme[role] = nil
+        }
+        model.settings.theme = theme
     }
 
     /// The palette without overrides, as the chrome would resolve it right now.
@@ -210,7 +220,7 @@ struct ThemePage: View {
 
     private var previewPalette: NookResolvedTheme {
         var palette = livePalette
-        model.settings.theme.apply(to: &palette)
+        theme.apply(to: &palette)
         return palette
     }
 
@@ -224,7 +234,22 @@ struct ThemePage: View {
     }
 }
 
-/// A swatch of the resolved palette on the chrome's own backdrop color.
+extension PlaygroundSettings.Theme.ColorRole {
+    fileprivate var help: String {
+        switch self {
+            case .accent: "The active lock and gear, toggles, and focus rings."
+            case .primaryLabel: "Titles and main text."
+            case .secondaryLabel: "Supporting text, such as the Settings breadcrumb."
+            case .tertiaryLabel: "Captions and hints in Settings."
+            case .quaternaryLabel: "The faintest glyphs, such as the breadcrumb chevron."
+            case .subtleFill: "The hover background of header icons and Settings controls."
+            case .subtleStroke: "The hover outline of header icons, and Settings dividers."
+            case .headerInactiveIcon: "Header icons and Settings glyphs at rest."
+        }
+    }
+}
+
+/// The resolved palette on the chrome's own backdrop color.
 private struct ThemePreview: View {
     let theme: NookResolvedTheme
     let isDark: Bool
@@ -246,170 +271,158 @@ private struct ThemePreview: View {
                     .foregroundStyle(theme.headerInactiveIcon)
                 Image(systemName: "gearshape.fill")
                     .foregroundStyle(theme.accent)
+                    .padding(4)
+                    .background(theme.subtleFill, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .strokeBorder(theme.subtleStroke)
+                    }
             }
             .font(.system(size: 12, weight: .medium, design: theme.fontDesign))
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Primary label")
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text("Primary")
                     .foregroundStyle(theme.primaryLabel)
-                Text("Secondary label")
+                Text("Secondary")
                     .foregroundStyle(theme.secondaryLabel)
-                Text("Tertiary label")
+                Text("Tertiary")
                     .foregroundStyle(theme.tertiaryLabel)
+                Text("Quaternary")
+                    .foregroundStyle(theme.quaternaryLabel)
             }
             .font(.system(size: 12, design: theme.fontDesign))
-            .padding(10)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(theme.subtleFill, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .strokeBorder(theme.subtleStroke)
-            }
         }
         .padding(14)
         .background(
             isDark ? Color.black : Color.white,
-            in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+            in: RoundedRectangle(cornerRadius: 12, style: .continuous)
         )
         .accessibilityElement(children: .combine)
+        .accessibilityLabel("Theme preview")
     }
 }
 
-// MARK: - Size and shape
+// MARK: - Panel
 
 /// `NookConfiguration.expandedWidth`, `style`, and a few `metrics`.
 struct PanelPage: View {
     @ObservedObject var model: PlaygroundModel
+    @AppStorage("playground.panel.showsInsets") private var showsInsets = false
+    @AppStorage("playground.panel.showsMetrics") private var showsMetrics = false
 
     private let panelDefaults = PlaygroundSettings.Panel()
     private let metricDefaults = PlaygroundSettings.Metrics()
 
     var body: some View {
-        Form {
-            Section {
-                NumberRow(
-                    title: "Expanded width",
+        PlaygroundPageView(page: .panel) {
+            SectionCard(title: "Shape", isModified: shapeIsModified, reset: resetShape) {
+                SliderRow(
+                    title: "Width",
                     value: $model.settings.panel.expandedWidth,
                     range: 320...760,
-                    defaultValue: panelDefaults.expandedWidth
+                    defaultValue: panelDefaults.expandedWidth,
+                    help: "The expanded content's width."
                 )
-                NumberRow(
-                    title: "Top corner radius",
+                SliderRow(
+                    title: "Top corners",
                     value: $model.settings.panel.topCornerRadius,
                     range: 0...40,
-                    defaultValue: panelDefaults.topCornerRadius
+                    defaultValue: panelDefaults.topCornerRadius,
+                    help: "The rounding into the notch arch."
                 )
-                NumberRow(
-                    title: "Bottom corner radius",
+                SliderRow(
+                    title: "Bottom corners",
                     value: $model.settings.panel.bottomCornerRadius,
                     range: 0...48,
-                    defaultValue: panelDefaults.bottomCornerRadius
-                )
-            } header: {
-                Text("Panel")
-            } footer: {
-                SectionFooter(
-                    text: "The top radius rounds into the notch arch; the bottom radius is where the panel meets "
-                        + "the wallpaper. In the floating layout both corners use the bottom radius.",
-                    isResettable: panelShapeIsModified,
-                    reset: resetPanelShape
+                    defaultValue: panelDefaults.bottomCornerRadius,
+                    help:
+                        "The rounding where the panel meets the wallpaper. The floating panel uses it for every corner."
                 )
             }
 
-            Section {
-                NumberRow(
-                    title: "Top",
-                    value: $model.settings.panel.insetTop,
-                    range: 0...32,
-                    defaultValue: panelDefaults.insetTop
-                )
-                NumberRow(
-                    title: "Bottom",
-                    value: $model.settings.panel.insetBottom,
-                    range: 0...32,
-                    defaultValue: panelDefaults.insetBottom
-                )
-                NumberRow(
-                    title: "Leading",
-                    value: $model.settings.panel.insetLeading,
-                    range: 0...32,
-                    defaultValue: panelDefaults.insetLeading
-                )
-                NumberRow(
-                    title: "Trailing",
-                    value: $model.settings.panel.insetTrailing,
-                    range: 0...32,
-                    defaultValue: panelDefaults.insetTrailing
-                )
-            } header: {
-                Text("Content insets")
-            } footer: {
-                SectionFooter(
-                    text: "The clearance the chrome keeps around expanded content (NookStyle.expandedContentInsets).",
-                    isResettable: insetsAreModified,
-                    reset: resetInsets
-                )
+            CollapsibleCard(
+                title: "Content Insets",
+                help: "The clearance the chrome keeps around the content.",
+                isExpanded: $showsInsets,
+                isModified: insetsAreModified,
+                reset: resetInsets
+            ) {
+                insetRow("Top", \.insetTop)
+                insetRow("Bottom", \.insetBottom)
+                insetRow("Leading", \.insetLeading)
+                insetRow("Trailing", \.insetTrailing)
             }
 
-            Section {
-                NumberRow(
+            CollapsibleCard(
+                title: "Metrics",
+                help: "A few of the chrome's layout measurements.",
+                isExpanded: $showsMetrics,
+                isModified: model.settings.metrics != metricDefaults,
+                reset: { model.settings.metrics = metricDefaults }
+            ) {
+                SliderRow(
                     title: "Edge padding",
                     value: $model.settings.metrics.edgePadding,
                     range: 0...24,
-                    defaultValue: metricDefaults.edgePadding
+                    defaultValue: metricDefaults.edgePadding,
+                    help: "The space between the panel's edge and its content."
                 )
-                NumberRow(
-                    title: "Column spacing",
+                SliderRow(
+                    title: "Row spacing",
                     value: $model.settings.metrics.expandedColumnSpacing,
                     range: 0...24,
-                    defaultValue: metricDefaults.expandedColumnSpacing
+                    defaultValue: metricDefaults.expandedColumnSpacing,
+                    help: "The gap between the top bar, the banner, and the content."
                 )
-                NumberRow(
+                SliderRow(
                     title: "Top bar height",
                     value: $model.settings.metrics.topBarHeight,
                     range: 16...44,
                     defaultValue: metricDefaults.topBarHeight
                 )
-                NumberRow(
-                    title: "Header icon size",
+                SliderRow(
+                    title: "Header icons",
                     value: $model.settings.metrics.headerIconSize,
                     range: 16...40,
-                    defaultValue: metricDefaults.headerIconSize
+                    defaultValue: metricDefaults.headerIconSize,
+                    help: "The size of the lock and gear buttons."
                 )
-                NumberRow(
-                    title: "Header icon radius",
+                SliderRow(
+                    title: "Icon corners",
                     value: $model.settings.metrics.headerIconCornerRadius,
                     range: 0...20,
-                    defaultValue: metricDefaults.headerIconCornerRadius
+                    defaultValue: metricDefaults.headerIconCornerRadius,
+                    help: "The rounding of a header icon's hover background."
                 )
-                NumberRow(
-                    title: "Compact slot size",
+                SliderRow(
+                    title: "Compact slots",
                     value: $model.settings.metrics.compactSlotSize,
                     range: 16...36,
-                    defaultValue: metricDefaults.compactSlotSize
+                    defaultValue: metricDefaults.compactSlotSize,
+                    help: "The size of the glyphs beside the collapsed pill."
                 )
-                NumberRow(
-                    title: "Banner corner radius",
+                SliderRow(
+                    title: "Banner corners",
                     value: $model.settings.metrics.bannerCornerRadius,
                     range: 0...20,
-                    defaultValue: metricDefaults.bannerCornerRadius
-                )
-            } header: {
-                Text("Metrics")
-            } footer: {
-                SectionFooter(
-                    text: "A few of the NookChromeMetrics values. Post a status banner from the Top Bar page to "
-                        + "see the banner radius.",
-                    isResettable: model.settings.metrics != metricDefaults,
-                    reset: { model.settings.metrics = metricDefaults }
+                    defaultValue: metricDefaults.bannerCornerRadius,
+                    help: "The status banner's rounding. Post one from the Top Bar page."
                 )
             }
         }
-        .formStyle(.grouped)
     }
 
     private var panel: PlaygroundSettings.Panel { model.settings.panel }
 
-    private var panelShapeIsModified: Bool {
+    private func insetRow(_ title: String, _ keyPath: WritableKeyPath<PlaygroundSettings.Panel, Double>) -> some View {
+        SliderRow(
+            title: title,
+            value: $model.settings.panel[dynamicMember: keyPath],
+            range: 0...32,
+            defaultValue: panelDefaults[keyPath: keyPath]
+        )
+    }
+
+    private var shapeIsModified: Bool {
         panel.expandedWidth != panelDefaults.expandedWidth
             || panel.topCornerRadius != panelDefaults.topCornerRadius
             || panel.bottomCornerRadius != panelDefaults.bottomCornerRadius
@@ -420,7 +433,7 @@ struct PanelPage: View {
             || panel.insetLeading != panelDefaults.insetLeading || panel.insetTrailing != panelDefaults.insetTrailing
     }
 
-    private func resetPanelShape() {
+    private func resetShape() {
         var panel = panel
         panel.expandedWidth = panelDefaults.expandedWidth
         panel.topCornerRadius = panelDefaults.topCornerRadius
@@ -444,111 +457,111 @@ struct PanelPage: View {
 struct TypeAndMotionPage: View {
     @ObservedObject var model: PlaygroundModel
 
+    private let fontDefaults = PlaygroundSettings.Typography()
+    private let motionDefaults = PlaygroundSettings.Motion()
+
     var body: some View {
-        Form {
-            Section {
+        PlaygroundPageView(page: .typeAndMotion) {
+            SectionCard(
+                title: "Fonts",
+                isModified: model.settings.typography != fontDefaults,
+                reset: { model.settings.typography = fontDefaults }
+            ) {
                 FontRow(
                     title: "Top bar title",
                     font: $model.settings.typography.topBarLabel,
-                    defaultFont: defaults.topBarLabel
+                    defaultFont: fontDefaults.topBarLabel
                 )
                 FontRow(
                     title: "Header icons",
                     font: $model.settings.typography.headerIcon,
-                    defaultFont: defaults.headerIcon
+                    defaultFont: fontDefaults.headerIcon,
+                    help: "The lock and gear glyphs."
                 )
                 FontRow(
-                    title: "Banner message",
+                    title: "Banner",
                     font: $model.settings.typography.bannerMessage,
-                    defaultFont: defaults.bannerMessage
+                    defaultFont: fontDefaults.bannerMessage,
+                    help: "The status banner's message."
                 )
                 FontRow(
                     title: "Compact glyph",
                     font: $model.settings.typography.compactLeadingGlyph,
-                    defaultFont: defaults.compactLeadingGlyph
-                )
-            } header: {
-                Text("Typography")
-            } footer: {
-                SectionFooter(
-                    text: "Header icons are the lock and gear. The compact glyph is the house left of the notch "
-                        + "while the nook is collapsed.",
-                    isResettable: model.settings.typography != defaults,
-                    reset: { model.settings.typography = defaults }
+                    defaultFont: fontDefaults.compactLeadingGlyph,
+                    help: "The glyph left of the notch while the nook is collapsed."
                 )
             }
 
-            Section {
+            SectionCard(
+                title: "Home and Settings",
+                help: "The spring for switching between the home view and Settings.",
+                isModified: model.settings.motion.viewModeChange != motionDefaults.viewModeChange,
+                reset: { model.settings.motion.viewModeChange = motionDefaults.viewModeChange }
+            ) {
                 SpringRows(spring: $model.settings.motion.viewModeChange, defaultSpring: motionDefaults.viewModeChange)
-                Button("Switch Between Home and Settings") {
-                    model.toggleNookSettings()
-                }
-            } header: {
-                Text("Home and Settings motion")
-            } footer: {
-                SectionFooter(
-                    text: "The spring for the swap between the home view and Settings. A lower damping bounces "
-                        + "more.",
-                    isResettable: model.settings.motion.viewModeChange != motionDefaults.viewModeChange,
-                    reset: { model.settings.motion.viewModeChange = motionDefaults.viewModeChange }
-                )
+            } accessory: {
+                PreviewButton(help: "Switch the nook between home and Settings", action: model.toggleNookSettings)
             }
 
-            Section {
+            SectionCard(
+                title: "Status Banner",
+                help: "The spring the status banner comes and goes with.",
+                isModified: model.settings.motion.statusBanner != motionDefaults.statusBanner,
+                reset: { model.settings.motion.statusBanner = motionDefaults.statusBanner }
+            ) {
                 SpringRows(spring: $model.settings.motion.statusBanner, defaultSpring: motionDefaults.statusBanner)
-                Button("Post a Status Banner") {
-                    model.postStatus()
-                }
-            } header: {
-                Text("Status banner motion")
-            } footer: {
-                SectionFooter(
-                    text: "The spring the status banner appears and leaves with.",
-                    isResettable: model.settings.motion.statusBanner != motionDefaults.statusBanner,
-                    reset: { model.settings.motion.statusBanner = motionDefaults.statusBanner }
-                )
+            } accessory: {
+                PreviewButton(help: "Post a status banner", action: { model.postStatus() })
             }
         }
-        .formStyle(.grouped)
     }
-
-    private var defaults: PlaygroundSettings.Typography { .init() }
-    private var motionDefaults: PlaygroundSettings.Motion { .init() }
 }
 
 private struct FontRow: View {
     let title: String
     @Binding var font: PlaygroundSettings.FontSpec
     let defaultFont: PlaygroundSettings.FontSpec
+    var help: String?
 
     var body: some View {
-        LabeledContent {
+        ControlRow(title: title, help: help, isModified: font != defaultFont) {
             HStack(spacing: 8) {
-                Slider(value: size, in: 8...20)
-                    .frame(width: 110)
-                    .accessibilityLabel("\(title) size")
-                Text("\(font.size.formatted(.number.precision(.fractionLength(0...1)))) pt")
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
-                    .frame(width: 48, alignment: .trailing)
                 Picker("\(title) weight", selection: $font.weight) {
                     ForEach(PlaygroundSettings.FontWeight.allCases, id: \.self) { weight in
-                        Text(weight.rawValue.capitalized).tag(weight)
+                        Text(weight.title).tag(weight)
                     }
                 }
                 .labelsHidden()
-                .frame(width: 118)
-                ResetButton(isVisible: font != defaultFont) { font = defaultFont }
+                .frame(width: 130)
+                Spacer(minLength: 0)
+                Text("\(font.size.formatted(.number.precision(.fractionLength(0...1)))) pt")
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
+                // Half-point steps, since the framework's own sizes include 10.5.
+                Stepper("\(title) size", value: $font.size, in: 8...20, step: 0.5)
+                    .labelsHidden()
+                    .accessibilityValue("\(font.size.formatted()) points")
             }
-        } label: {
-            Text(title)
-                .font(font.font)
+        } reset: {
+            font = defaultFont
         }
     }
+}
 
-    /// Half-point steps, since the framework's own sizes include 10.5.
-    private var size: Binding<Double> {
-        Binding(get: { font.size }, set: { font.size = ($0 * 2).rounded() / 2 })
+extension PlaygroundSettings.FontWeight {
+    fileprivate var title: String {
+        switch self {
+            case .ultraLight: "Ultralight"
+            case .thin: "Thin"
+            case .light: "Light"
+            case .regular: "Regular"
+            case .medium: "Medium"
+            case .semibold: "Semibold"
+            case .bold: "Bold"
+            case .heavy: "Heavy"
+            case .black: "Black"
+        }
     }
 }
 
@@ -557,21 +570,23 @@ private struct SpringRows: View {
     let defaultSpring: PlaygroundSettings.SpringSpec
 
     var body: some View {
-        NumberRow(
+        SliderRow(
             title: "Response",
             value: $spring.response,
             range: 0.1...1.5,
             step: 0.01,
             defaultValue: defaultSpring.response,
-            unit: "s"
+            format: .seconds,
+            help: "Roughly how long the spring takes to settle."
         )
-        NumberRow(
+        SliderRow(
             title: "Damping",
             value: $spring.dampingFraction,
             range: 0.2...1.2,
             step: 0.01,
             defaultValue: defaultSpring.dampingFraction,
-            unit: ""
+            format: .number,
+            help: "Below 1 the motion overshoots and bounces; at 1 and above it settles without."
         )
     }
 }

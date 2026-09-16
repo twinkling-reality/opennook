@@ -37,8 +37,14 @@ final class PlaygroundModel: ObservableObject {
     /// A message for the controls window to show in an alert, such as why a preset did not open.
     @Published var alertMessage: String?
 
-    /// A short confirmation shown under the export, such as "Copied".
-    @Published private(set) var toast: String?
+    /// A short confirmation at the bottom of the controls window, such as "Copied".
+    @Published private(set) var toast: Toast?
+
+    struct Toast: Equatable {
+        let message: String
+        /// Whether ``undo()`` can take back what the message reports.
+        let canUndo: Bool
+    }
 
     /// Weak because the coordinator owns this model, through the module host.
     private(set) weak var coordinator: AppCoordinator?
@@ -46,6 +52,8 @@ final class PlaygroundModel: ObservableObject {
     private let store: PlaygroundStore
     private var isApplyScheduled = false
     private var toastTask: Task<Void, Never>?
+    /// What the last undoable change replaced.
+    private var undoPreset: PlaygroundPreset?
     private var controlsWindow: PlaygroundControlsWindowController?
 
     init(store: PlaygroundStore) {
@@ -187,16 +195,73 @@ final class PlaygroundModel: ObservableObject {
         }
     }
 
+    /// Applies a preset and offers to undo it.
+    func apply(_ preset: PlaygroundPreset, announcing message: String) {
+        let previous = self.preset
+        apply(preset)
+        flash(message, undoing: previous)
+    }
+
+    /// Puts back what the last undoable change replaced.
+    func undo() {
+        guard let undoPreset else { return }
+        apply(undoPreset)
+        flash("Undone")
+    }
+
     func resetEverything() {
-        apply(PlaygroundPreset())
+        apply(PlaygroundPreset(), announcing: "Reset everything")
     }
 
-    func copySwift() {
-        copy(swiftSnippet, toast: "Copied the Swift snippet")
+    /// Returns one page's settings to the defaults, as its sidebar menu offers.
+    func reset(_ page: PlaygroundPage) {
+        let previous = preset
+        var settings = settings
+        switch page {
+            case .appearance:
+                updateAppearance { preferences in
+                    let keepsOpen = preferences.keepNookOpen
+                    preferences = .default
+                    preferences.keepNookOpen = keepsOpen
+                }
+            case .theme:
+                settings.theme = .init()
+            case .panel:
+                settings.panel = .init()
+                settings.metrics = .init()
+            case .typeAndMotion:
+                settings.typography = .init()
+                settings.motion = .init()
+            case .topBar:
+                settings.topBar = .init()
+                settings.labels = .init()
+            case .companions:
+                // The lock and gear go back to the top bar with the companion that held them.
+                if settings.companions.contains(where: { $0.kind == .controls }) {
+                    settings.topBar.showsKeepOpenButton = true
+                    settings.topBar.showsSettingsButton = true
+                }
+                settings.companions = []
+            case .effects:
+                settings.rimGlow = .init()
+                settings.scrollEdgeFade = .init()
+            case .behavior:
+                settings.behavior = .init()
+            case .presets:
+                return
+        }
+        self.settings = settings
+        flash("Reset \(page.title)", undoing: previous)
     }
 
-    func copyJSON() {
-        copy(presetJSON, toast: "Copied the preset JSON")
+    func copySwift(announcing: Bool = true) {
+        copy(swiftSnippet)
+        if announcing { flash("Copied the Swift") }
+    }
+
+    func copyJSON(announcing: Bool = true) {
+        copy(presetJSON)
+        if announcing { flash("Copied the preset") }
     }
 
     func pasteJSON() {
@@ -205,8 +270,7 @@ final class PlaygroundModel: ObservableObject {
             return
         }
         do {
-            apply(try PlaygroundPresetCoder.decode(text))
-            flash("Applied the preset from the clipboard")
+            apply(try PlaygroundPresetCoder.decode(text), announcing: "Applied the preset from the clipboard")
         } catch {
             alertMessage = error.localizedDescription
         }
@@ -243,8 +307,7 @@ final class PlaygroundModel: ObservableObject {
     private func importPreset(from url: URL) {
         do {
             let data = try Data(contentsOf: url)
-            apply(try PlaygroundPresetCoder.decode(data))
-            flash("Opened \(url.lastPathComponent)")
+            apply(try PlaygroundPresetCoder.decode(data), announcing: "Opened \(url.lastPathComponent)")
         } catch let error as PlaygroundPresetError {
             alertMessage = "\(url.lastPathComponent): \(error.localizedDescription)"
         } catch {
@@ -252,20 +315,22 @@ final class PlaygroundModel: ObservableObject {
         }
     }
 
-    private func copy(_ text: String, toast: String) {
+    private func copy(_ text: String) {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
-        flash(toast)
     }
 
-    private func flash(_ message: String) {
+    /// Shows `message` for a moment, longer when it offers to undo.
+    private func flash(_ message: String, undoing previous: PlaygroundPreset? = nil) {
         toastTask?.cancel()
-        toast = message
+        undoPreset = previous
+        toast = Toast(message: message, canUndo: previous != nil)
         toastTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(2.5))
+            try? await Task.sleep(for: .seconds(previous == nil ? 2 : 5))
             guard !Task.isCancelled else { return }
             self?.toast = nil
+            self?.undoPreset = nil
         }
     }
 

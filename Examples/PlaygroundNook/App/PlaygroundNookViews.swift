@@ -15,12 +15,39 @@ import SwiftUI
 /// shows what the theme, the insets, and the scroll edge fade do to a real view.
 struct PlaygroundHomeView: View {
     @ObservedObject var model: PlaygroundModel
-    @Environment(\.nookResolvedTheme) private var theme
+
+    var body: some View {
+        if model.settings.topBar.notchAccessories {
+            content
+                .nookNotchAccessories {
+                    HeaderTitle()
+                } trailing: {
+                    ControlsButton(model: model)
+                }
+        } else {
+            content
+        }
+    }
+
+    private var content: some View {
+        HomeContent(model: model, showsHeader: !model.settings.topBar.notchAccessories)
+    }
+}
+
+private struct HomeContent: View {
+    @ObservedObject var model: PlaygroundModel
+    let showsHeader: Bool
     @Environment(\.nookContentInsets) private var insets
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            header
+            if showsHeader {
+                HStack(spacing: 8) {
+                    HeaderTitle()
+                    Spacer(minLength: 8)
+                    ControlsButton(model: model)
+                }
+            }
             if model.demo.showsScrollDemo {
                 TagStrip()
                 AgendaList()
@@ -30,47 +57,75 @@ struct PlaygroundHomeView: View {
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
         // A fixed height keeps the panel from resizing as the demo content changes.
-        .frame(height: 196, alignment: .top)
+        .frame(height: showsHeader ? 196 : 162, alignment: .top)
         .padding(.bottom, insets.bottom)
         .nookRimGlow(model.demo.litRimColor)
     }
+}
 
-    private var header: some View {
-        HStack(spacing: 10) {
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .fill(theme.accent.gradient)
-                .frame(width: 34, height: 34)
-                .overlay {
-                    Image(systemName: "slider.horizontal.3")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(.white)
-                }
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
+/// The playground's mark and name, small enough to sit beside the notch. Where the band beside
+/// a narrow panel's notch has no room for the name, only the mark shows.
+private struct HeaderTitle: View {
+    @Environment(\.nookResolvedTheme) private var theme
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 8) {
+                mark
                 Text("Playground")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(theme.primaryLabel)
-                Text("Edits in the controls window apply here live.")
-                    .font(.system(size: 11))
-                    .foregroundStyle(theme.secondaryLabel)
                     .lineLimit(1)
+                    .fixedSize()
             }
-            Spacer(minLength: 8)
-            Button {
-                model.showControls(activating: true)
-            } label: {
-                Label("Controls", systemImage: "slider.horizontal.below.rectangle")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(theme.primaryLabel)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(theme.subtleFill, in: Capsule())
-                    .overlay { Capsule().strokeBorder(theme.subtleStroke) }
-                    .contentShape(Capsule())
-            }
-            .buttonStyle(.plain)
-            .help("Show the playground's controls window")
+            mark
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Playground")
+    }
+
+    private var mark: some View {
+        RoundedRectangle(cornerRadius: 6, style: .continuous)
+            .fill(theme.accent.gradient)
+            .frame(width: 20, height: 20)
+            .overlay {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(.white)
+            }
+    }
+}
+
+/// Opens the controls window. It drops its label where there is no room for it.
+private struct ControlsButton: View {
+    @ObservedObject var model: PlaygroundModel
+    @Environment(\.nookResolvedTheme) private var theme
+
+    var body: some View {
+        Button {
+            model.showControls(activating: true)
+        } label: {
+            ViewThatFits(in: .horizontal) {
+                pill(Label("Controls", systemImage: "slider.horizontal.below.rectangle").labelStyle(.titleAndIcon))
+                pill(Label("Controls", systemImage: "slider.horizontal.below.rectangle").labelStyle(.iconOnly))
+            }
+        }
+        .buttonStyle(.plain)
+        .help("Show the playground's controls window")
+        .accessibilityLabel("Controls")
+    }
+
+    private func pill(_ label: some View) -> some View {
+        label
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(theme.primaryLabel)
+            .lineLimit(1)
+            .fixedSize()
+            .padding(.horizontal, 9)
+            .padding(.vertical, 4)
+            .background(theme.subtleFill, in: Capsule())
+            .overlay { Capsule().strokeBorder(theme.subtleStroke) }
+            .contentShape(Capsule())
     }
 }
 

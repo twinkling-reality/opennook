@@ -28,6 +28,8 @@ enum PlaygroundFixtures {
 
         settings.topBar.showsKeepOpenButton = false
         settings.topBar.showsSettingsButton = false
+        settings.topBar.notchClearance = .manual
+        settings.topBar.notchAccessories = true
         settings.topBar.leadingTitle = "Today"
         settings.topBar.leadingIcon = "sun.max"
 
@@ -73,8 +75,19 @@ enum PlaygroundFixtures {
         import NookApp
         import SwiftUI
 
+        struct MyNookHome: View {
+            var body: some View {
+                MyHomeView()  // your home view
+                    .nookNotchAccessories {
+                        HeaderTitle()  // your view: an icon and a short title
+                    } trailing: {
+                        HeaderButtons()  // your view: a few icon buttons
+                    }
+            }
+        }
+
         var configuration = NookConfiguration()
-        configuration.setHome { MyHomeView() }  // your home view
+        configuration.setHome { MyNookHome() }
 
         // Launch appearance. It seeds the first run; the user's own Settings choices win.
         configuration.preferenceDefaults = NookPreferenceDefaults(
@@ -108,6 +121,7 @@ enum PlaygroundFixtures {
 
         configuration.topBar.showsKeepOpenButton = false
         configuration.topBar.showsSettingsButton = false
+        configuration.topBar.notchClearance = .manual
         configuration.topBar.leadingTitle = { _ in "Today" }
         configuration.topBar.leadingIcon = "sun.max"
 
