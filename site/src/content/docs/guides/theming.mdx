@@ -179,6 +179,20 @@ configuration.expandedWidth = 600
 NookApp.main(configuration)
 ```
 
+The framework's own shape is `NookConfiguration.defaultStyle` (19 pt top corners,
+24 pt bottom corners, the standard insets), so a style that changes one value can
+start from it:
+
+```swift
+var style = NookConfiguration.defaultStyle
+style.bottomCornerRadius = 30
+configuration.style = style
+```
+
+`style` and `transitions` are read at launch, and again by
+`coordinator.reloadActiveConfiguration()` for a module that rebuilds its
+configuration at runtime (see [Playground](/guides/playground/#doing-the-same-in-your-app)).
+
 For how `expandedWidth`, `expandedContentInsets`, `metrics.edgePadding`, and
 `nookContentInsets` compose into usable content width - and how to avoid
 double horizontal padding on the home view - see

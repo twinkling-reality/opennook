@@ -37,6 +37,7 @@ public final class ModuleHost: ObservableObject {
         let id = registry.defaultModuleID
         self.activeModuleID = id
         self.configuration = registry.module(for: id)?.makeConfiguration() ?? NookConfiguration()
+        self.chromeBehavior = registry.chromeBehavior
     }
 
     /// Single-module convenience - wraps one ``NookConfiguration`` as a lone module so
@@ -83,7 +84,10 @@ public final class ModuleHost: ObservableObject {
 
     /// Process-global chrome behavior - hover side-effects, the cold-launch shimmer, and
     /// the appearance->backdrop mapping. See ``NookChromeBehavior``.
-    public var chromeBehavior: NookChromeBehavior { registry.chromeBehavior }
+    ///
+    /// Starts as the host's ``NookHostConfiguration/chromeBehavior``;
+    /// ``AppCoordinator/replaceChromeBehavior(_:)`` replaces it at runtime.
+    public internal(set) var chromeBehavior: NookChromeBehavior
 
     /// Whether the framework installs its menu-bar status item. See
     /// ``NookHostConfiguration/showsMenuBarExtra``.
@@ -138,5 +142,14 @@ public final class ModuleHost: ObservableObject {
             registry.unload(outgoingID)
         }
         return true
+    }
+
+    /// Builds the active module's configuration again and re-publishes it, so the router
+    /// views re-render from it. Bookkeeping only, like ``switchModule(to:)``: projecting the
+    /// result onto the surface is ``AppCoordinator/reloadActiveConfiguration()``'s job, which
+    /// is why this stays internal.
+    func reloadConfiguration() {
+        guard let module = activeModule else { return }
+        configuration = module.makeConfiguration()
     }
 }

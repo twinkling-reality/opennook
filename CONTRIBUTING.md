@@ -36,9 +36,10 @@ drift between them.
   launch trampolines.
 - `Sources/NookComponents/` - opt-in add-ons (file shelf, activity queue,
   volume glyph). Apache-2.0.
-- `Examples/` - single-file demonstrations of the public API. Each example
-  is one `main.swift` showing one concept.
-- `Tests/` - `NookKitTests` and `NookComponentsTests`.
+- `Examples/` - demonstrations of the public API. Each example is one
+  `main.swift` showing one concept, except `PlaygroundNook`, whose model and
+  exporters live in the `PlaygroundNookCore` target so they can be tested.
+- `Tests/` - `NookKitTests`, `NookComponentsTests`, and `PlaygroundNookTests`.
 
 ## License headers
 

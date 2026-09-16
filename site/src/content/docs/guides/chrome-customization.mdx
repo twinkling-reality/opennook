@@ -111,7 +111,11 @@ public struct NookHoverBehavior: OptionSet, Sendable {
 }
 ```
 
-Read once when the surface is built, like `style`.
+Applied when the surface is built. To change it later - say, from a "haptics on
+hover" preference - pass a new `NookChromeBehavior` to
+`coordinator.replaceChromeBehavior(_:)`; the hover behavior applies from the next
+hover, and a new backdrop resolver applies at once. See
+[Playground](/guides/playground/#doing-the-same-in-your-app).
 
 ### Launch shimmer
 

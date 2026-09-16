@@ -1,13 +1,13 @@
 ---
 title: Examples
-description: An index of the ten single-file example apps under Examples/, each linked to the guide that covers it
+description: An index of the eleven example apps under Examples/, each linked to the guide that covers it
 ---
 
-Every example under `Examples/` is a single-file host that builds on OpenNook's
-public API only - no forking, no patched framework. Each one is its own SPM
-target, so you run it straight from the repo with `swift run <Name>` and press
-the show/hide hotkey (the default is the option-command-semicolon combination)
-to expand the nook.
+Every example under `Examples/` is a host that builds on OpenNook's public API
+only - no forking, no patched framework. All but the playground fit in a single
+`main.swift`. Each one is its own SPM target, so you run it straight from the repo
+with `swift run <Name>` and press the show/hide hotkey (the default is the
+option-command-semicolon combination) to expand the nook.
 
 They are grouped here so you can jump to the one closest to what you are
 building. Each entry links to the guide that explains the concept in full.
@@ -29,6 +29,12 @@ here if you have never run an OpenNook app.
 Reshaping the chrome - palette, lifecycle hooks, brand mark, layout - through
 `NookConfiguration`.
 
+- **PlaygroundNook** - `swift run PlaygroundNook`. A live customization
+  playground: a controls window changes the running nook's appearance, theme,
+  size and shape, type and motion, top bar, companions, rim glow, scroll edge
+  fade, and hover behavior, then exports the result as Swift that sets only what
+  changed, or as a JSON preset. Start here to explore the other seams. See
+  [Playground](/guides/playground/).
 - **ThemedNook** - `swift run ThemedNook`. A host-supplied `NookResolvedTheme`
   that paints the chrome labels, plus the `onExpand` / `onCompact` lifecycle
   callbacks. See [Theming](/guides/theming/).

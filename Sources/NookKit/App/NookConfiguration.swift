@@ -124,14 +124,30 @@ public struct NookConfiguration: Sendable {
 
     /// Overrides the chrome's corner radii - the small rounding into the notch arch and
     /// the larger rounding where the panel meets the wallpaper. `nil` (the default) uses
-    /// the framework's radii, tuned to sit well under the menu bar on notched MacBooks.
-    /// See ``NookStyle``.
+    /// the framework's radii, ``defaultStyle``, tuned to sit well under the menu bar on
+    /// notched MacBooks. See ``NookStyle``.
+    ///
+    /// Read at launch and by ``AppCoordinator/reloadActiveConfiguration()``. A module switch
+    /// keeps the style the chrome already has.
     public var style: NookStyle? = nil
+
+    /// The chrome's shape when ``style`` is `nil`: 19 pt corners into the notch arch, 24 pt
+    /// corners where the panel meets the wallpaper, and the standard expanded-content
+    /// insets. Start from it to change one value:
+    ///
+    /// ```swift
+    /// var style = NookConfiguration.defaultStyle
+    /// style.bottomCornerRadius = 30
+    /// configuration.style = style
+    /// ```
+    public static let defaultStyle = NookStyle(topCornerRadius: 19, bottomCornerRadius: 24)
 
     /// Overrides the expand / collapse / compact<->expanded animation curves. `nil` (the
     /// default) uses the framework's soft springs. Supply a ``NookTransitionConfiguration``
     /// to retune or to slow the chrome down (set its `animationDuration` so awaited
     /// `expand()`/`compact()` still return once the chrome has visibly arrived).
+    ///
+    /// Read at launch and by ``AppCoordinator/reloadActiveConfiguration()``, like ``style``.
     public var transitions: NookTransitionConfiguration? = nil
 
     /// Fixed width, in points, for the expanded surface's inner content column. `nil`

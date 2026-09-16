@@ -69,8 +69,14 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
         return true
     }
 
-    public let style: NookStyle
-    public let hoverBehavior: NookHoverBehavior
+    /// The chrome's corner radii and expanded-content insets. Settable, so a host can retune
+    /// the shape at runtime: a visible chrome restyles in place, and a hidden one picks the new
+    /// style up when it next shows. Wrap the change in `withAnimation` to animate it.
+    @Published public var style: NookStyle
+
+    /// Side-effects applied while the pointer is over the chrome. Read on every hover change
+    /// and every hide, so a new value takes effect from the next one.
+    public var hoverBehavior: NookHoverBehavior
 
     public var transitionConfiguration = NookTransitionConfiguration()
 

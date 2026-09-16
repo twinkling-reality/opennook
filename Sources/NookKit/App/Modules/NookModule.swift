@@ -29,7 +29,7 @@ public protocol NookModule: AnyObject {
     /// Builds the surface configuration - home/compact content, theme, chrome opt-outs,
     /// lifecycle hooks. Called when the module becomes active, including for the launch
     /// module right after it is constructed; the result is cached by the host until the
-    /// next activation.
+    /// next activation or ``AppCoordinator/reloadActiveConfiguration()``.
     func makeConfiguration() -> NookConfiguration
 
     /// Called when a module switch makes this module the foreground module. The surface is

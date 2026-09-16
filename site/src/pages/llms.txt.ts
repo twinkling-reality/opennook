@@ -10,6 +10,7 @@ const SECTIONS: { title: string; ids: string[] }[] = [
   {
     title: 'Customization',
     ids: [
+      'guides/playground',
       'guides/theming',
       'guides/settings-chrome',
       'guides/companion-surfaces',

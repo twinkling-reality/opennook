@@ -32,11 +32,6 @@ public final class AppCoordinator: ObservableObject {
     /// Reads through ``moduleHost`` so it always reflects the active module.
     public var configuration: NookConfiguration { moduleHost.configuration }
 
-    enum NookAppearance {
-        static let expandedTopCornerRadius: CGFloat = 19
-        static let expandedBottomCornerRadius: CGFloat = 24
-    }
-
     public let hotkeyController: HotkeyController
     var cancellables = Set<AnyCancellable>()
 
@@ -186,11 +181,7 @@ public final class AppCoordinator: ObservableObject {
         let chromeActions = coordinatorBox.chromeActions
         return Nook<AnyView, AnyView, AnyView>(
             hoverBehavior: moduleHost.chromeBehavior.hoverBehavior,
-            style: moduleHost.configuration.style
-                ?? NookStyle(
-                    topCornerRadius: NookAppearance.expandedTopCornerRadius,
-                    bottomCornerRadius: NookAppearance.expandedBottomCornerRadius
-                ),
+            style: moduleHost.configuration.style ?? NookConfiguration.defaultStyle,
             expanded: {
                 AnyView(
                     ModuleRouterExpandedView(
@@ -389,10 +380,11 @@ public final class AppCoordinator: ObservableObject {
         // any subsequent hover- or coordinator-driven compact fires the hook normally.
         enqueueLifecycle { [weak self] in
             guard let self else { return }
-            let savedOnCompact = self.surface.onCompact
             self.surface.onCompact = nil
             await self.surface.compact(on: self.resolveScreen())
-            self.surface.onCompact = savedOnCompact
+            // Restored from the active configuration rather than a copy saved before the
+            // compact, so a configuration reload that lands mid-compact keeps its hook.
+            self.surface.onCompact = self.configuration.onCompact
             // The greeting shimmer is opt-out: a host can launch silently while still
             // settling into the compact launch state. See `NookChromeBehavior`.
             if self.moduleHost.chromeBehavior.showsLaunchShimmer {
@@ -481,9 +473,7 @@ public final class AppCoordinator: ObservableObject {
 
         // 5. Drop a stranded `.settings` viewMode if the incoming module disables
         //    Settings (see testSwitchToModuleWithSettingsDisabledClearsStrandedSettingsViewMode).
-        if !moduleHost.configuration.topBar.showsSettings, appState.viewMode == .settings {
-            appState.showHome()
-        }
+        leaveSettingsIfDisabled()
 
         // 6. onReady for the incoming module (once per loaded instance).
         if !moduleHost.registry.isLoaded(outgoingID) {
@@ -608,12 +598,76 @@ public final class AppCoordinator: ObservableObject {
         surface.scrollEdgeFade = configuration.scrollEdgeFade
     }
 
+    /// Returns to the home view when the active configuration turned Settings off while it
+    /// was showing, since nothing would lead back out of it.
+    private func leaveSettingsIfDisabled() {
+        if !moduleHost.configuration.topBar.showsSettings, appState.viewMode == .settings {
+            appState.showHome()
+        }
+    }
+
     /// Switches to the next registered module, wrapping around. No-op for a host with a
     /// single module.
     public func cycleModule() {
         let ids = moduleHost.descriptors.map(\.id)
         guard ids.count > 1, let index = ids.firstIndex(of: moduleHost.activeModuleID) else { return }
         switchModule(to: ids[(index + 1) % ids.count])
+    }
+
+    // MARK: - Live configuration
+
+    /// Builds the active module's configuration again and applies it to the running chrome,
+    /// for a module whose configuration depends on state that changes at runtime - its own
+    /// preferences, a live preview, a design playground.
+    ///
+    /// The active module's `makeConfiguration()` runs again and the result is applied the way
+    /// a module switch applies the incoming module's: the home and compact content, theme, top
+    /// bar, labels, metrics, motion, typography, and width re-render in place; the lifecycle
+    /// hooks, file-drop handler, companion surfaces, rim glow style, and scroll edge fade are
+    /// projected onto the surface again; and the chrome leaves Settings if the new
+    /// configuration turns Settings off. It also applies ``NookConfiguration/style`` and
+    /// ``NookConfiguration/transitions``, which the chrome otherwise reads only at launch.
+    ///
+    /// Nothing else changes. The module is not deactivated or activated again, `onReady` does
+    /// not fire again, the nook keeps its current state, and SwiftUI state inside content
+    /// whose identity is unchanged is kept. A module whose `makeConfiguration()` returns a
+    /// fixed value gets that same value back. Wrap the call in `withAnimation` to animate the
+    /// change:
+    ///
+    /// ```swift
+    /// model.showsTimer.toggle()   // state the module's makeConfiguration() reads
+    /// withAnimation(.snappy) { coordinator.reloadActiveConfiguration() }
+    /// ```
+    ///
+    /// The process-global settings a single-module configuration carries -
+    /// `preferenceDefaults`, `chromeBehavior`, `branding`, and `showsMenuBarExtra` - are read
+    /// once at launch and are not reloaded. Use ``replaceChromeBehavior(_:)`` for chrome
+    /// behavior.
+    public func reloadActiveConfiguration() {
+        moduleHost.reloadConfiguration()
+        let configuration = moduleHost.configuration
+        applyModuleHooks(configuration)
+        applyModuleSurfaceDecorations(configuration)
+        let style = configuration.style ?? NookConfiguration.defaultStyle
+        // `Nook.style` publishes on every assignment, so skip one that changes nothing.
+        if surface.style != style {
+            surface.style = style
+        }
+        configureNotchAnimations()
+        leaveSettingsIfDisabled()
+    }
+
+    /// Replaces the process-global chrome behavior at runtime, for a host that lets people
+    /// change it - an "on hover" preference, a backdrop that follows a brand setting.
+    ///
+    /// The new hover behavior applies from the next hover change, and the backdrop is
+    /// resolved again right away with the new resolver. ``NookChromeBehavior/showsLaunchShimmer``
+    /// only matters at launch, so replacing it changes nothing. ``ModuleHost/chromeBehavior``
+    /// reads back the new value.
+    public func replaceChromeBehavior(_ behavior: NookChromeBehavior) {
+        moduleHost.chromeBehavior = behavior
+        surface.hoverBehavior = behavior.hoverBehavior
+        syncNotchBackdrop()
     }
 
     /// Fires the active module's `onReady` once per loaded instance.

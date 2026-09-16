@@ -46,6 +46,10 @@ public final class NookModuleRegistry {
     /// appearance->backdrop mapping). Held here for the same reason as ``branding`` - so
     /// ``ModuleHost`` and ``AppCoordinator`` can read it without a reference back to the
     /// host configuration. See ``NookChromeBehavior``.
+    ///
+    /// This is the behavior the host launched with. Read the live value from
+    /// ``ModuleHost/chromeBehavior``, which ``AppCoordinator/replaceChromeBehavior(_:)``
+    /// updates.
     public let chromeBehavior: NookChromeBehavior
 
     /// Whether the framework installs its menu-bar status item. Held here so the app
