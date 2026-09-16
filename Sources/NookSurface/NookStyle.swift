@@ -54,7 +54,7 @@ public struct NookStyle: Equatable, Sendable {
     /// host wants to reclaim the dead band below its last row. Because the bottom corners
     /// curve inward by `bottomCornerRadius`, content pinned into a *bottom corner* will
     /// intersect that curve once `bottom` drops below it; the published
-    /// ``EnvironmentValues/nookContentInsets`` reports the residual a host must apply to
+    /// `\.nookContentInsets` reports the residual a host must apply to
     /// clear it. Centered content (e.g. a command row) stays horizontally clear of the
     /// corners and is unaffected, so it can safely sit at the reduced bottom inset.
     public var expandedContentInsets: NookEdgeInsets

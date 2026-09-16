@@ -138,9 +138,9 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// in the expanded surface and the auto-expand from compact. The panel surfaces
     /// `NSDraggingDestination` callbacks; this published bool is the SwiftUI-friendly view.
     ///
-    /// This is a derived mirror of ``dragSession`` - kept as the published surface for
+    /// This is a derived mirror of `dragSession` - kept as the published surface for
     /// observers (`AppCoordinator` subscribes to `$isDragInFlight`). The authoritative
-    /// session state is ``dragSession``; this bool is updated from its `didSet`.
+    /// session state is `dragSession`; this bool is updated from its `didSet`.
     @Published public private(set) var isDragInFlight: Bool = false
 
     /// Generic drag-destination callback: invoked when AppKit drops file URLs on the panel.
@@ -241,7 +241,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     ///
     /// **Deliberately not `@Published`** (unlike ``backdrop``). `NSAppearance` is an
     /// AppKit appearance proxy whose effect is the `NSWindow.appearance` set in
-    /// ``didSet`` - the SwiftUI content tree re-resolves its `colorScheme` from the
+    /// `didSet` - the SwiftUI content tree re-resolves its `colorScheme` from the
     /// hosting window automatically. There is no SwiftUI observer that would benefit
     /// from a Combine publish, so adding `@Published` would be theatrical motion
     /// without behavioural change.
@@ -554,7 +554,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
 // MARK: - Public lifecycle
 
 extension Nook {
-    /// Expand the chrome. Pass `nil` (the default) to let ``resolvedScreen`` pick the
+    /// Expand the chrome. Pass `nil` (the default) to let `resolvedScreen` pick the
     /// target - typically the host's persisted display preference via ``screenProvider``.
     public func expand(on screen: NSScreen? = nil) async {
         guard let target = screen ?? resolvedScreen else { return }
@@ -565,7 +565,7 @@ extension Nook {
     }
 
     /// Collapse the chrome to its compact pill. Pass `nil` (the default) to let
-    /// ``resolvedScreen`` pick the target.
+    /// `resolvedScreen` pick the target.
     public func compact(on screen: NSScreen? = nil) async {
         guard let target = screen ?? resolvedScreen else { return }
         let skipHide = transitionConfiguration.skipIntermediateHides
@@ -574,7 +574,7 @@ extension Nook {
         }.value
     }
 
-    /// Hide the chrome and tear the window down. Routed through ``runTransition(_:)`` -
+    /// Hide the chrome and tear the window down. Routed through `runTransition(_:)` -
     /// exactly like `expand`/`compact` - so the hide and its teardown live fully inside
     /// the generation system: a newer transition reliably supersedes an in-flight hide,
     /// cancelling its task before its `fadeOutWindow`/`deinitializeWindow` can run.

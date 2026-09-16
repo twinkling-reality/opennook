@@ -125,7 +125,7 @@ public struct NookConfiguration: Sendable {
     /// Overrides the chrome's corner radii - the small rounding into the notch arch and
     /// the larger rounding where the panel meets the wallpaper. `nil` (the default) uses
     /// the framework's radii, ``defaultStyle``, tuned to sit well under the menu bar on
-    /// notched MacBooks. See ``NookStyle``.
+    /// notched MacBooks. See `NookStyle`.
     ///
     /// Read at launch and by ``AppCoordinator/reloadActiveConfiguration()``. A module switch
     /// keeps the style the chrome already has.
@@ -143,7 +143,7 @@ public struct NookConfiguration: Sendable {
     public static let defaultStyle = NookStyle(topCornerRadius: 19, bottomCornerRadius: 24)
 
     /// Overrides the expand / collapse / compact<->expanded animation curves. `nil` (the
-    /// default) uses the framework's soft springs. Supply a ``NookTransitionConfiguration``
+    /// default) uses the framework's soft springs. Supply a `NookTransitionConfiguration`
     /// to retune or to slow the chrome down (set its `animationDuration` so awaited
     /// `expand()`/`compact()` still return once the chrome has visibly arrived).
     ///
@@ -156,9 +156,9 @@ public struct NookConfiguration: Sendable {
     /// doesn't resize when switching between the home and Settings surfaces.
     ///
     /// Usable width for edge-aligned content is not simply `expandedWidth`: the chrome
-    /// applies ``NookStyle/expandedContentInsets`` and ``NookChromeMetrics/edgePadding``
+    /// applies `NookStyle.expandedContentInsets` and ``NookChromeMetrics/edgePadding``
     /// before your home view lays out, and hosts read the residual clearance through
-    /// ``EnvironmentValues/nookContentInsets``. See `Examples/LayoutNook/main.swift`
+    /// `\.nookContentInsets`. See `Examples/LayoutNook/main.swift`
     /// and the site guide *Layout and content insets* for how the knobs compose.
     ///
     /// Bottom command rows that should span the full content column should use
@@ -349,7 +349,7 @@ public struct NookTopBarConfiguration: Sendable {
     /// How the top bar spans the expanded content column.
     public enum Width: Sendable, Equatable {
         /// Leading and trailing clusters share the full column width; trailing icons
-        /// align to ``EnvironmentValues/nookContentInsets`` on the right (matches
+        /// align to `\.nookContentInsets` on the right (matches
         /// LayoutNook host home rows).
         case contentColumn
         /// Shrink-wrap to icon clusters; centered when narrower than the column.

@@ -68,7 +68,8 @@ public struct ShelfItem: Identifiable, Codable, Hashable, Sendable {
     /// can't be bookmarked (e.g. it doesn't exist).
     public static func make(from url: URL) -> ShelfItem? {
         guard let capture = Self.bookmarkData(for: url) else { return nil }
-        let type = UTType(filenameExtension: url.pathExtension)?.identifier
+        let type =
+            UTType(filenameExtension: url.pathExtension)?.identifier
             ?? UTType.data.identifier
         return ShelfItem(
             id: UUID(),
@@ -99,7 +100,7 @@ public struct ShelfItem: Identifiable, Codable, Hashable, Sendable {
     /// bookmark can't be resolved.
     ///
     /// Use this for any *synchronous* file read (icon, attributes, contents). It is not
-    /// suitable for work that outlives the call - e.g. an asynchronous drag session - 
+    /// suitable for work that outlives the call - e.g. an asynchronous drag session -
     /// because access stops as soon as `body` returns.
     public func withResolvedURL<T>(_ body: (URL) -> T) -> T? {
         guard let url = resolved()?.url else { return nil }
@@ -181,7 +182,7 @@ public struct ShelfItem: Identifiable, Codable, Hashable, Sendable {
     /// Custom decoder so JSON written by an older build (no `bookmarkKind` field)
     /// decodes cleanly to `.unknown` - which the purge rule treats as a non-scoped
     /// bookmark, preserving it across launches. Same pattern as
-    /// ``NookAppearancePreferences``.
+    /// `NookAppearancePreferences`.
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.id = try container.decode(UUID.self, forKey: .id)

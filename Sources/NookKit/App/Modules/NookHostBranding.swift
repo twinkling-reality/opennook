@@ -38,7 +38,7 @@ public struct NookHostBranding: Sendable, Equatable {
     /// Replaces the OpenNook ``NookMark`` glyph wherever the chrome renders the brand
     /// mark - the top-bar leading cluster (when ``NookTopBarConfiguration/leadingIcon`` is
     /// `nil`), the About card, and the menu-bar status icon. `nil` (the default) keeps the
-    /// OpenNook mark. Not part of ``Equatable`` (a closure can't be compared) - two
+    /// OpenNook mark. Not part of `Equatable` (a closure can't be compared) - two
     /// brandings are equal when their strings match.
     public var mark: NookBrandMark?
 
@@ -70,34 +70,34 @@ public struct NookHostBranding: Sendable, Equatable {
 }
 
 #if canImport(AppKit)
-import AppKit
+    import AppKit
 
-public extension NookHostBranding {
-    /// Renders the brand mark into a template `NSImage` for the menu-bar status item - 
-    /// the host's ``mark`` if set, otherwise the framework mark.
-    @MainActor
-    func menuBarTemplateImage(size: CGFloat = 14) -> NSImage? {
-        guard let mark else {
-            return NookMarkView.makeTemplateImage(size: size)
+    extension NookHostBranding {
+        /// Renders the brand mark into a template `NSImage` for the menu-bar status item -
+        /// the host's ``mark`` if set, otherwise the framework mark.
+        @MainActor
+        public func menuBarTemplateImage(size: CGFloat = 14) -> NSImage? {
+            guard let mark else {
+                return NookMarkView.makeTemplateImage(size: size)
+            }
+            let renderer = ImageRenderer(content: mark(size, .primary))
+            renderer.scale = 2
+            guard let image = renderer.nsImage else { return nil }
+            image.isTemplate = true
+            return image
         }
-        let renderer = ImageRenderer(content: mark(size, .primary))
-        renderer.scale = 2
-        guard let image = renderer.nsImage else { return nil }
-        image.isTemplate = true
-        return image
     }
-}
 #endif
 
 private struct NookHostBrandingKey: EnvironmentKey {
     static let defaultValue: NookHostBranding = .default
 }
 
-public extension EnvironmentValues {
+extension EnvironmentValues {
     /// Host branding (``NookHostBranding``) injected by the expanded router so any
     /// framework chrome view can read it from the environment instead of taking it
     /// through every init in the path.
-    var nookHostBranding: NookHostBranding {
+    public var nookHostBranding: NookHostBranding {
         get { self[NookHostBrandingKey.self] }
         set { self[NookHostBrandingKey.self] = newValue }
     }

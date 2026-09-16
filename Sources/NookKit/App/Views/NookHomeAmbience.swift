@@ -13,7 +13,7 @@ import SwiftUI
 ///
 /// This is the "home screen's chosen color" semantics. It is deliberately kept *out* of the
 /// MIT `NookSurface` engine, which only exposes the product-agnostic
-/// ``NookSurface/NookAmbientColorPreferenceKey`` seam. NookKit attaches the meaning here.
+/// `NookAmbientColorPreferenceKey` seam. NookKit attaches the meaning here.
 extension View {
     /// Publishes the home surface's chosen theme color so the surface backdrop paints a
     /// matching ambient wash behind the full expanded chrome. Pass `nil` for no tint.

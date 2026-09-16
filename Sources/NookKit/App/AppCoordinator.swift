@@ -17,7 +17,7 @@ import SwiftUI
 /// `@MainActor`-isolated: the coordinator drives `Nook`/`NSWindow` chrome, holds the
 /// `@Published` ``AppState``, and arbitrates transient surface presenters - every one
 /// of which is main-actor work. Conforms to ``NookSurfacePresenting`` so transient
-/// presenters (e.g. ``NookActivityQueue``) can take over the surface through it.
+/// presenters (e.g. `NookActivityQueue`) can take over the surface through it.
 @MainActor
 public final class AppCoordinator: ObservableObject {
     /// Framework-global, observable chrome state - appearance preferences, hotkey,
@@ -406,7 +406,7 @@ public final class AppCoordinator: ObservableObject {
     public var activeModuleID: String { moduleHost.activeModuleID }
 
     /// Switches the foreground module. The switch is enqueued as a transaction on the
-    /// serial lifecycle chain (``enqueueLifecycle``), so it is ordered against - never
+    /// serial lifecycle chain (`enqueueLifecycle`), so it is ordered against - never
     /// interleaved with - surface transitions and other switches.
     ///
     /// The transaction quiesces the outgoing module's surface activity, invalidates its
@@ -1085,7 +1085,7 @@ extension AppCoordinator: NookSurfacePresenting {
     /// notch pinned via ``NookPresentationPinning``. A transient arbiter presenter
     /// pauses in any of those cases.
     ///
-    /// Sources from ``userInitiatedOpen`` (user intent) - NOT `appState.isNookVisible`
+    /// Sources from `userInitiatedOpen` (user intent) - NOT `appState.isNookVisible`
     /// (surface mirror) - so the arbiter's own `expand()` never trips this gate on a
     /// subsequent preempting claim.
     ///
@@ -1105,8 +1105,8 @@ extension AppCoordinator: NookSurfacePresenting {
     /// the surface's hover publisher, and the presentation-pin broker, deduplicated.
     ///
     /// Verified: in-tree consumers of `isUserEngaged` / `userEngagementChanges`
-    /// (``NookActivityQueue/waitWhileUserEngaged(_:)`` at NookActivityQueue.swift:234,
-    /// ``SurfaceArbiter``'s engagement gate at SurfaceArbiter.swift:109/198) are
+    /// (`NookActivityQueue.waitWhileUserEngaged(_:)` at NookActivityQueue.swift:234,
+    /// `SurfaceArbiter`'s engagement gate at SurfaceArbiter.swift:109/198) are
     /// idempotent under repeated same-value events - the activity queue polls in a
     /// while-loop, and the arbiter consults the flag fresh on each claim. Adding a
     /// third publisher to the `combineLatest` increases emission frequency only on
@@ -1123,12 +1123,12 @@ extension AppCoordinator: NookSurfacePresenting {
             .eraseToAnyPublisher()
     }
 
-    /// Grants or denies the claim through the ``SurfaceArbiter``.
+    /// Grants or denies the claim through the `SurfaceArbiter`.
     public func beginTransientPresentation(_ claim: NookSurfaceClaim) async -> NookSurfaceToken? {
         await arbiter.begin(claim)
     }
 
-    /// Releases the claim through the ``SurfaceArbiter``.
+    /// Releases the claim through the `SurfaceArbiter`.
     public func endTransientPresentation(_ token: NookSurfaceToken) async {
         await arbiter.end(token)
     }

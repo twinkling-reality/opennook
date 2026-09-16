@@ -113,7 +113,10 @@ public final class SystemVolumeObserver: ObservableObject {
         if let listener = defaultDeviceListener {
             var address = Self.address(kAudioHardwarePropertyDefaultOutputDevice)
             AudioObjectRemovePropertyListenerBlock(
-                AudioObjectID(kAudioObjectSystemObject), &address, DispatchQueue.main, listener
+                AudioObjectID(kAudioObjectSystemObject),
+                &address,
+                DispatchQueue.main,
+                listener
             )
         }
     }
@@ -135,7 +138,10 @@ public final class SystemVolumeObserver: ObservableObject {
         if let listener = defaultDeviceListener {
             var address = Self.address(kAudioHardwarePropertyDefaultOutputDevice)
             AudioObjectRemovePropertyListenerBlock(
-                AudioObjectID(kAudioObjectSystemObject), &address, DispatchQueue.main, listener
+                AudioObjectID(kAudioObjectSystemObject),
+                &address,
+                DispatchQueue.main,
+                listener
             )
             defaultDeviceListener = nil
             removedListenerCountForTesting += 1
@@ -180,7 +186,10 @@ public final class SystemVolumeObserver: ObservableObject {
         }
         var address = Self.address(kAudioHardwarePropertyDefaultOutputDevice)
         AudioObjectAddPropertyListenerBlock(
-            AudioObjectID(kAudioObjectSystemObject), &address, DispatchQueue.main, onChange
+            AudioObjectID(kAudioObjectSystemObject),
+            &address,
+            DispatchQueue.main,
+            onChange
         )
         defaultDeviceListener = onChange
         addedListenerCountForTesting += 1
@@ -258,7 +267,12 @@ public struct CoreAudioVolumeReader: VolumeReading {
         var device = AudioDeviceID(kAudioObjectUnknown)
         var size = UInt32(MemoryLayout<AudioDeviceID>.size)
         let status = AudioObjectGetPropertyData(
-            AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size, &device
+            AudioObjectID(kAudioObjectSystemObject),
+            &address,
+            0,
+            nil,
+            &size,
+            &device
         )
         return status == noErr && device != AudioObjectID(kAudioObjectUnknown) ? device : nil
     }
@@ -266,16 +280,17 @@ public struct CoreAudioVolumeReader: VolumeReading {
     /// Reads the device's output volume - the main-element scalar if it has one,
     /// otherwise the average of every per-channel scalar the device advertises. The
     /// main-vs-channel decision is delegated to
-    /// ``resolveVolumeFallback(mainScalar:channelScalars:)``.
+    /// `resolveVolumeFallback(mainScalar:channelScalars:)`.
     ///
     /// The per-channel pass enumerates the channels from the device's actual output
-    /// stream configuration (``outputChannelCount(for:)``) rather than the previous
+    /// stream configuration (`outputChannelCount(for:)`) rather than the previous
     /// hard-coded `{1, 2}` - a 5.1 or 7.1 device's volume control lives on channels
     /// 3-6 (center, LFE, rears) and the old probe missed them entirely.
     public func readVolume(_ device: AudioDeviceID) -> Double? {
         var mainScalar: Double?
         var mainAddress = SystemVolumeObserver.address(
-            kAudioDevicePropertyVolumeScalar, kAudioObjectPropertyScopeOutput
+            kAudioDevicePropertyVolumeScalar,
+            kAudioObjectPropertyScopeOutput
         )
         if AudioObjectHasProperty(device, &mainAddress) {
             var value = Float32(0)
@@ -321,7 +336,10 @@ public struct CoreAudioVolumeReader: VolumeReading {
         guard AudioObjectGetPropertyDataSize(device, &address, 0, nil, &size) == noErr, size > 0 else {
             return 0
         }
-        let bufferList = UnsafeMutableRawPointer.allocate(byteCount: Int(size), alignment: MemoryLayout<AudioBufferList>.alignment)
+        let bufferList = UnsafeMutableRawPointer.allocate(
+            byteCount: Int(size),
+            alignment: MemoryLayout<AudioBufferList>.alignment
+        )
         defer { bufferList.deallocate() }
         guard AudioObjectGetPropertyData(device, &address, 0, nil, &size, bufferList) == noErr else {
             return 0
@@ -333,7 +351,8 @@ public struct CoreAudioVolumeReader: VolumeReading {
 
     public func readMute(_ device: AudioDeviceID) -> Bool {
         var muteAddress = SystemVolumeObserver.address(
-            kAudioDevicePropertyMute, kAudioObjectPropertyScopeOutput
+            kAudioDevicePropertyMute,
+            kAudioObjectPropertyScopeOutput
         )
         guard AudioObjectHasProperty(device, &muteAddress) else { return false }
         var value = UInt32(0)

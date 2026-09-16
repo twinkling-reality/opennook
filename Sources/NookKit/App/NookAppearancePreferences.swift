@@ -19,7 +19,7 @@ public struct NookAppearancePreferences: Equatable, Codable, Sendable {
     public var surfaceStyle: NookSurfaceStyle
 
     /// Notch-fused or free-floating chrome - `.auto` follows the display. See
-    /// ``NookPresentation``. This is what lets OpenNook work on a Mac with no notch.
+    /// `NookPresentation`. This is what lets OpenNook work on a Mac with no notch.
     public var presentation: NookPresentation
 
     /// When on, completion-style events play a one-shot trackpad haptic via

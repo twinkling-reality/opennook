@@ -14,7 +14,7 @@ import NookKit
 /// Enqueue ``NookActivity`` values; the queue drains them one at a time, highest
 /// ``NookActivityPriority/high`` first, collapsing any that share a `coalescingKey`.
 /// Presenting an activity briefly takes over the expanded surface through a
-/// ``NookSurfacePresenting`` - typically `AppCoordinator`, supplied via
+/// `NookSurfacePresenting` - typically `AppCoordinator`, supplied via
 /// `NookConfiguration.onReady`:
 ///
 /// ```swift
@@ -123,7 +123,7 @@ public final class NookActivityQueue: ObservableObject {
 
     /// Stops all draining, joins the drain task, and releases any held surface token.
     ///
-    /// Unlike ``suspend()`` - which detaches the drain task and returns immediately - 
+    /// Unlike ``suspend()`` - which detaches the drain task and returns immediately -
     /// `quiesce()` *awaits* the drain task to fully unwind, then hands back any
     /// in-flight surface claim. After it returns the queue is provably no longer
     /// touching the surface, so the owning module is safe to switch away or unload.
@@ -218,7 +218,8 @@ public final class NookActivityQueue: ObservableObject {
     /// Removes and returns the highest-priority pending activity, FIFO within a priority.
     private func dequeue() -> NookActivity? {
         guard let maxPriority = pending.map(\.priority).max(),
-              let index = pending.firstIndex(where: { $0.priority == maxPriority }) else {
+            let index = pending.firstIndex(where: { $0.priority == maxPriority })
+        else {
             return nil
         }
         return pending.remove(at: index)
@@ -253,14 +254,14 @@ public final class NookActivityQueue: ObservableObject {
     private static let contentionBackoff: Duration = .milliseconds(150)
 }
 
-private extension NookActivityPriority {
+extension NookActivityPriority {
     /// Maps an activity's queue priority onto the surface-claim priority the arbiter
     /// ranks contending presenters by.
-    var surfacePriority: NookSurfacePriority {
+    fileprivate var surfacePriority: NookSurfacePriority {
         switch self {
-        case .low: return .ambient
-        case .normal: return .normal
-        case .high: return .urgent
+            case .low: return .ambient
+            case .normal: return .normal
+            case .high: return .urgent
         }
     }
 }

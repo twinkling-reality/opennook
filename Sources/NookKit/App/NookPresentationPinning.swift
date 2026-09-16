@@ -23,8 +23,8 @@ import Foundation
 /// **The shape.** A module acquires a *pin* while the transient UI is up. While
 /// any pin is outstanding the broker projects two things:
 ///
-/// 1. ``AppCoordinator/setStaysExpandedOverride(_:)`` is held `true`, suppressing
-///    the hover-exit auto-compact at `Nook.swift`'s ``Nook/updateHoverState(_:)``.
+/// 1. `AppCoordinator.setStaysExpandedOverride(_:)` is held `true`, suppressing
+///    the hover-exit auto-compact at `Nook.swift`'s `Nook.updateHoverState(_:)`.
 /// 2. ``AppCoordinator/isUserEngaged`` (and its ``AppCoordinator/userEngagementChanges``
 ///    publisher) report `true`, denying competing arbiter claims for the duration.
 ///

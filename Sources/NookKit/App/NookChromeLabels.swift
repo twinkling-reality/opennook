@@ -11,7 +11,7 @@ import SwiftUI
 /// naming (e.g. "Preferences" instead of "Settings"). Defaults reproduce today's English.
 ///
 /// Set via ``NookConfiguration/labels``. The values reach the top bar and the status
-/// banner through the chrome environment (``EnvironmentValues/nookChromeLabels``).
+/// banner through the chrome environment (`\.nookChromeLabels`).
 public struct NookChromeLabels: Sendable, Equatable {
     /// The Settings breadcrumb shown after the leading cluster (`[icon] Title › Settings`).
     public var settingsBreadcrumb: String
@@ -45,9 +45,9 @@ private struct NookChromeLabelsKey: EnvironmentKey {
     static let defaultValue: NookChromeLabels = .default
 }
 
-public extension EnvironmentValues {
+extension EnvironmentValues {
     /// Host-overridable chrome strings. See ``NookChromeLabels``.
-    var nookChromeLabels: NookChromeLabels {
+    public var nookChromeLabels: NookChromeLabels {
         get { self[NookChromeLabelsKey.self] }
         set { self[NookChromeLabelsKey.self] = newValue }
     }
