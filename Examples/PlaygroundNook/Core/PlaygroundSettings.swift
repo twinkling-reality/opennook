@@ -237,6 +237,34 @@ extension PlaygroundSettings {
 
         public init() {}
 
+        /// One settable font. The raw value is the property name, which is also the key it
+        /// encodes to and the name the assistant's field guide uses.
+        public enum Role: String, CaseIterable, Sendable {
+            case headerIcon
+            case topBarLabel
+            case bannerMessage
+            case compactLeadingGlyph
+        }
+
+        public subscript(role: Role) -> FontSpec {
+            get {
+                switch role {
+                    case .headerIcon: headerIcon
+                    case .topBarLabel: topBarLabel
+                    case .bannerMessage: bannerMessage
+                    case .compactLeadingGlyph: compactLeadingGlyph
+                }
+            }
+            set {
+                switch role {
+                    case .headerIcon: headerIcon = newValue
+                    case .topBarLabel: topBarLabel = newValue
+                    case .bannerMessage: bannerMessage = newValue
+                    case .compactLeadingGlyph: compactLeadingGlyph = newValue
+                }
+            }
+        }
+
         /// Only the roles that differ from the defaults are replaced, so an untouched value
         /// leaves the framework's own fonts in place.
         public var chromeTypography: NookChromeTypography {
@@ -297,6 +325,27 @@ extension PlaygroundSettings {
         public var statusBanner = SpringSpec(response: 0.34, dampingFraction: 0.86)
 
         public init() {}
+
+        /// One settable spring, named as it encodes.
+        public enum Role: String, CaseIterable, Sendable {
+            case viewModeChange
+            case statusBanner
+        }
+
+        public subscript(role: Role) -> SpringSpec {
+            get {
+                switch role {
+                    case .viewModeChange: viewModeChange
+                    case .statusBanner: statusBanner
+                }
+            }
+            set {
+                switch role {
+                    case .viewModeChange: viewModeChange = newValue
+                    case .statusBanner: statusBanner = newValue
+                }
+            }
+        }
 
         public var chromeMotion: NookChromeMotion {
             var motion = NookChromeMotion.default
@@ -634,12 +683,12 @@ extension PlaygroundSettings {
         settings.metrics.compactSlotSize = max(metrics.compactSlotSize, 0)
         settings.metrics.bannerCornerRadius = max(metrics.bannerCornerRadius, 0)
 
-        for keyPath in [\Typography.headerIcon, \.topBarLabel, \.bannerMessage, \.compactLeadingGlyph] {
-            settings.typography[keyPath: keyPath].size = min(max(typography[keyPath: keyPath].size, 1), 200)
+        for role in Typography.Role.allCases {
+            settings.typography[role].size = min(max(typography[role].size, 1), 200)
         }
-        for keyPath in [\Motion.viewModeChange, \.statusBanner] {
-            let spring = motion[keyPath: keyPath]
-            settings.motion[keyPath: keyPath] = SpringSpec(
+        for role in Motion.Role.allCases {
+            let spring = motion[role]
+            settings.motion[role] = SpringSpec(
                 response: max(spring.response, 0.01),
                 dampingFraction: min(max(spring.dampingFraction, 0.01), 2)
             )
