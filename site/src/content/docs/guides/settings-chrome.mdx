@@ -31,6 +31,12 @@ When `false`, the chrome shell renders only your home view inside the
 expanded surface. No top bar, no gear, no lock. Use this when your view
 owns the entire surface.
 
+Settings and keep-open are still there without the bar. Put `NookKeepOpenButton`
+and `NookSettingsButton` in a companion surface or your home view (see
+[below](#showskeepopenbutton--showssettingsbutton)), call `\.nookChromeActions` from
+your own controls, or use the menu-bar item. `showsSettings` still decides whether
+Settings exists at all.
+
 The content still starts below the notch, where the bar would have ended. To put icons
 beside the notch, or to let the content run up to the top, see
 [Clearing the notch](/guides/layout-and-insets/#clearing-the-notch).
@@ -57,6 +63,65 @@ configuration.addCompanion(id: "chrome-controls", anchor: .trailing, hidesInSett
     ChromeControls()  // a VStack of NookKeepOpenButton() and NookSettingsButton()
 }
 ```
+
+## Hiding Settings groups
+
+The built-in Settings screen shows five framework groups - Appearance, Display,
+Shortcut & nook, Data, and About - then any sections you add with
+`addSettingsSection(title:content:)`. Leave a group out of `settingsGroups` to hide
+it and keep the rest:
+
+```swift
+configuration.settingsGroups = [.appearance, .shortcut, .about]  // no Display or Data
+```
+
+## Building your own Settings screen
+
+`setSettings(_:)` replaces the built-in screen. The framework's groups are public
+views, so your screen keeps the ones you want beside your own, drawn the same way
+with `NookSettingsGroup`:
+
+```swift
+struct MySettings: View {
+    @EnvironmentObject private var appState: AppState
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                NookSettingsGroup("Account") { AccountRows() }
+                NookSettingsGroup("Appearance") { NookAppearanceSettingsSection(appState: appState) }
+                NookSettingsGroup("Display", isInitiallyExpanded: false) {
+                    NookDisplaySettingsSection(appState: appState)
+                }
+                NookSettingsGroup("Shortcut & nook", isInitiallyExpanded: false) {
+                    NookShortcutSettingsSection(appState: appState)
+                }
+                NookSettingsGroup("Data", isInitiallyExpanded: false) { NookResetSettingsSection() }
+                NookSettingsGroup("About", isInitiallyExpanded: false) { NookAboutSettingsSection() }
+            }
+        }
+    }
+}
+
+configuration.setSettings { MySettings() }
+```
+
+| View | What it shows |
+| --- | --- |
+| `NookAppearanceSettingsSection(appState:)` | Theme, surface, layout, accent, and strength |
+| `NookDisplaySettingsSection(appState:)` | Which display the nook is on |
+| `NookShortcutSettingsSection(appState:)` | The global shortcut, "Stay expanded", and haptic feedback |
+| `NookResetSettingsSection()` | "Reset All Settings" |
+| `NookAboutSettingsSection()` | The host's name, version, and tagline |
+
+Each writes through `AppState` and the chrome's actions, exactly as the built-in
+screen does, so they need to sit inside chrome content - the Settings screen, home,
+or a companion. `NookSettingsGroup` keeps its own open or closed state, or takes an
+`isExpanded` binding.
+
+Reset returns appearance, the shortcut, and the display to your
+`preferenceDefaults` and forgets the person's choices; see
+[Launch defaults](/guides/chrome-customization/#launch-defaults-preferencedefaults).
 
 ## `topBar.leadingTitle` / `topBar.leadingIcon`
 

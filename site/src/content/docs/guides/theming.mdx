@@ -210,7 +210,10 @@ configuration.setSettings { MyProductSettingsView() }
 ```
 
 Leave it unset to keep the built-in Settings UI; set
-`topBar.showsSettings = false` to drop the Settings screen entirely.
+`topBar.showsSettings = false` to drop the Settings screen entirely. Your screen can
+keep any of the framework's groups - appearance, display, shortcut, reset, and about -
+beside its own; see
+[Building your own Settings screen](/guides/settings-chrome/#building-your-own-settings-screen).
 
 ## User-facing appearance preferences
 
@@ -263,13 +266,24 @@ last persisted.
 
 ## Persistence
 
-Appearance preferences are encoded as JSON and stored in
-`UserDefaults.standard` under the key `opennook.appearance.v1`.
-`AppState.init` loads from there on launch; `replaceAppearancePreferences`
-writes back through `NookAppearanceStore.save`. Failed encode/decodes fall
-back to defaults silently rather than wiping the record - decoding is
-forward-compatible too, so a JSON record from an older build that is missing
-later-added fields still round-trips correctly.
+Appearance is saved field by field: only the fields the person changed are stored,
+as JSON in `UserDefaults.standard` under `opennook.appearance.choices.v2`. Every
+other field comes from your `preferenceDefaults`, so a default you change in a
+later build reaches everyone who never chose that field - even people who changed
+a different one. A field the person sets stays theirs, even when it matches your
+default at the time.
+
+`AppState.init` puts the stored choices over your defaults on launch, and
+`replaceAppearancePreferences` records the fields that changed.
+`AppState.resetAppearancePreferences()` (and the Settings reset) forgets every
+choice. A choice this build cannot read, such as a value written by a newer build,
+drops only that field.
+
+Builds before this saved the whole record under `opennook.appearance.v1` whenever
+anything changed. On the first launch that finds one, its fields that match your
+current defaults are treated as never chosen and the rest are kept, so nobody's
+appearance changes when they upgrade. The old record is left in place for older
+builds.
 
 You don't need to do anything to get persistence - it is on by default for
 every host that uses the built-in Settings UI.

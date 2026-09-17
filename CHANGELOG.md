@@ -91,8 +91,70 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   presence, and export as real SwiftUI views. Its settings model and exporters are
   the tested `PlaygroundNookCore` target. New site guide: "Playground".
 
+- Typing in the nook. A click on a text input in the nook always gives the nook the
+  keyboard, including after the person has used another app, and the nook hands the
+  keyboard back to the app in front when it collapses or hides. To type without a
+  click, `AppCoordinator.takeNookKeyboardFocus()` and `releaseNookKeyboardFocus()`
+  (with `nookHasKeyboardFocus`), `NookChromeActions.takeKeyboardFocus` and
+  `releaseKeyboardFocus` for views, and `Nook.takeKeyboardFocus()`,
+  `releaseKeyboardFocus()`, and `hasKeyboardFocus` at the engine level.
+  `NookChromeBehavior.keyboard` (`NookKeyboardBehavior`) opts the global shortcut in
+  to taking the keyboard when it opens the nook (`shortcutTakesKeyboardFocus`, off by
+  default). New site guide: "Typing in the nook".
+- Editing shortcuts in text inputs: at launch the framework installs a hidden Edit
+  menu (`NookEditMenu`) with Undo, Redo, Cut, Copy, Paste, and Select All when the
+  app's main menu has none, so Command-Z, Shift-Command-Z, and Command-X, C, V, and A
+  work. `NookKeyboardBehavior.installsEditMenu` turns it off.
+- `nookFocusOnAppear(_:)` gives the nook the keyboard and focuses a text input as it
+  appears, which setting its `FocusState` from `onAppear`, `task`, or `defaultFocus`
+  does not do in the nook.
+- `nookKeepsExpanded(whileFocused:)` holds the nook open while a text input has focus
+  and the nook has the keyboard, from the same `FocusState` binding the input uses, and
+  `\.nookHasKeyboardFocus` tells content whether typing reaches the nook.
+- `AppCoordinator.nookWindow` and `Nook.window`: the nook's panel right now, `nil`
+  while hidden, for window-level work the framework has no API for.
+- Composable Settings. The built-in screen's groups are public views a host's own
+  Settings screen can reuse - `NookDisplaySettingsSection`,
+  `NookShortcutSettingsSection`, `NookResetSettingsSection`, and
+  `NookAboutSettingsSection`, beside `NookAppearanceSettingsSection` - drawn in the
+  framework's collapsible `NookSettingsGroup`. `NookConfiguration.settingsGroups`
+  (`NookSettingsGroups`) hides individual groups of the built-in screen, and
+  `NookChromeActions.resetSettings` runs the reset from host controls.
+- The notch fade: `NookChromeBehavior.glassShading = .notchFade` (`NookGlassShading`)
+  shades Liquid Glass black where the panel meets the notch, clearing toward the
+  bottom (white for light chrome), scaled by Glass strength and replaced by a solid
+  fill under Reduce Transparency, with no backdrop resolver. The gradient is
+  `NookBackdrop.LiquidGlass.Shading.notchFade(_:strength:)`. Companions inheriting
+  the chrome's backdrop get their own even version of it: `Nook.companionBackdrop`,
+  `NookChromeBehavior.companionBackdrop` for a host resolver, and
+  `NookBackdropMapping.companionBackdrop(...)`.
+- PlaygroundNook's Behavior page picks the glass shading (Even or Notch fade), and the
+  Swift export and presets carry it.
+- `NookHostBranding.menuBarIcon` gives the menu-bar status item an icon other than the
+  brand mark, and `NookHostBranding.symbol(_:)` builds a mark or icon from an SF Symbol.
+- `AppState.preferenceDefaults` reads the host's launch defaults back, and
+  `resetAppearancePreferences()`, `resetHotkey()`, and `resetDisplayPreference()`
+  return one preference to them.
+
 ### Changed
 
+- Appearance preferences are stored field by field. Changing one field persists only
+  that field, so every field the person never changed keeps following the host's
+  `preferenceDefaults`, including a default a later build changes. Before, changing
+  any field (the keep-open lock, say) saved the whole record and froze every other
+  field at the default of that moment. A record saved by an earlier build
+  (`opennook.appearance.v1`) is migrated once on launch: its fields that match the
+  host's current defaults count as never chosen, and the rest are kept, so nobody's
+  appearance changes on upgrade. Choices now live under
+  `opennook.appearance.choices.v2`.
+- "Reset All Settings" (`AppCoordinator.resetAllSettingsToDefaults()`) returns
+  appearance, the global shortcut, and the display to the host's `preferenceDefaults`
+  and forgets the person's choices. It used to write the framework's own defaults,
+  ignoring the host's.
+- When the person clicks into another app, a text input in the nook gives up focus,
+  so `@FocusState` turns `false` and anything held open by it lets go.
+- Inside companion content, `\.nookChromeBackdrop` is the backdrop companions inherit,
+  which is the chrome's own unless `Nook.companionBackdrop` is set.
 - The GitHub repository moved to [twinkling-reality/opennook](https://github.com/twinkling-reality/opennook) (organization rename from `twinkling-reality`). Update your Swift package URL; GitHub redirects the old `twinkling-reality/opennook` path.
 
 
@@ -112,6 +174,17 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- The nook closes when a hold on it ends after the pointer left: a
+  `nookKeepsExpanded` pin, the keep-open lock turned off, or the settle after content
+  resizes. It used to stay open until the pointer entered and left again. A nook the
+  pointer never left, such as one opened with the shortcut, still stays open.
+- Turning the keep-open lock off, opening the nook, or resetting settings no longer
+  drops a `nookKeepsExpanded` pin that is still held.
+- Recording a new global shortcut in Settings works after the person has been in
+  another app: the recorder takes the keyboard it listens with.
+- The `NookTopBarConfiguration.showsTopBar` documentation said Settings and the lock
+  were unreachable from the chrome with the top bar off; `NookSettingsButton` and
+  `NookKeepOpenButton` reach them from a companion or home view.
 - Light theme + Liquid Glass no longer turns illegible over dark wallpapers or
   windows. Apple's macOS 26 glass material adapts its light/dark treatment to
   whatever is behind the notch, so neutral glass could flip dark underneath

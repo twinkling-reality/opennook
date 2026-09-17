@@ -109,4 +109,9 @@ enum NookDisplayStore {
             NookPreferenceStorage.defaults.set(data, forKey: defaultsKey)
         }
     }
+
+    /// Removes the persisted value, so loading falls back to the host's launch default again.
+    static func clear() {
+        NookPreferenceStorage.defaults.removeObject(forKey: defaultsKey)
+    }
 }

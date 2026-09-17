@@ -789,6 +789,13 @@ public enum AssistantSettingsCatalog {
                 default: defaults.hoverHaptics,
                 "Whether hovering the nook plays a haptic."
             ),
+            choice(
+                "settings.behavior.glassShading",
+                group: .behavior,
+                of: PlaygroundSettings.Behavior.GlassShading.self,
+                default: defaults.glassShading.rawValue,
+                "How Liquid Glass is shaded: evenly tinted, or black at the notch fading to clear glass below."
+            ),
         ]
     }
 

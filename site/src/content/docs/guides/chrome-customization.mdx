@@ -76,6 +76,20 @@ configuration.preferenceDefaults = NookPreferenceDefaults(
 )
 ```
 
+Appearance is kept **field by field**. When the person changes the palette, only the
+palette is stored; the surface style, the keep-open lock, and every other field they
+never changed keep following your defaults. So a host can move its default surface
+style to Liquid Glass in a later build and reach everyone who never picked a style,
+even people who turned on the lock. See [Persistence](/guides/theming/#persistence)
+for how records saved by earlier builds are migrated.
+
+Settings' "Reset All Settings" (`AppCoordinator.resetAllSettingsToDefaults()`)
+returns appearance, the shortcut, and the display to *these* defaults, not the
+framework's, and forgets the person's choices so they follow your defaults again.
+`AppState` also has `resetAppearancePreferences()`, `resetHotkey()`, and
+`resetDisplayPreference()` for one preference at a time, and reads your defaults
+back as `preferenceDefaults`.
+
 On the single-module path this `NookConfiguration.preferenceDefaults` is
 forwarded onto the synthesized host; a multi-module host sets the same value on
 `NookHostConfiguration.preferenceDefaults` (see [Multiple
@@ -85,8 +99,8 @@ process, these are host-process-global either way.
 ## Chrome behavior: `NookChromeBehavior`
 
 `chromeBehavior` describes how the single shared surface *behaves* - distinct
-from the per-surface content and theme seams. It carries three knobs, each
-defaulting to today's framework behavior:
+from the per-surface content and theme seams. Each knob defaults to today's
+framework behavior:
 
 ```swift
 configuration.chromeBehavior = NookChromeBehavior(
@@ -94,9 +108,16 @@ configuration.chromeBehavior = NookChromeBehavior(
     showsLaunchShimmer: false,   // default true: launch silently
     backdrop: { preferences, scheme, reduceTransparency in
         .vibrancy(.init(material: .hudWindow, darkenOpacity: 0.3))
-    }
+    },
+    glassShading: .notchFade,    // default .even: how the framework shades Liquid Glass
+    companionBackdrop: nil,      // default nil: what companions inherit
+    keyboard: NookKeyboardBehavior(shortcutTakesKeyboardFocus: true)  // default: shortcut only shows
 )
 ```
+
+`glassShading` and `companionBackdrop` are covered in
+[Surface materials](/guides/surface-materials/#notch-fade), and `keyboard` in
+[Typing in the nook](/guides/keyboard/).
 
 ### Hover behavior
 
@@ -287,6 +308,18 @@ line describing the host as built with OpenNook. Leaving `mark` `nil` keeps the
 OpenNook `NookMarkView` - the minimal notch arc plus center dot. `NookHostBranding`
 is `Equatable` on its strings only (a closure can't be compared), so two brandings
 are equal when their `hostName` and `hostTagline` match.
+
+The menu-bar status item draws the mark too. To give the menu bar an icon of its
+own, set `menuBarIcon` - a `NookBrandMark` like the mark, drawn as a template image
+so the menu bar tints it. `NookHostBranding.symbol(_:)` builds one from an SF Symbol:
+
+```swift
+configuration.branding = NookHostBranding(
+    hostName: "ContextNook",
+    mark: { size, color in AnyView(MyMark(color: color).frame(width: size, height: size)) },
+    menuBarIcon: NookHostBranding.symbol("sparkles")
+)
+```
 
 To turn the framework's menu-bar item off entirely - for a host that owns its own
 menu-bar presence or wants none - set `showsMenuBarExtra`:

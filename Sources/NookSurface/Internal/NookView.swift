@@ -159,6 +159,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
             }
             .animation(nook.effectiveConversionAnimation, value: nook.state)
             .animation(nook.effectiveConversionAnimation, value: [compactLeadingWidth, compactTrailingWidth])
+            .environment(\.nookHasKeyboardFocus, nook.hasKeyboardFocus)
     }
 
     /// Peripheral cue overlay. Sits above backdrop+content but inside the compositing group,
@@ -270,8 +271,8 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
         return NookCompanionItemView(
             surface: surface,
             chromeState: nook.state,
-            backdrop: surface.backdrop.resolved(inheriting: nook.backdrop),
-            chromeBackdrop: nook.backdrop,
+            backdrop: surface.backdrop.resolved(inheriting: nook.inheritedCompanionBackdrop),
+            chromeBackdrop: nook.inheritedCompanionBackdrop,
             heightLimit: companionHeightLimit(for: surface),
             reduceMotion: reduceMotion,
             presenceAnimation: nook.effectiveConversionAnimation,

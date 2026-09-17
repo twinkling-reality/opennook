@@ -77,6 +77,42 @@ renders exactly what the spec carries and never substitutes its own. The default
 framework mapping supplies a sensible top-to-bottom darken; a host returning its
 own `.liquidGlass` from a backdrop resolver can replace it wholesale.
 
+## Notch fade
+
+Many notch apps shade their glass black where the panel meets the hardware notch,
+clearing toward the bottom so the wallpaper shows through lower down. Ask for that
+look with one line instead of a backdrop resolver:
+
+```swift
+configuration.chromeBehavior.glassShading = .notchFade
+```
+
+`NookGlassShading` has two cases:
+
+- **`.even`** (the default) - glass tinted toward the theme with a light darken that
+  eases toward the bottom, as described above.
+- **`.notchFade`** - clear glass shaded from black at the top edge to nothing at the
+  bottom. The top always matches the notch; the Settings "Glass strength" slider
+  scales how dark the fade is below it. Light chrome fades from white instead, so
+  dark text stays legible.
+
+The shading changes Liquid Glass only. Solid, Translucent, and Reduce Transparency
+look the same either way.
+
+A fade sized for the tall chrome would look wrong squeezed into a small companion
+pill - black at its top, clear at its bottom. So under `.notchFade`, companions that
+inherit the chrome's backdrop get the same clear glass with a light, even tint
+instead, scaled by the same strength. To decide that yourself, set
+`chromeBehavior.companionBackdrop`, a resolver like `backdrop` that returns what
+companions inherit (`nil` for the chrome's own). Companion content reads the same
+value as `\.nookChromeBackdrop`. At the engine level this is `Nook.companionBackdrop`.
+
+The gradient itself is public too, for a host resolver or a raw `Nook`:
+
+```swift
+.liquidGlass(.init(shading: .notchFade(.black, strength: preferences.backdropStrength)))
+```
+
 ### Real material vs the pre-Tahoe approximation
 
 The surface dispatches on availability. On macOS 26+ it draws the real system

@@ -16,10 +16,29 @@ import SwiftUI
 /// a Liquid Glass material tinted and scrimmed toward the resolved theme - each scaled
 /// by `backdropStrength`.
 public enum NookBackdropMapping {
+    /// The chrome's backdrop for `preferences`, with the framework's even Liquid Glass shading.
     public static func notchBackdrop(
         preferences: NookAppearancePreferences,
         effectiveColorScheme: ColorScheme,
         reduceTransparency: Bool
+    ) -> NookBackdrop {
+        notchBackdrop(
+            preferences: preferences,
+            effectiveColorScheme: effectiveColorScheme,
+            reduceTransparency: reduceTransparency,
+            glassShading: .even
+        )
+    }
+
+    /// The chrome's backdrop for `preferences`, shading Liquid Glass as `glassShading` says.
+    ///
+    /// `glassShading` only changes Liquid Glass. Solid, Translucent, and Reduce Transparency
+    /// give the same backdrop whatever it is.
+    public static func notchBackdrop(
+        preferences: NookAppearancePreferences,
+        effectiveColorScheme: ColorScheme,
+        reduceTransparency: Bool,
+        glassShading: NookGlassShading
     ) -> NookBackdrop {
         let isDark: Bool =
             switch preferences.chromePalette {
@@ -48,6 +67,17 @@ public enum NookBackdropMapping {
                         material: .sidebar,
                         blendingMode: .behindWindow,
                         darkenOpacity: baseDarken * strength
+                    )
+                )
+            case .liquidGlass where glassShading == .notchFade:
+                // Clear glass, shaded from the notch's own color at the top to nothing at the
+                // bottom. The top matches the hardware notch; strength decides how dark the fade
+                // is below it. Light chrome fades from white, so dark text stays legible there.
+                return .liquidGlass(
+                    .init(
+                        tint: nil,
+                        highlightStrength: 0.6,
+                        shading: .notchFade(isDark ? .black : .white, strength: strength)
                     )
                 )
             case .liquidGlass:
@@ -101,4 +131,52 @@ public enum NookBackdropMapping {
                 return .solid(isDark ? .black : .white)
         }
     }
+}
+
+extension NookBackdropMapping {
+    /// The backdrop companions inheriting the chrome's should paint, or `nil` for the chrome's
+    /// own.
+    ///
+    /// `nil` except for Liquid Glass shaded ``NookGlassShading/notchFade``: a fade sized for the
+    /// tall chrome would be squeezed into a small pill, black at its top and clear at its
+    /// bottom, so companions get the same clear glass with a light, even tint for legibility,
+    /// scaled by the same strength.
+    public static func companionBackdrop(
+        preferences: NookAppearancePreferences,
+        effectiveColorScheme: ColorScheme,
+        reduceTransparency: Bool,
+        glassShading: NookGlassShading
+    ) -> NookBackdrop? {
+        guard glassShading == .notchFade, preferences.surfaceStyle == .liquidGlass, !reduceTransparency else {
+            return nil
+        }
+        let isDark: Bool =
+            switch preferences.chromePalette {
+                case .followSystem: effectiveColorScheme == .dark
+                case .dark: true
+                case .light: false
+            }
+        let strength = min(max(preferences.backdropStrength, 0.15), 1)
+        return .liquidGlass(
+            .init(
+                tint: nil,
+                highlightStrength: 0.6,
+                shading: .uniform(isDark ? .black.opacity(0.3 * strength) : .white.opacity(0.4 * strength))
+            )
+        )
+    }
+}
+
+/// How the framework shades Liquid Glass, set on ``NookChromeBehavior/glassShading``.
+public enum NookGlassShading: Sendable, Equatable, CaseIterable {
+    /// Glass tinted toward the theme, with a light darken (or lighten) that eases toward the
+    /// bottom. The framework's look since Liquid Glass shipped.
+    case even
+
+    /// Black where the panel meets the hardware notch, fading to clear glass at the bottom so
+    /// the wallpaper shows through - white instead of black for light chrome. Glass strength
+    /// scales how dark the fade is below the top edge. Companions inheriting the chrome's
+    /// backdrop get the same clear glass with a light even tint (see
+    /// ``NookBackdropMapping/companionBackdrop(preferences:effectiveColorScheme:reduceTransparency:glassShading:)``).
+    case notchFade
 }

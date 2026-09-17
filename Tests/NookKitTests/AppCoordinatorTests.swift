@@ -7,6 +7,7 @@
 
 import NookSurface
 import XCTest
+
 @testable import NookKit
 
 @MainActor
@@ -139,7 +140,8 @@ final class AppCoordinatorTests: XCTestCase {
         // A's drain loop releases its now-stale token: must be a no-op on the surface.
         await coordinator.endTransientPresentation(token!)
         XCTAssertEqual(
-            surface.transitions.count, transitionsBefore,
+            surface.transitions.count,
+            transitionsBefore,
             "a switched-away module's stale end must not move the surface"
         )
     }
@@ -172,9 +174,13 @@ final class AppCoordinatorTests: XCTestCase {
     func testSwitchDoesNotWedgeOnHangingPrepareForSwitchAway() async {
         let log = ExpandLog()
         // A's quiesce parks forever - simulating a misbehaving module.
-        let a = SpyModule(id: "A", expandLog: log, quiesceWork: {
-            try? await Task.sleep(for: .seconds(60))
-        })
+        let a = SpyModule(
+            id: "A",
+            expandLog: log,
+            quiesceWork: {
+                try? await Task.sleep(for: .seconds(60))
+            }
+        )
         let b = SpyModule(id: "B", expandLog: log)
         let surface = FakeNookSurface()
         let coordinator = makeCoordinator(modules: [a, b], surface: surface)
@@ -184,7 +190,8 @@ final class AppCoordinatorTests: XCTestCase {
         await coordinator.drainLifecycleForTesting()
 
         XCTAssertEqual(
-            coordinator.activeModuleID, "B",
+            coordinator.activeModuleID,
+            "B",
             "switch identity flips on the serial chain — hanging quiesce drains off-chain"
         )
         // Module B's hooks are live; we can drive the surface without waiting for A.
@@ -193,7 +200,7 @@ final class AppCoordinatorTests: XCTestCase {
     }
 
     /// `registerGlobalHotkey` records its outcome on the durable failure channel.
-    /// A successful registration leaves no `"toggle"` failure entry, and - critically - 
+    /// A successful registration leaves no `"toggle"` failure entry, and - critically -
     /// a pre-existing failure entry is cleared once a registration succeeds.
     func testRegisterGlobalHotkeyClearsFailureOnSuccess() {
         let log = ExpandLog()
@@ -418,7 +425,8 @@ final class AppCoordinatorTests: XCTestCase {
 
         // The surface is still expanded - the arbiter does not force-end mid-claim.
         XCTAssertEqual(
-            surface.state, .expanded,
+            surface.state,
+            .expanded,
             "mid-claim engagement does NOT preempt — the presenter must yield itself"
         )
 
@@ -431,7 +439,8 @@ final class AppCoordinatorTests: XCTestCase {
         await coordinator.endTransientPresentation(token!)
         await coordinator.drainLifecycleForTesting()
         XCTAssertEqual(
-            surface.state, .expanded,
+            surface.state,
+            .expanded,
             "end-during-engagement leaves the user's state alone (no restore)"
         )
     }
@@ -481,7 +490,8 @@ final class AppCoordinatorTests: XCTestCase {
 
         XCTAssertEqual(coordinator.activeModuleID, "B")
         XCTAssertEqual(
-            coordinator.appState.viewMode, .home,
+            coordinator.appState.viewMode,
+            .home,
             "incoming module disables Settings — viewMode must snap to .home"
         )
     }
@@ -503,7 +513,8 @@ final class AppCoordinatorTests: XCTestCase {
         await coordinator.drainLifecycleForTesting()
 
         XCTAssertEqual(
-            coordinator.appState.viewMode, .settings,
+            coordinator.appState.viewMode,
+            .settings,
             "incoming module still allows Settings — viewMode preserved"
         )
     }
@@ -531,7 +542,8 @@ final class AppCoordinatorTests: XCTestCase {
             coordinator.appState.isRecordingHotkey = true
             try await Task.sleep(nanoseconds: 30_000_000)
             XCTAssertEqual(
-                coordinator.hotkeyController.carbonIDsMintedForTesting, mintedAfterStart,
+                coordinator.hotkeyController.carbonIDsMintedForTesting,
+                mintedAfterStart,
                 "unregister mints nothing"
             )
 
@@ -672,7 +684,8 @@ final class AppCoordinatorTests: XCTestCase {
 
         let elapsed = Date().timeIntervalSince(start)
         XCTAssertLessThan(
-            elapsed, 1.0,
+            elapsed,
+            1.0,
             "runWithTimeout returned in \(elapsed)s — must be near the 80 ms deadline, not the 60 s parked sleep"
         )
         XCTAssertFalse(outcome.didFinish, "the parked work must not be allowed to finish")
@@ -849,5 +862,31 @@ final class AppCoordinatorTests: XCTestCase {
             surface.staysExpandedOnHoverExit,
             "release returns to the user's keepNookOpen preference, not a hardcoded false"
         )
+    }
+
+    /// REGRESSION: turning the lock off, or opening the nook, projected the lock alone onto the
+    /// surface and dropped a pin that was still held, so a popover's nook could collapse under it.
+    func testLockAndOpenKeepAPinThatIsStillHeld() async {
+        let log = ExpandLog()
+        let a = SpyModule(id: "A", expandLog: log)
+        let surface = FakeNookSurface()
+        let coordinator = makeCoordinator(modules: [a], surface: surface)
+        coordinator.resetAllSettingsToDefaults()
+
+        let handle = coordinator.presentationPinning.pin()
+        await drainAndPump(coordinator)
+        XCTAssertTrue(surface.staysExpandedOnHoverExit)
+
+        coordinator.toggleKeepNookOpen()  // on
+        coordinator.toggleKeepNookOpen()  // off, while the pin is held
+        XCTAssertTrue(surface.staysExpandedOnHoverExit, "the pin still holds the nook open")
+
+        coordinator.showNook()
+        await drainAndPump(coordinator)
+        XCTAssertTrue(surface.staysExpandedOnHoverExit, "opening the nook keeps the pin")
+
+        handle.release()
+        await drainAndPump(coordinator)
+        XCTAssertFalse(surface.staysExpandedOnHoverExit)
     }
 }

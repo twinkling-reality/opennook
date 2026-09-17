@@ -11,7 +11,10 @@ import SwiftUI
 
 /// Top-level Settings surface, rendered when the expanded nook is in `.settings` mode.
 /// Composes the per-section groups (Appearance, Display, Shortcut & nook, Data, About)
-/// into one scrolling stack. Each section's content is its own file under `Views/Settings/`.
+/// into one scrolling stack. Each group's body is a public section a host's own Settings
+/// screen can reuse (``NookAppearanceSettingsSection``, ``NookDisplaySettingsSection``,
+/// ``NookShortcutSettingsSection``, ``NookResetSettingsSection``, ``NookAboutSettingsSection``),
+/// each wrapped in a ``NookSettingsGroup``.
 ///
 /// Layout is deliberately flat: section label, then content, on one shared left margin
 /// (aligned with the top bar via `\.nookContentInsets`), separated by whitespace only,
@@ -20,15 +23,10 @@ struct SettingsView: View {
     @ObservedObject var appState: AppState
     /// Host-supplied sections rendered below the framework groups and above About.
     let hostSections: [NookSettingsSection]
-    let onToggleKeepOpen: () -> Void
-    let onResetAllSettings: () -> Void
+    /// The framework groups to show. See ``NookConfiguration/settingsGroups``.
+    var groups: NookSettingsGroups = .all
 
-    @Environment(\.nookResolvedTheme) private var theme
     @Environment(\.nookChromeMetrics) private var metrics
-
-    /// Curve-derived leading/trailing insets from the chrome. Matching them here aligns the
-    /// section labels and rows with the top bar's leading cluster on a notched display.
-    @Environment(\.nookContentInsets) private var contentInsets
 
     /// Which sections are expanded. In-memory for the session; Appearance opens by default
     /// so the surface isn't a wall of collapsed headers on first entry.
@@ -44,76 +42,42 @@ struct SettingsView: View {
         return min(440, max(260, visibleHeight * 0.36))
     }
 
-    private var chromeInteractionAccent: Color {
-        theme.accent
-    }
-
-    /// Flip the haptic preference and fire one pulse on the way *on* so the user feels
-    /// what they just enabled. Off doesn't pulse - silence is its whole point.
-    private func toggleHapticFeedback() {
-        var prefs = appState.appearancePreferences
-        prefs.hapticFeedbackEnabled.toggle()
-        appState.replaceAppearancePreferences(prefs)
-        NookHaptics.confirm(enabled: prefs.hapticFeedbackEnabled)
-    }
-
     var body: some View {
         ScrollView(.vertical, showsIndicators: false) {
             VStack(alignment: .leading, spacing: metrics.settingsSectionSpacing) {
-                section("Appearance") {
-                    NookAppearanceSettingsSection(appState: appState)
-                }
-
-                section("Display") {
-                    DisplaySettingsSection(appState: appState)
-                }
-
-                section("Shortcut & nook") {
-                    VStack(alignment: .leading, spacing: metrics.settingsGroupSpacing) {
-                        SettingsShortcutRow(appState: appState)
-                        if !appState.hotkeyRegistrationFailures.keys.filter({ $0 != NookHotkeyIDs.toggle }).isEmpty {
-                            SettingsHotkeyFailureRow(appState: appState)
-                        }
-                        SettingActionLine(
-                            icon: appState.keepNookOpen ? "pin.fill" : "pin",
-                            title: "Stay expanded",
-                            detail: appState.keepNookOpen
-                                ? "On — nook stays open after hover ends"
-                                : "Off — closes when the pointer leaves",
-                            accent: chromeInteractionAccent,
-                            action: onToggleKeepOpen
-                        )
-                        SettingActionLine(
-                            icon: appState.appearancePreferences.hapticFeedbackEnabled ? "hand.tap.fill" : "hand.tap",
-                            title: "Haptic feedback",
-                            detail: appState.appearancePreferences.hapticFeedbackEnabled
-                                ? "On — trackpad pulse on confirmation"
-                                : "Off — silent confirmation",
-                            accent: chromeInteractionAccent,
-                            action: toggleHapticFeedback
-                        )
+                if groups.contains(.appearance) {
+                    section("Appearance") {
+                        NookAppearanceSettingsSection(appState: appState)
                     }
                 }
 
-                section("Data") {
-                    VStack(alignment: .leading, spacing: metrics.settingsGroupSpacing) {
-                        SettingsDataCommandRow(
-                            title: "Preview status banner",
-                            subtitle: "Shows the transient message channel under the top bar",
-                            icon: "text.bubble",
-                            style: .standard,
-                            action: {
-                                appState.errorMessage = "Something went wrong — try again."
-                                appState.showHome()
-                            }
-                        )
-                        SettingsDataCommandRow(
-                            title: "Reset All Settings",
-                            subtitle: "Theme, surface, layout, display, hotkey, stay expanded",
-                            icon: "arrow.counterclockwise",
-                            style: .standard,
-                            action: onResetAllSettings
-                        )
+                if groups.contains(.display) {
+                    section("Display") {
+                        NookDisplaySettingsSection(appState: appState)
+                    }
+                }
+
+                if groups.contains(.shortcut) {
+                    section("Shortcut & nook") {
+                        NookShortcutSettingsSection(appState: appState)
+                    }
+                }
+
+                if groups.contains(.data) {
+                    section("Data") {
+                        VStack(alignment: .leading, spacing: metrics.settingsGroupSpacing) {
+                            SettingsDataCommandRow(
+                                title: "Preview status banner",
+                                subtitle: "Shows the transient message channel under the top bar",
+                                icon: "text.bubble",
+                                style: .standard,
+                                action: {
+                                    appState.errorMessage = "Something went wrong — try again."
+                                    appState.showHome()
+                                }
+                            )
+                            NookResetSettingsSection()
+                        }
                     }
                 }
 
@@ -123,8 +87,10 @@ struct SettingsView: View {
                     }
                 }
 
-                section("About") {
-                    SettingsAboutCard()
+                if groups.contains(.about) {
+                    section("About") {
+                        NookAboutSettingsSection()
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -136,21 +102,110 @@ struct SettingsView: View {
         .frame(maxWidth: .infinity, maxHeight: settingsScrollMaxHeight, alignment: .leading)
     }
 
-    /// A collapsible section bound to ``expandedSections``: a disclosure header, and - when
-    /// open - the content indented under a connector hairline.
+    /// A collapsible section bound to ``expandedSections``.
     @ViewBuilder
     private func section<Content: View>(
         _ title: String,
         @ViewBuilder content: @escaping () -> Content
     ) -> some View {
-        SettingsDisclosureSection(
-            title: title,
+        NookSettingsGroup(
+            title,
             isExpanded: Binding(
                 get: { expandedSections.contains(title) },
                 set: { open in
                     if open { expandedSections.insert(title) } else { expandedSections.remove(title) }
                 }
             ),
+            content: content
+        )
+    }
+}
+
+/// The framework groups of the built-in Settings screen, for showing some and hiding others
+/// with ``NookConfiguration/settingsGroups``.
+public struct NookSettingsGroups: OptionSet, Sendable, Hashable {
+    public let rawValue: Int
+
+    public init(rawValue: Int) {
+        self.rawValue = rawValue
+    }
+
+    /// Theme, surface, layout, accent, and strength. See ``NookAppearanceSettingsSection``.
+    public static let appearance = NookSettingsGroups(rawValue: 1 << 0)
+    /// Which display the nook is on. See ``NookDisplaySettingsSection``.
+    public static let display = NookSettingsGroups(rawValue: 1 << 1)
+    /// The global shortcut, "Stay expanded", and haptic feedback. See ``NookShortcutSettingsSection``.
+    public static let shortcut = NookSettingsGroups(rawValue: 1 << 2)
+    /// The status banner preview and "Reset All Settings". See ``NookResetSettingsSection``.
+    public static let data = NookSettingsGroups(rawValue: 1 << 3)
+    /// The host's name, version, and tagline. See ``NookAboutSettingsSection``.
+    public static let about = NookSettingsGroups(rawValue: 1 << 4)
+
+    /// Every framework group - the built-in screen as it ships.
+    public static let all: NookSettingsGroups = [.appearance, .display, .shortcut, .data, .about]
+}
+
+/// A collapsible Settings group - a disclosure header with the title, and the content indented
+/// under a connector hairline - drawn the way the built-in Settings screen draws its own, for a
+/// host that builds its own Settings screen from the framework's sections and its own.
+///
+/// ```swift
+/// struct MySettings: View {
+///     @EnvironmentObject private var appState: AppState
+///
+///     var body: some View {
+///         ScrollView {
+///             VStack(alignment: .leading, spacing: 16) {
+///                 NookSettingsGroup("Account") { AccountRows() }
+///                 NookSettingsGroup("Appearance") { NookAppearanceSettingsSection(appState: appState) }
+///                 NookSettingsGroup("Display", isInitiallyExpanded: false) {
+///                     NookDisplaySettingsSection(appState: appState)
+///                 }
+///                 NookSettingsGroup("Shortcut & nook", isInitiallyExpanded: false) {
+///                     NookShortcutSettingsSection(appState: appState)
+///                 }
+///                 NookSettingsGroup("Data", isInitiallyExpanded: false) { NookResetSettingsSection() }
+///             }
+///         }
+///     }
+/// }
+/// ```
+public struct NookSettingsGroup<Content: View>: View {
+    let title: String
+    let binding: Binding<Bool>?
+    let content: () -> Content
+
+    @State private var isExpandedState: Bool
+
+    /// A group that keeps its own open or closed state, starting open unless
+    /// `isInitiallyExpanded` is `false`.
+    public init(
+        _ title: String,
+        isInitiallyExpanded: Bool = true,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.title = title
+        self.binding = nil
+        self.content = content
+        _isExpandedState = State(initialValue: isInitiallyExpanded)
+    }
+
+    /// A group whose open or closed state lives in `isExpanded`.
+    public init(
+        _ title: String,
+        isExpanded: Binding<Bool>,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.title = title
+        self.binding = isExpanded
+        self.content = content
+        _isExpandedState = State(initialValue: isExpanded.wrappedValue)
+    }
+
+    public var body: some View {
+        SettingsDisclosureSection(
+            title: title,
+            isExpanded: binding ?? $isExpandedState,
             content: content
         )
     }

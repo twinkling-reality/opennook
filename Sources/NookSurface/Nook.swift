@@ -69,6 +69,14 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
         return true
     }
 
+    /// The panel the chrome is drawn in right now, or `nil` while hidden.
+    ///
+    /// Read it when you need it rather than keeping it: the chrome builds a new panel each time
+    /// it shows after being hidden and whenever it moves to another display, and the old one is
+    /// closed. Its accessibility identifier is `opennook.panel`. For typing, prefer
+    /// ``takeKeyboardFocus()`` to making the panel key yourself.
+    public var window: NSWindow? { windowController?.window }
+
     /// The chrome's corner radii and expanded-content insets. Settable, so a host can retune
     /// the shape at runtime: a visible chrome restyles in place, and a hidden one picks the new
     /// style up when it next shows. Wrap the change in `withAnimation` to animate it.
@@ -126,8 +134,30 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// Recomputed every time the panel window is built (see `initializeWindow`); drives
     /// `NookView`'s shape and positioning.
     @Published private(set) var layoutForm: NookChromeForm = .notch
-    @Published public private(set) var isHovering: Bool = false
-    @Published public var staysExpandedOnHoverExit: Bool = false
+    @Published public private(set) var isHovering: Bool = false {
+        didSet {
+            if isHovering { hasDeferredHoverExit = false }
+        }
+    }
+
+    /// Holds the expanded chrome open when the pointer leaves it. Set it back to `false` and a
+    /// pointer that left while it was on collapses the chrome right away, as if it had just
+    /// left; a chrome the pointer never left (one opened from the keyboard, say) stays open.
+    @Published public var staysExpandedOnHoverExit: Bool = false {
+        didSet {
+            if oldValue, !staysExpandedOnHoverExit { replayDeferredHoverExit() }
+        }
+    }
+
+    /// `true` when the pointer left the expanded chrome while ``staysExpandedOnHoverExit`` or
+    /// layout grace held it open, so the collapse it would have caused is still owed. Paid by
+    /// ``replayDeferredHoverExit()`` once nothing holds the chrome open; forgotten when the
+    /// pointer comes back or the chrome leaves the expanded state.
+    var hasDeferredHoverExit = false
+
+    /// `true` while the chrome's panel has the keyboard, so typing goes to a text input in the
+    /// chrome rather than to the app in front. See ``takeKeyboardFocus()``.
+    @Published public private(set) var hasKeyboardFocus: Bool = false
 
     /// `true` while a layout-resize grace window is suppressing hover-exit auto-compact.
     /// Host coordinators can fold this into user-engagement signals so arbiter claims
@@ -182,6 +212,19 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
 
     /// What the chrome paints behind compact + expanded content - vibrancy or solid.
     @Published public var backdrop: NookBackdrop = .solidBlack
+
+    /// What companions set to ``NookCompanionBackdrop/inherit`` paint, or `nil` (the default)
+    /// for the chrome's own ``backdrop``.
+    ///
+    /// Set it when the chrome's backdrop is shaped for the tall chrome - a fade from the notch,
+    /// say - and would look wrong squeezed into a small pill. Companion content reads this
+    /// backdrop as `\.nookChromeBackdrop`, so a style or view that paints the backdrop itself
+    /// matches the companion's surface.
+    @Published public var companionBackdrop: NookBackdrop?
+
+    /// The backdrop companions set to ``NookCompanionBackdrop/inherit`` paint, and the one their
+    /// content reads as `\.nookChromeBackdrop`.
+    var inheritedCompanionBackdrop: NookBackdrop { companionBackdrop ?? backdrop }
 
     /// Host surfaces floated beside the chrome and anchored to it - an action pill under the
     /// expanded panel, a round button beside the compact pill. See ``NookCompanionSurface``.
@@ -323,6 +366,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
         observeStateForLifecycleHooks()
         observeStateForLayoutGrace()
         observeStateForCompanions()
+        observeStateForKeyboardFocus()
     }
 
     /// Internal designated init for the no-compact-content case. The `disableCompact*`
@@ -350,6 +394,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
         observeStateForLifecycleHooks()
         observeStateForLayoutGrace()
         observeStateForCompanions()
+        observeStateForKeyboardFocus()
     }
 
     /// Convenience for the no-compact-content case. Compact mode collapses to hide.
@@ -417,6 +462,9 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
             .removeDuplicates()
             .sink { [weak self] newState in
                 guard let self, newState != .expanded else { return }
+                // Forgotten first: `$state` publishes before the new state is stored, so ending
+                // the grace must not find an owed exit and collapse a chrome already leaving.
+                self.hasDeferredHoverExit = false
                 self.endLayoutGrace()
             }
             .store(in: &cancellables)
@@ -477,6 +525,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
         performHoverHapticIfEnabled()
 
         guard hovering || !suppressesHoverExitCompact else {
+            if state == .expanded { hasDeferredHoverExit = true }
             return
         }
 
@@ -488,6 +537,20 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
             } else {
                 await self._compact(on: screen, skipHide: true, generation: generation)
             }
+        }
+    }
+
+    /// Collapses the chrome for a hover exit that a hold deferred, once no hold is left. Does
+    /// nothing when no exit is owed, when the pointer has come back to the chrome or a companion,
+    /// or while a file drag is over the panel.
+    func replayDeferredHoverExit() {
+        guard hasDeferredHoverExit, !suppressesHoverExitCompact else { return }
+        hasDeferredHoverExit = false
+        guard state == .expanded, !isHovering, !isDragInFlight,
+            let screen = windowController?.window?.screen ?? resolvedScreen
+        else { return }
+        runTransition { [weak self] generation in
+            await self?._compact(on: screen, skipHide: true, generation: generation)
         }
     }
 
@@ -556,8 +619,14 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// it can't keep mutating the window being swapped - see ``supersedeInFlightTransition()``.
     func rebuildVisibleWindow(on screen: NSScreen) {
         supersedeInFlightTransition()
+        // The old panel hands the keyboard back as it closes; an expanded chrome that had it
+        // takes it again in the new panel, so a display change does not cut off typing.
+        let hadKeyboardFocus = hasKeyboardFocus && state == .expanded
         initializeWindow(screen: screen, orderFront: false)
         showWindow()
+        if hadKeyboardFocus {
+            takeKeyboardFocus()
+        }
     }
 }
 
@@ -592,6 +661,68 @@ extension Nook {
         await runTransition { [weak self] generation in
             await self?._hide(generation: generation)
         }.value
+    }
+}
+
+// MARK: - Keyboard focus
+
+extension Nook {
+    /// Gives the chrome's panel the keyboard, so typing goes to its focused text input instead of
+    /// the app in front. The app in front stays in front: the panel never activates the app.
+    ///
+    /// A click on anything in the chrome already does this, so call it when typing should reach
+    /// the chrome without a click - a text input focused when content appears, or after a
+    /// shortcut opened the chrome. Returns `false` while the chrome is hidden.
+    ///
+    /// The chrome hands the keyboard back by itself when it collapses or hides, and a text input
+    /// in it gives up focus when the person clicks into another app.
+    @discardableResult
+    public func takeKeyboardFocus() -> Bool {
+        guard state != .hidden, let window = windowController?.window else { return false }
+        if !window.isKeyWindow {
+            window.makeKey()
+        }
+        return window.isKeyWindow
+    }
+
+    /// Hands the keyboard back to the app in front, ending editing in any focused text input.
+    /// Does nothing while the chrome does not have the keyboard.
+    public func releaseKeyboardFocus() {
+        guard let panel = windowController?.window as? NookPanel, panel.isKeyWindow else { return }
+        panel.endTextEditing()
+        Self.returnKeyboardToAppInFront(from: panel)
+    }
+
+    /// Returns the keyboard to the app in front. The panel never activates the app, so when
+    /// another app is in front, giving up this app's claim on the keyboard hands it straight
+    /// back, without reordering any windows. When this app is the one in front - a host with a
+    /// window of its own, say - the keyboard goes to that window instead.
+    static func returnKeyboardToAppInFront(from panel: NSWindow) {
+        let isFrontmost =
+            NSWorkspace.shared.frontmostApplication?.processIdentifier
+            == ProcessInfo.processInfo.processIdentifier
+        if isFrontmost,
+            let window = NSApp.orderedWindows.first(where: {
+                $0 !== panel && $0.isVisible && $0.canBecomeKey && !($0 is NSPanel)
+            })
+        {
+            window.makeKey()
+        } else {
+            NSApp.deactivate()
+        }
+    }
+
+    /// Hands the keyboard back whenever the chrome leaves the expanded state, so typing never
+    /// goes to a collapsed or hidden chrome. `$state` publishes before the new state is stored,
+    /// so the new state is passed along rather than read back.
+    func observeStateForKeyboardFocus() {
+        $state
+            .removeDuplicates()
+            .sink { [weak self] newState in
+                guard let self, newState != .expanded, self.hasKeyboardFocus else { return }
+                self.releaseKeyboardFocus()
+            }
+            .store(in: &cancellables)
     }
 }
 
@@ -905,6 +1036,8 @@ extension Nook {
     }
 
     /// Hover-exit auto-compact is suppressed while a presentation pin or layout grace is active.
+    /// A hover exit suppressed this way is owed and replays when the suppression lifts - see
+    /// ``replayDeferredHoverExit()``.
     var suppressesHoverExitCompact: Bool {
         staysExpandedOnHoverExit || isLayoutGraceActive
     }
@@ -918,6 +1051,7 @@ extension Nook {
             guard let self, !Task.isCancelled else { return }
             self.isLayoutGraceActive = false
             self.layoutGraceTask = nil
+            self.replayDeferredHoverExit()
         }
     }
 
@@ -925,6 +1059,7 @@ extension Nook {
         layoutGraceTask?.cancel()
         layoutGraceTask = nil
         if isLayoutGraceActive { isLayoutGraceActive = false }
+        replayDeferredHoverExit()
     }
 
     /// The layer of the hosting view inside the panel. Layer-level fades run here so the
@@ -1004,6 +1139,10 @@ extension Nook {
         )
         panel.contentView = container
         panel.appearance = chromeAppearance
+        panel.onKeyStatusChange = { [weak self] isKey in
+            guard let self, self.hasKeyboardFocus != isKey else { return }
+            self.hasKeyboardFocus = isKey
+        }
 
         panel.setFrame(NSRect(origin: origin, size: size), display: false)
         // AppKit rounds the frame to whole points; match the drag region to the panel it
@@ -1044,8 +1183,16 @@ extension Nook {
         // not report an exit for a view it tears down.
         resetHoverSources()
         guard let windowController else { return }
+        if let panel = windowController.window as? NookPanel {
+            panel.onKeyStatusChange = nil
+            if panel.isKeyWindow {
+                panel.endTextEditing()
+                Self.returnKeyboardToAppInFront(from: panel)
+            }
+        }
         windowController.close()
         self.windowController = nil
+        if hasKeyboardFocus { hasKeyboardFocus = false }
     }
 }
 

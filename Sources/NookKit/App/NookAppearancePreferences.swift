@@ -121,33 +121,147 @@ public enum NookSurfaceStyle: String, Codable, Sendable, CaseIterable {
 
 // MARK: - Persistence
 
+/// The appearance fields a person has changed, and only those.
+///
+/// Stored instead of a whole ``NookAppearancePreferences`` so every field the person never
+/// touched keeps following the host's launch defaults (``NookPreferenceDefaults``): a host that
+/// later changes a default reaches everyone who never chose that field, even after they changed
+/// a different one.
+struct NookAppearanceChoices: Codable, Equatable, Sendable {
+    var chromePalette: NookChromePalette?
+    var surfaceStyle: NookSurfaceStyle?
+    var presentation: NookPresentation?
+    var hapticFeedbackEnabled: Bool?
+    var keepNookOpen: Bool?
+    var accentPreset: NookAccentPreset?
+    var backdropStrength: Double?
+
+    init() {}
+
+    /// The fields where `preferences` differs from `defaults`, as choices.
+    init(differencesFrom defaults: NookAppearancePreferences, to preferences: NookAppearancePreferences) {
+        record(from: defaults, to: preferences)
+    }
+
+    /// `true` when the person has chosen nothing.
+    var isEmpty: Bool { self == NookAppearanceChoices() }
+
+    /// Records as chosen every field that changes from `old` to `new`. Fields that do not change
+    /// keep whatever was recorded for them before.
+    mutating func record(from old: NookAppearancePreferences, to new: NookAppearancePreferences) {
+        for field in Self.fields { field.record(&self, old, new) }
+    }
+
+    /// `defaults` with every chosen field put in.
+    func applied(to defaults: NookAppearancePreferences) -> NookAppearancePreferences {
+        var preferences = defaults
+        for field in Self.fields { field.apply(self, &preferences) }
+        return preferences
+    }
+
+    /// One field of ``NookAppearancePreferences`` and where its choice is kept. Adding a field to
+    /// the preferences takes a matching optional property here and one entry in ``fields``.
+    private struct Field {
+        let record: (inout NookAppearanceChoices, NookAppearancePreferences, NookAppearancePreferences) -> Void
+        let apply: (NookAppearanceChoices, inout NookAppearancePreferences) -> Void
+
+        init<Value: Equatable>(
+            _ preference: WritableKeyPath<NookAppearancePreferences, Value>,
+            _ choice: WritableKeyPath<NookAppearanceChoices, Value?>
+        ) {
+            record = { choices, old, new in
+                if old[keyPath: preference] != new[keyPath: preference] {
+                    choices[keyPath: choice] = new[keyPath: preference]
+                }
+            }
+            apply = { choices, preferences in
+                if let value = choices[keyPath: choice] {
+                    preferences[keyPath: preference] = value
+                }
+            }
+        }
+    }
+
+    private static var fields: [Field] {
+        [
+            Field(\.chromePalette, \.chromePalette),
+            Field(\.surfaceStyle, \.surfaceStyle),
+            Field(\.presentation, \.presentation),
+            Field(\.hapticFeedbackEnabled, \.hapticFeedbackEnabled),
+            Field(\.keepNookOpen, \.keepNookOpen),
+            Field(\.accentPreset, \.accentPreset),
+            Field(\.backdropStrength, \.backdropStrength),
+        ]
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case chromePalette
+        case surfaceStyle
+        case presentation
+        case hapticFeedbackEnabled
+        case keepNookOpen
+        case accentPreset
+        case backdropStrength
+    }
+
+    // Each field decodes on its own, so a value a newer build wrote that this one cannot read
+    // (a new surface style, say) drops only that choice rather than every choice.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        chromePalette = try? container.decodeIfPresent(NookChromePalette.self, forKey: .chromePalette)
+        surfaceStyle = try? container.decodeIfPresent(NookSurfaceStyle.self, forKey: .surfaceStyle)
+        presentation = try? container.decodeIfPresent(NookPresentation.self, forKey: .presentation)
+        hapticFeedbackEnabled = try? container.decodeIfPresent(Bool.self, forKey: .hapticFeedbackEnabled)
+        keepNookOpen = try? container.decodeIfPresent(Bool.self, forKey: .keepNookOpen)
+        accentPreset = try? container.decodeIfPresent(NookAccentPreset.self, forKey: .accentPreset)
+        backdropStrength = try? container.decodeIfPresent(Double.self, forKey: .backdropStrength)
+    }
+}
+
+/// Persists the appearance fields a person changed. See ``NookAppearanceChoices``.
 enum NookAppearanceStore {
-    private static let defaultsKey = "opennook.appearance.v1"
+    /// Where the chosen fields are kept.
+    static let choicesKey = "opennook.appearance.choices.v2"
+
+    /// Where builds before per-field storage kept a whole ``NookAppearancePreferences`` record,
+    /// written whenever any field changed. Read once, to migrate, and never written. It is left in
+    /// place so an older build still finds its own record.
+    static let legacyKey = "opennook.appearance.v1"
 
     static func load() -> NookAppearancePreferences {
         load(default: .default)
     }
 
-    /// Loads the persisted value, falling back to `fallback` (rather than `.default`)
-    /// when nothing is persisted or the record is unreadable. The fallback is the host's
-    /// launch seed (see ``NookPreferenceDefaults``) and is never written here.
+    /// The person's choices put over `fallback`, the host's launch defaults (see
+    /// ``NookPreferenceDefaults``). `fallback` itself is never written.
     static func load(default fallback: NookAppearancePreferences) -> NookAppearancePreferences {
-        guard let data = NookPreferenceStorage.defaults.data(forKey: defaultsKey) else {
-            return fallback
-        }
-        do {
-            return try JSONDecoder().decode(NookAppearancePreferences.self, from: data)
-        } catch {
-            return fallback
-        }
+        loadChoices(default: fallback).applied(to: fallback)
     }
 
-    static func save(_ preferences: NookAppearancePreferences) {
-        do {
-            let data = try JSONEncoder().encode(preferences)
-            NookPreferenceStorage.defaults.set(data, forKey: defaultsKey)
-        } catch {
-            // Best-effort persistence; ignore encode failures.
+    /// The stored choices, migrating a record from an earlier build when there are none yet.
+    ///
+    /// A whole record cannot tell a person's choice from a default that was in place when it was
+    /// saved. Its fields that match `fallback` are taken as never chosen, so they follow later
+    /// default changes; every other field is kept as a choice, so nobody's appearance changes
+    /// when they upgrade. The result is stored right away, so the migration runs once rather than
+    /// again against whatever the defaults are at a later launch.
+    static func loadChoices(default fallback: NookAppearancePreferences) -> NookAppearanceChoices {
+        let defaults = NookPreferenceStorage.defaults
+        if let data = defaults.data(forKey: choicesKey) {
+            return (try? JSONDecoder().decode(NookAppearanceChoices.self, from: data)) ?? NookAppearanceChoices()
         }
+        guard let data = defaults.data(forKey: legacyKey),
+            let legacy = try? JSONDecoder().decode(NookAppearancePreferences.self, from: data)
+        else { return NookAppearanceChoices() }
+        let migrated = NookAppearanceChoices(differencesFrom: fallback, to: legacy)
+        saveChoices(migrated)
+        return migrated
+    }
+
+    /// Stores `choices`, including an empty set: an empty record, not a missing one, is what
+    /// keeps an earlier build's record from being migrated again after a reset.
+    static func saveChoices(_ choices: NookAppearanceChoices) {
+        guard let data = try? JSONEncoder().encode(choices) else { return }
+        NookPreferenceStorage.defaults.set(data, forKey: choicesKey)
     }
 }
