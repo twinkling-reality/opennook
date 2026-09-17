@@ -38,6 +38,7 @@ private struct HomeContent: View {
     @ObservedObject var model: PlaygroundModel
     let showsHeader: Bool
     @Environment(\.nookContentInsets) private var insets
+    @Environment(\.nookResolvedTheme) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -59,7 +60,7 @@ private struct HomeContent: View {
         // A fixed height keeps the panel from resizing as the demo content changes.
         .frame(height: showsHeader ? 196 : 162, alignment: .top)
         .padding(.bottom, insets.bottom)
-        .nookRimGlow(model.demo.litRimColor)
+        .nookRimGlow(model.rimColor(whileWorking: theme.accent))
     }
 }
 
@@ -247,10 +248,11 @@ private struct PaletteSpecimen: View {
 /// Wraps chrome content so it lights the rim while the demo asks for it.
 struct RimGlowSource<Content: View>: View {
     @ObservedObject var model: PlaygroundModel
+    @Environment(\.nookResolvedTheme) private var theme
     let content: Content
 
     var body: some View {
-        content.nookRimGlow(model.demo.litRimColor)
+        content.nookRimGlow(model.rimColor(whileWorking: theme.accent))
     }
 }
 
@@ -258,6 +260,16 @@ extension PlaygroundDemo {
     /// The color the demo content lights the rim with, or `nil` while the rim is off.
     var litRimColor: Color? {
         rimGlowLit ? rimGlowColor.color : nil
+    }
+}
+
+extension PlaygroundModel {
+    /// What the rim shows: the assistant working, if it is, and otherwise whatever the demo asks for.
+    ///
+    /// A request lights the nook itself rather than only the composer, so the thing being changed is
+    /// what says something is happening, and it stays visible when the composer is closed.
+    func rimColor(whileWorking working: Color) -> Color? {
+        assistantIsBusy ? working : demo.litRimColor
     }
 }
 

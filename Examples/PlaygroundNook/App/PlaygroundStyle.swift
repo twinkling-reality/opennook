@@ -38,6 +38,13 @@ enum PlaygroundTheme {
     static let selectedFill = Color.adaptive(light: NSColor(white: 0, alpha: 0.07), dark: NSColor(white: 1, alpha: 0.1))
     /// The raised segment of a pill picker.
     static let thumb = Color.adaptive(light: NSColor(white: 1, alpha: 1), dark: NSColor(white: 1, alpha: 0.17))
+    /// Laid over the material of a surface that floats above the page, so what is behind it reads as
+    /// depth rather than as content. Without it a saturated page element, such as a page badge, shows
+    /// straight through and looks like a rendering fault.
+    static let floatingScrim = Color.adaptive(
+        light: NSColor(white: 0.99, alpha: 0.72),
+        dark: NSColor(white: 0.13, alpha: 0.76)
+    )
     static let accent = Color.accentColor
     static let destructive = Color(nsColor: .systemRed)
 
@@ -48,6 +55,17 @@ enum PlaygroundTheme {
     static let body = Font.system(size: 13, weight: .regular)
     static let caption = Font.system(size: 11.5, weight: .regular)
     static let sectionTitle = Font.system(size: 12, weight: .regular)
+}
+
+private enum AssistantDockedKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var assistantDocked: Bool {
+        get { self[AssistantDockedKey.self] }
+        set { self[AssistantDockedKey.self] = newValue }
+    }
 }
 
 extension Color {

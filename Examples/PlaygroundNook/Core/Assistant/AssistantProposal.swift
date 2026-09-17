@@ -23,6 +23,9 @@ public struct AssistantChange: Identifiable, Sendable, Equatable {
         case none
 
         /// How the value reads in a row: `420 pt`, `on`, `Liquid Glass`, `#1C1C1E`.
+        ///
+        /// Rounded for reading, unlike the JSON it came from, which is kept exact. Nobody wants to read
+        /// that a damping fraction went to `0.8300000000000001`.
         public var text: String {
             switch self {
                 case .number(let value, let unit):
@@ -30,7 +33,7 @@ public struct AssistantChange: Identifiable, Sendable, Equatable {
                         case .fraction:
                             return (value * 100).formatted(.number.precision(.fractionLength(0))) + "%"
                         case .points, .seconds, .none:
-                            return AssistantJSON.numberText(value) + unit.suffix
+                            return value.formatted(.number.precision(.fractionLength(0...2))) + unit.suffix
                     }
                 case .flag(let value):
                     return value ? "on" : "off"
