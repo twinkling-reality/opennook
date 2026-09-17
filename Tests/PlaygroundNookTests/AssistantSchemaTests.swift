@@ -49,20 +49,47 @@ final class AssistantSchemaTests: XCTestCase {
         XCTAssertEqual(properties.map(\.name), ["appearance", "settings"])
     }
 
-    /// Nothing in the patch is required: it carries only what changed.
-    func testNothingInThePatchIsRequiredExceptACompanionsNameAndKind() throws {
+    /// Nothing in the patch is required: it carries only what changed. The exceptions are the
+    /// elements of lists, which are written whole.
+    func testNothingInThePatchIsRequiredExceptWhatAListElementNeeds() throws {
         var requiring: [String] = []
         collectRequired(in: AssistantSchema.patch, at: "patch", into: &requiring)
-        XCTAssertEqual(requiring, ["patch.properties.settings.properties.companions.items"])
+        XCTAssertEqual(
+            requiring,
+            [
+                "patch.properties.settings.properties.companions.items",
+                "patch.properties.settings.properties.companions.items.properties.items.items",
+            ]
+        )
     }
 
-    func testACompanionRequiresItsNameAndKind() throws {
+    func testACompanionRequiresItsNameAndAnItemItsType() throws {
         let companions = try XCTUnwrap(
             AssistantSchema.patch["properties"]?["settings"]?["properties"]?["companions"]
         )
         XCTAssertEqual(companions["type"], .string("array"))
-        let required = try XCTUnwrap(companions["items"]?["required"]?.arrayValue)
-        XCTAssertEqual(required.compactMap(\.stringValue), ["id", "kind"])
+        let companion = try XCTUnwrap(companions["items"])
+        XCTAssertEqual(companion["required"]?.arrayValue?.compactMap(\.stringValue), ["id"])
+        XCTAssertEqual(companion["additionalProperties"], .bool(false))
+
+        let items = try XCTUnwrap(companion["properties"]?["items"])
+        XCTAssertEqual(items["type"], .string("array"))
+        XCTAssertEqual(items["items"]?["required"]?.arrayValue?.compactMap(\.stringValue), ["type"])
+        XCTAssertEqual(
+            items["items"]?["properties"]?["type"]?["enum"]?.arrayValue?.compactMap(\.stringValue),
+            ["button", "label", "keepOpen", "settings"]
+        )
+    }
+
+    /// A value that is null until set says so in its type, so a schema-enforcing provider accepts
+    /// the null that means "use the default".
+    func testANullableCompanionValueAcceptsNull() throws {
+        let size = try XCTUnwrap(
+            AssistantSchema.patch["properties"]?["settings"]?["properties"]?["companions"]?["items"]?["properties"]?[
+                "size"
+            ]
+        )
+        XCTAssertEqual(size["type"], .array([.string("string"), .string("null")]))
     }
 
     /// One leaf in full, so a change to how fields are rendered is visible in a diff rather than

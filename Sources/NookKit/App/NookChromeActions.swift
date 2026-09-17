@@ -5,6 +5,7 @@
 // you may not use this file except in compliance with the License.
 // A copy is included at /LICENSE in the repository root.
 
+import NookSurface
 import SwiftUI
 
 /// The chrome's own actions - what the top bar's keep-open lock and Settings gear do - for
@@ -65,8 +66,9 @@ extension EnvironmentValues {
 }
 
 /// The chrome's keep-open control - the lock the top bar shows - as a standalone view, for
-/// placing it outside the top bar (see ``NookChromeActions``). It renders and behaves exactly
-/// like the top bar's lock, in the chrome's palette and metrics.
+/// placing it outside the top bar (see ``NookChromeActions``). It behaves exactly like the top
+/// bar's lock, in the chrome's palette; inside a companion it takes the companion's control
+/// size (`\.nookCompanionSize`), so it lines up with the controls beside it.
 ///
 /// Use it inside chrome content - home, compact, or companion - which supplies ``AppState``
 /// as an environment object.
@@ -75,6 +77,7 @@ public struct NookKeepOpenButton: View {
     @Environment(\.nookChromeActions) private var actions
     @Environment(\.nookResolvedTheme) private var theme
     @Environment(\.nookChromeLabels) private var labels
+    @Environment(\.nookCompanionSize) private var companionSize
 
     public init() {}
 
@@ -83,7 +86,8 @@ public struct NookKeepOpenButton: View {
             systemName: appState.keepNookOpen ? "lock.fill" : "lock.open",
             isActive: appState.keepNookOpen,
             activeColor: theme.accent,
-            help: labels.keepOpenHelp
+            help: labels.keepOpenHelp,
+            geometry: companionSize.map(HeaderGlyphGeometry.companion)
         ) {
             actions.toggleKeepOpen()
         }
@@ -93,8 +97,9 @@ public struct NookKeepOpenButton: View {
 }
 
 /// The chrome's Settings control - the gear the top bar shows - as a standalone view, for
-/// placing it outside the top bar (see ``NookChromeActions``). It renders and behaves exactly
-/// like the top bar's gear, in the chrome's palette and metrics.
+/// placing it outside the top bar (see ``NookChromeActions``). It behaves exactly like the top
+/// bar's gear, in the chrome's palette; inside a companion it takes the companion's control
+/// size (`\.nookCompanionSize`), so it lines up with the controls beside it.
 ///
 /// Use it inside chrome content - home, compact, or companion - which supplies ``AppState``
 /// as an environment object. A companion hosting it should pass `hidesInSettings: false`,
@@ -104,6 +109,7 @@ public struct NookSettingsButton: View {
     @Environment(\.nookChromeActions) private var actions
     @Environment(\.nookResolvedTheme) private var theme
     @Environment(\.nookChromeLabels) private var labels
+    @Environment(\.nookCompanionSize) private var companionSize
 
     public init() {}
 
@@ -112,7 +118,8 @@ public struct NookSettingsButton: View {
             systemName: "gearshape",
             isActive: appState.isSettingsView,
             activeColor: theme.accent,
-            help: labels.settingsHelp
+            help: labels.settingsHelp,
+            geometry: companionSize.map(HeaderGlyphGeometry.companion)
         ) {
             actions.toggleSettings()
         }

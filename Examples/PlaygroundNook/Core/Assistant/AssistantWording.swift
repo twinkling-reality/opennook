@@ -43,6 +43,8 @@ enum AssistantWording {
             case "followSystem": "Follow the system"
             case "roundedRectangle": "Rounded rectangle"
             case "contentColumn": "Content column"
+            case "keepOpen": "Lock"
+            case "settings": "Gear"
             default: sentenceCase(value)
         }
     }
@@ -97,11 +99,21 @@ extension AssistantField {
             case "settings.topBar.leadingTitle": return "Title"
             case "settings.topBar.leadingIcon": return "Icon"
 
+            case "settings.companionDefaults.size": return "Companion size"
+            case "settings.companionDefaults.presence": return "Companions appear"
+            case "settings.companionDefaults.fade": return "Companion fade"
+            case "settings.companionDefaults.stroke": return "Companion edges"
+            case "settings.companionDefaults.shadow": return "Companion shadows"
+            case "settings.companionDefaults.hover": return "Companion hover"
+
             case "settings.companions[].id": return "Name"
             case "settings.companions[].anchor": return "Side"
+            case "settings.companions[].rowAlignment": return "Row alignment"
             case "settings.companions[].visibility": return "Shown"
             case "settings.companions[].outline": return "Shape"
             case "settings.companions[].cornerRadius": return "Corners"
+            case "settings.companions[].presence": return "Appears"
+            case "settings.companions[].stroke": return "Edge"
             case "settings.companions[].hidesInSettings": return "Hidden in Settings"
 
             case "settings.rimGlow.glowRadius": return "Glow"

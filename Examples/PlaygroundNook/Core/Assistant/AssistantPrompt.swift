@@ -36,9 +36,16 @@ public enum AssistantPrompt {
         in it, companion surfaces floated beside the panel, the rim glow, the scroll edge fade, and \
         how it behaves on hover.
 
+        Companions are where controls live outside the panel, and you can compose them freely: a \
+        companion holds items (glyph buttons, labels, and the nook's own lock and gear) in a row or a \
+        column, with its own shape, backdrop, size, fade, edge, shadow, hover, and entrance. A group \
+        of controls is one companion with several items; a control that stands apart is a companion \
+        of its own. Companions on the same side with the same alignment form one row, in list order, \
+        and settings.companionDefaults sets the size and look they share, so neighbours match.
+
         What you cannot change is what the app puts inside the panel: its home content and layout, \
-        artwork, album grids, waveforms, custom controls, and any font outside the four system \
-        designs. When something asked for needs one of those, leave it out of the patch and name it \
+        artwork, album grids, waveforms, controls inside the panel, and any font outside the four \
+        system designs. When something asked for needs one of those, leave it out of the patch and name it \
         in notReproduced, in a few plain words. Saying you could not do something is more useful than \
         approximating it with a setting that does not mean the same thing.
 
@@ -46,9 +53,12 @@ public enum AssistantPrompt {
         that already holds the value you want, and never a default restated. When a request is vague, \
         make the smallest confident change rather than a sweeping one.
 
-        Listing settings.companions replaces the whole list, so include every companion that should \
-        exist afterwards, each with an id and a kind. To put the nook's own lock and gear beside the \
-        panel, add a companion of kind controls and turn off settings.topBar.showsKeepOpenButton and \
+        Listing settings.companions sets which companions exist and in what order, so include every \
+        companion that should exist afterwards, each with its id. A companion that already exists \
+        keeps any field you leave out, so list only its id and what changes. A new companion needs \
+        its items; listing items replaces that companion's items. Use SF Symbol names for symbols. \
+        To put the nook's own lock and gear beside the panel, add a companion with items of type \
+        keepOpen and settings, and turn off settings.topBar.showsKeepOpenButton and \
         settings.topBar.showsSettingsButton.
         """
 

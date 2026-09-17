@@ -187,11 +187,21 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// expanded panel, a round button beside the compact pill. See ``NookCompanionSurface``.
     ///
     /// Empty by default, which renders the chrome exactly as it renders without the feature.
-    /// Replacing the array swaps the set in place: removed companions fade out and release
-    /// any hover they held, so a host switching content never leaves the surface pinned
-    /// open by a companion that is gone.
+    /// Replacing the array swaps the set in place: added companions play their presence as
+    /// they arrive, and removed ones play it as they leave and release any hover they held,
+    /// so a host switching content never leaves the surface pinned open by a companion that
+    /// is gone.
+    ///
+    /// Ids must be unique. A companion whose id an earlier one already has is dropped when the
+    /// array is set, since the id is the companion's identity and its hover key.
     @Published public var companions: [NookCompanionSurface] = [] {
-        didSet { companionsDidChange() }
+        didSet {
+            let unique = NookCompanionSurface.removingDuplicateIDs(companions)
+            if unique.count != companions.count {
+                companions = unique
+            }
+            companionsDidChange()
+        }
     }
 
     /// How the chrome draws its glowing rim when content lights one with

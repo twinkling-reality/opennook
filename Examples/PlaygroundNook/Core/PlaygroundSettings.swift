@@ -31,6 +31,7 @@ public struct PlaygroundSettings: Equatable, Sendable {
     public var labels = Labels()
     public var topBar = TopBar()
     public var companions: [Companion] = []
+    public var companionDefaults = CompanionDefaults()
     public var rimGlow = RimGlow()
     public var scrollEdgeFade = ScrollEdgeFade()
     public var behavior = Behavior()
@@ -448,11 +449,33 @@ extension PlaygroundSettings {
         }
     }
 
-    /// One companion surface. The content is one of a few demo views (``Kind``); everything
-    /// else maps onto a parameter of `NookConfiguration.addCompanion`, with the same defaults.
+    /// Puts the lock and gear back in the top bar when the companions stop holding one that
+    /// `previous` held, so editing or removing the companion that carried them never loses them.
+    /// A control the companions never held is left as it is.
+    public mutating func restoreChromeControls(heldBy previous: [Companion]) {
+        func held(_ type: Item.Kind, in companions: [Companion]) -> Bool {
+            companions.contains { $0.holds(type) }
+        }
+        if held(.keepOpen, in: previous), !held(.keepOpen, in: companions) {
+            topBar.showsKeepOpenButton = true
+        }
+        if held(.settings, in: previous), !held(.settings, in: companions) {
+            topBar.showsSettingsButton = true
+        }
+    }
+
+    /// One companion surface: its content as a list of ``Item``s, and everything else a
+    /// parameter of `NookConfiguration.addCompanion`, with the same defaults.
+    ///
+    /// A group of controls is one companion with several items; a control that stands apart is a
+    /// companion of its own. The style values - ``size``, ``presence``, ``fade``, ``stroke``,
+    /// ``shadow``, and ``hover`` - are `nil` until set, and `nil` takes the value from
+    /// ``PlaygroundSettings/companionDefaults``.
     public struct Companion: Identifiable, Equatable, Sendable {
-        public enum Kind: String, Codable, CaseIterable, Sendable {
-            /// A pill of icon buttons.
+        /// A starting point for a new companion. Also what an older preset's `kind` names, so a
+        /// preset written before items existed opens with the same content.
+        public enum Template: String, Codable, CaseIterable, Sendable {
+            /// A pill of three buttons.
             case actions
             /// A single round button.
             case button
@@ -460,6 +483,28 @@ extension PlaygroundSettings {
             case controls
             /// A short status label.
             case chip
+            /// Nothing yet.
+            case empty
+
+            /// The items a companion made from this template starts with.
+            public var items: [Item] {
+                switch self {
+                    case .actions:
+                        [
+                            Item(symbol: "backward.fill", title: "Previous"),
+                            Item(symbol: "play.fill", title: "Play"),
+                            Item(symbol: "forward.fill", title: "Next"),
+                        ]
+                    case .button:
+                        [Item(symbol: "lightbulb", title: "Rim glow", action: .rimGlow)]
+                    case .controls:
+                        [Item(type: .keepOpen), Item(type: .settings)]
+                    case .chip:
+                        [Item(type: .label, symbol: "sparkles", title: "3 new")]
+                    case .empty:
+                        []
+                }
+            }
         }
 
         public enum Anchor: String, Codable, CaseIterable, Sendable {
@@ -497,11 +542,78 @@ extension PlaygroundSettings {
             case none
         }
 
+        /// How the items are arranged.
+        public enum Layout: String, Codable, CaseIterable, Sendable {
+            /// A row below the chrome, a column beside it.
+            case automatic
+            case row
+            case column
+        }
+
+        /// `NookCompanionSize`.
+        public enum Size: String, Codable, CaseIterable, Sendable {
+            case small
+            case regular
+            case large
+
+            public var nookSize: NookCompanionSize {
+                switch self {
+                    case .small: .small
+                    case .regular: .regular
+                    case .large: .large
+                }
+            }
+        }
+
+        /// `NookCompanionPresence`.
+        public enum Presence: String, Codable, CaseIterable, Sendable {
+            case fold
+            case fade
+            case slide
+            case pop
+
+            public var nookPresence: NookCompanionPresence {
+                switch self {
+                    case .fold: .fold
+                    case .fade: .fade
+                    case .slide: .slide
+                    case .pop: .pop
+                }
+            }
+        }
+
+        /// `NookStandardCompanionStyle.Hover`.
+        public enum Hover: String, Codable, CaseIterable, Sendable {
+            case none
+            case highlight
+            case lift
+            case glow
+
+            public var nookHover: NookStandardCompanionStyle.Hover {
+                switch self {
+                    case .none: .none
+                    case .highlight: .highlight
+                    case .lift: .lift
+                    case .glow: .glow
+                }
+            }
+        }
+
+        /// Most items a companion keeps; more than this is trimmed when settings are normalized.
+        public static let maximumItems = 12
+
         public var id: String
-        public var kind: Kind
+        /// What the companion holds, in order.
+        public var items: [Item]
+        public var layout: Layout = .automatic
         public var anchor: Anchor = .below
         public var alignment: AnchorAlignment = .center
+        /// The gap to the chrome, and to the companion before it unless ``gap`` is set.
         public var spacing = Double(NookCompanionSurface.defaultSpacing)
+        /// The gap to the companion before it in a row below the chrome. `nil` uses ``spacing``.
+        public var gap: Double?
+        /// Where it sits across its row beside a taller companion. `nil` uses the framework's.
+        public var rowAlignment: AnchorAlignment?
         public var visibility: Visibility = .expanded
         public var outline: Outline = .capsule
         /// Used by the `roundedRectangle` outline.
@@ -509,26 +621,45 @@ extension PlaygroundSettings {
         public var backdrop: Backdrop = .inherit
         /// Used by the `solid` and `glass` backdrops.
         public var backdropColor = PlaygroundColor(red: 0.25, green: 0.55, blue: 0.98)
+        public var size: Size?
+        public var presence: Presence?
+        /// The fill's strength at the far side from the chrome, from 0 to 1. 1 is no fade.
+        public var fade: Double?
+        /// Whether the surface has a hairline edge.
+        public var stroke: Bool?
+        /// Whether the surface has a soft shadow.
+        public var shadow: Bool?
+        public var hover: Hover?
+        /// The companion's own accent, for its labels and tinted controls. `nil` uses the theme's.
+        public var accent: PlaygroundColor?
         public var hidesInSettings = true
         public var accessibilityLabel: String?
 
-        public init(id: String, kind: Kind, accessibilityLabel: String? = nil) {
+        public init(id: String, items: [Item] = [], accessibilityLabel: String? = nil) {
             self.id = id
-            self.kind = kind
+            self.items = items
             self.accessibilityLabel = accessibilityLabel
         }
 
+        /// A companion made from `template`: its items, and the placement it suits.
+        public init(id: String, template: Template, accessibilityLabel: String? = nil) {
+            self.init(id: id, items: template.items, accessibilityLabel: accessibilityLabel)
+            switch template {
+                case .button:
+                    outline = .circle
+                case .controls:
+                    anchor = .trailing
+                    hidesInSettings = false
+                case .actions, .chip, .empty:
+                    break
+            }
+        }
+
         public var nookAnchor: NookCompanionAnchor {
-            let alignment: NookCompanionAnchor.Alignment =
-                switch self.alignment {
-                    case .start: .start
-                    case .center: .center
-                    case .end: .end
-                }
-            return switch anchor {
-                case .below: .below(alignment: alignment)
-                case .leading: .leading(alignment: alignment)
-                case .trailing: .trailing(alignment: alignment)
+            switch anchor {
+                case .below: .below(alignment: alignment.nookAlignment)
+                case .leading: .leading(alignment: alignment.nookAlignment)
+                case .trailing: .trailing(alignment: alignment.nookAlignment)
             }
         }
 
@@ -555,6 +686,216 @@ extension PlaygroundSettings {
                 case .glass: .custom(.liquidGlass(NookBackdrop.LiquidGlass(tint: backdropColor.color)))
                 case .none: .none
             }
+        }
+
+        /// Whether every item is a button the size of a surface. Each of those draws its own
+        /// surface, so the companion draws none: it takes the plain style, and its own shape,
+        /// backdrop, and style values have nothing to paint.
+        public var itemsAreSurfaces: Bool {
+            !items.isEmpty && items.allSatisfy { $0.type == .button && $0.size == .surface }
+        }
+
+        /// Whether the companion's style differs from the defaults: a style value set here, or
+        /// items that are surfaces of their own.
+        public var overridesStyle: Bool {
+            itemsAreSurfaces || fade != nil || stroke != nil || shadow != nil || hover != nil
+        }
+
+        /// The standard style with this companion's values over `defaults`, or the plain style when
+        /// its items are surfaces of their own.
+        public func style(over defaults: CompanionDefaults) -> NookStandardCompanionStyle {
+            guard !itemsAreSurfaces else { return .plain }
+            return CompanionDefaults.style(
+                fade: fade ?? defaults.fade,
+                stroke: stroke ?? defaults.stroke,
+                shadow: shadow ?? defaults.shadow,
+                hover: hover ?? defaults.hover
+            )
+        }
+
+        /// How the items are arranged once ``Layout/automatic`` is decided.
+        public var resolvedLayout: Layout {
+            switch layout {
+                case .automatic: anchor == .below ? .row : .column
+                case .row, .column: layout
+            }
+        }
+
+        /// Whether it holds the framework's lock or gear.
+        public var holdsChromeControls: Bool {
+            holds(.keepOpen) || holds(.settings)
+        }
+
+        /// Whether one of its items is of `type`.
+        public func holds(_ type: Item.Kind) -> Bool {
+            items.contains { $0.type == type }
+        }
+
+        /// The id a companion holding these items starts with.
+        public var suggestedID: String {
+            if holdsChromeControls { return "controls" }
+            switch (items.count, items.first?.type) {
+                case (0, _): return "companion"
+                case (1, .label?): return "status"
+                case (1, _): return "button"
+                default: return items.allSatisfy { $0.type == .label } ? "labels" : "actions"
+            }
+        }
+
+        /// The items in a few words, for a list row: `3 buttons`, `a label`, `lock and gear`.
+        public var contentSummary: String {
+            Item.summary(of: items)
+        }
+    }
+
+    /// One thing a companion holds: a glyph button, a label, or one of the framework's own
+    /// controls.
+    public struct Item: Equatable, Sendable {
+        public enum Kind: String, Codable, CaseIterable, Sendable {
+            /// A glyph button that runs its ``action``.
+            case button
+            /// An icon and text.
+            case label
+            /// The framework's keep-open lock.
+            case keepOpen
+            /// The framework's Settings gear.
+            case settings
+        }
+
+        /// What a button does in the playground. A host puts its own action in the exported
+        /// Swift.
+        public enum Action: String, Codable, CaseIterable, Sendable {
+            case none
+            /// Posts a status banner naming the button.
+            case status
+            /// Lights or dims the rim glow.
+            case rimGlow
+            /// Toggles keep-open, like the lock.
+            case keepOpen
+            /// Opens or closes Settings, like the gear.
+            case settings
+            /// Collapses the nook.
+            case collapse
+        }
+
+        /// `NookGlyphButtonStyle.Fill`.
+        public enum Fill: String, Codable, CaseIterable, Sendable {
+            case none
+            case subtle
+            /// ``Item/fillColor``, or the accent when it is not set.
+            case color
+            /// The chrome's own material.
+            case chrome
+        }
+
+        /// `NookGlyphButtonStyle.Size`.
+        public enum Size: String, Codable, CaseIterable, Sendable {
+            /// A control inside the surface.
+            case control
+            /// As tall as the surface, for a button that is a surface of its own.
+            case surface
+        }
+
+        public var type: Kind
+        /// An SF Symbol name. `nil` uses the type's own.
+        public var symbol: String?
+        /// A button's name, read by VoiceOver and shown as its tooltip, or a label's text.
+        public var title: String?
+        /// The glyph's color. `nil` uses the palette.
+        public var tint: PlaygroundColor?
+        public var fill: Fill = .none
+        public var fillColor: PlaygroundColor?
+        /// The fill's strength at the button's bottom, from 0 to 1. `nil` is no fade.
+        public var fade: Double?
+        public var size: Size = .control
+        public var action: Action = .status
+
+        public init(
+            type: Kind = .button,
+            symbol: String? = nil,
+            title: String? = nil,
+            action: Action = .status
+        ) {
+            self.type = type
+            self.symbol = symbol
+            self.title = title
+            self.action = action
+        }
+
+        /// The symbol the item shows.
+        public var displaySymbol: String? {
+            if let symbol { return symbol }
+            switch type {
+                case .button: return action.defaultSymbol
+                case .label: return nil
+                case .keepOpen: return "lock.open"
+                case .settings: return "gearshape"
+            }
+        }
+
+        /// The item's name for lists and VoiceOver.
+        public var displayTitle: String {
+            if let title { return title }
+            switch type {
+                case .button: return action.defaultTitle
+                case .label: return "Label"
+                case .keepOpen: return "Keep open"
+                case .settings: return "Settings"
+            }
+        }
+
+        /// `items` in a few words: `3 buttons`, `a label`, `lock and gear`, `nothing`.
+        public static func summary(of items: [Item]) -> String {
+            guard !items.isEmpty else { return "nothing" }
+            let types = items.map(\.type)
+            if types == [.keepOpen, .settings] || types == [.settings, .keepOpen] { return "lock and gear" }
+            let buttons = types.filter { $0 == .button }.count
+            let labels = types.filter { $0 == .label }.count
+            let chrome = items.count - buttons - labels
+            var parts: [String] = []
+            if buttons > 0 { parts.append(buttons == 1 ? "a button" : "\(buttons) buttons") }
+            if labels > 0 { parts.append(labels == 1 ? "a label" : "\(labels) labels") }
+            if chrome > 0 { parts.append(chrome == 1 ? "a chrome control" : "\(chrome) chrome controls") }
+            return parts.joined(separator: " and ")
+        }
+
+        /// `items` by name: `Previous, Play, Next`.
+        public static func titles(of items: [Item]) -> String {
+            items.isEmpty ? "nothing" : items.map(\.displayTitle).joined(separator: ", ")
+        }
+    }
+
+    /// `NookConfiguration.companionSize`, `companionPresence`, and `companionStyle`: how every
+    /// companion looks unless it says otherwise.
+    public struct CompanionDefaults: Equatable, Sendable {
+        public var size: Companion.Size = .regular
+        public var presence: Companion.Presence = .fold
+        /// The fill's strength at a companion's far side from the chrome, from 0 to 1. 1 is no
+        /// fade.
+        public var fade: Double = 1
+        public var stroke = false
+        public var shadow = false
+        public var hover: Companion.Hover = .none
+
+        public init() {}
+
+        /// The standard style these values describe.
+        public var style: NookStandardCompanionStyle {
+            Self.style(fade: fade, stroke: stroke, shadow: shadow, hover: hover)
+        }
+
+        static func style(
+            fade: Double,
+            stroke: Bool,
+            shadow: Bool,
+            hover: Companion.Hover
+        ) -> NookStandardCompanionStyle {
+            NookStandardCompanionStyle(
+                fade: fade < 1 ? NookStandardCompanionStyle.Fade(start: 1, end: fade) : nil,
+                stroke: stroke ? .hairline : nil,
+                shadow: shadow ? .soft : nil,
+                hover: hover.nookHover
+            )
         }
     }
 
@@ -627,32 +968,60 @@ extension PlaygroundSettings {
     }
 }
 
-extension PlaygroundSettings.Companion.Kind {
+extension PlaygroundSettings.Companion.AnchorAlignment {
+    public var nookAlignment: NookCompanionAnchor.Alignment {
+        switch self {
+            case .start: .start
+            case .center: .center
+            case .end: .end
+        }
+    }
+}
+
+extension PlaygroundSettings.Companion.Template {
     public var title: String {
         switch self {
             case .actions: "Action pill"
             case .button: "Round button"
             case .controls: "Nook controls"
             case .chip: "Status chip"
+            case .empty: "Empty"
         }
     }
 
-    public var suggestedAccessibilityLabel: String {
+    public var suggestedAccessibilityLabel: String? {
         switch self {
             case .actions: "Actions"
             case .button: "Rim glow"
             case .controls: "Nook controls"
             case .chip: "Status"
+            case .empty: nil
+        }
+    }
+}
+
+extension PlaygroundSettings.Item.Action {
+    /// The glyph a button with this action shows when it names none.
+    public var defaultSymbol: String {
+        switch self {
+            case .none: "circle"
+            case .status: "bell"
+            case .rimGlow: "lightbulb"
+            case .keepOpen: "lock.open"
+            case .settings: "gearshape"
+            case .collapse: "chevron.up"
         }
     }
 
-    /// The id a new companion of this kind starts with.
-    public var suggestedID: String {
+    /// The name a button with this action has when it names none.
+    public var defaultTitle: String {
         switch self {
-            case .actions: "actions"
-            case .button: "button"
-            case .controls: "controls"
-            case .chip: "status"
+            case .none: "Button"
+            case .status: "Notify"
+            case .rimGlow: "Rim glow"
+            case .keepOpen: "Keep open"
+            case .settings: "Settings"
+            case .collapse: "Collapse"
         }
     }
 }
@@ -661,10 +1030,11 @@ extension PlaygroundSettings.Companion.Kind {
 
 extension PlaygroundSettings {
     /// These settings with every value the chrome cannot use brought back into range: lengths
-    /// and sizes no smaller than zero, a positive panel width, and companion ids that are
-    /// non-empty and unique (`NookConfiguration.addCompanion` traps on a duplicate). Applied to
-    /// settings that did not come from the playground's own controls, such as an imported
-    /// preset.
+    /// and sizes no smaller than zero, a positive panel width, fades between 0 and 1, companion
+    /// ids that are non-empty and unique (`NookConfiguration.addCompanion` traps on a duplicate),
+    /// and no more than ``Companion/maximumItems`` items a companion, with blank names cleared.
+    /// Applied to settings that did not come from the playground's own controls, such as an
+    /// imported preset.
     public func normalized() -> PlaygroundSettings {
         var settings = self
         settings.panel.expandedWidth = min(max(panel.expandedWidth, 100), 2000)
@@ -702,25 +1072,46 @@ extension PlaygroundSettings {
         settings.rimGlow.intensity = min(max(rimGlow.intensity, 0), 1)
         settings.scrollEdgeFade.length = max(scrollEdgeFade.length, 0)
 
+        settings.companionDefaults.fade = Self.unit(companionDefaults.fade)
+
         var usedIDs = Set<String>()
         for index in settings.companions.indices {
             var companion = settings.companions[index]
             companion.id = Self.uniqueID(for: companion, avoiding: usedIDs)
             usedIDs.insert(companion.id)
             companion.spacing = max(companion.spacing, 0)
+            companion.gap = companion.gap.map { max($0, 0) }
             companion.cornerRadius = max(companion.cornerRadius, 0)
-            let label = companion.accessibilityLabel?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            companion.accessibilityLabel = label.isEmpty ? nil : label
+            companion.fade = companion.fade.map(Self.unit)
+            companion.accessibilityLabel = Self.trimmed(companion.accessibilityLabel)
+            companion.items = companion.items.prefix(Companion.maximumItems).map { item in
+                var item = item
+                item.symbol = Self.trimmed(item.symbol)
+                item.title = Self.trimmed(item.title)
+                item.fade = item.fade.map(Self.unit)
+                return item
+            }
             settings.companions[index] = companion
         }
         return settings
     }
 
-    /// `companion`'s id, trimmed, or a fresh one when it is empty or already taken: the kind's
-    /// suggested id, then that id with `-2`, `-3`, and so on.
+    /// `text` without surrounding white space, or `nil` when nothing is left.
+    private static func trimmed(_ text: String?) -> String? {
+        let trimmed = text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    /// `value` clamped to 0...1, with anything not a number read as 1.
+    private static func unit(_ value: Double) -> Double {
+        value.isFinite ? min(max(value, 0), 1) : 1
+    }
+
+    /// `companion`'s id, trimmed, or a fresh one when it is empty or already taken: the id its
+    /// items suggest, then that id with `-2`, `-3`, and so on.
     public static func uniqueID(for companion: Companion, avoiding usedIDs: Set<String>) -> String {
         let trimmed = companion.id.trimmingCharacters(in: .whitespacesAndNewlines)
-        let base = trimmed.isEmpty ? companion.kind.suggestedID : trimmed
+        let base = trimmed.isEmpty ? companion.suggestedID : trimmed
         guard usedIDs.contains(base) else { return base }
         var suffix = 2
         while usedIDs.contains("\(base)-\(suffix)") { suffix += 1 }
@@ -750,6 +1141,7 @@ extension PlaygroundSettings: Codable {
         labels = try container.value(.labels, or: fallback.labels)
         topBar = try container.value(.topBar, or: fallback.topBar)
         companions = try container.value(.companions, or: fallback.companions)
+        companionDefaults = try container.value(.companionDefaults, or: fallback.companionDefaults)
         rimGlow = try container.value(.rimGlow, or: fallback.rimGlow)
         scrollEdgeFade = try container.value(.scrollEdgeFade, or: fallback.scrollEdgeFade)
         behavior = try container.value(.behavior, or: fallback.behavior)
@@ -848,21 +1240,73 @@ extension PlaygroundSettings.TopBar: Codable {
 }
 
 extension PlaygroundSettings.Companion: Codable {
+    /// A preset written before companions held items named its content with `kind`.
+    private enum LegacyKeys: String, CodingKey {
+        case kind
+    }
+
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let id = try container.value(.id, or: "")
-        let kind = try container.value(.kind, or: Kind.actions)
         let label = try container.decodeIfPresent(String.self, forKey: .accessibilityLabel)
-        self.init(id: id, kind: kind, accessibilityLabel: label)
+        var items = try container.decodeIfPresent([PlaygroundSettings.Item].self, forKey: .items)
+        if items == nil {
+            // No items: the content is the template the preset names, or the action pill that
+            // an unnamed companion always was.
+            let legacy = try decoder.container(keyedBy: LegacyKeys.self)
+            items = try legacy.value(.kind, or: Template.actions).items
+        }
+        self.init(id: id, items: items ?? [], accessibilityLabel: label)
+        layout = try container.value(.layout, or: layout)
         anchor = try container.value(.anchor, or: anchor)
         alignment = try container.value(.alignment, or: alignment)
         spacing = try container.value(.spacing, or: spacing)
+        gap = try container.decodeIfPresent(Double.self, forKey: .gap)
+        rowAlignment = try container.decodeIfPresent(AnchorAlignment.self, forKey: .rowAlignment)
         visibility = try container.value(.visibility, or: visibility)
         outline = try container.value(.outline, or: outline)
         cornerRadius = try container.value(.cornerRadius, or: cornerRadius)
         backdrop = try container.value(.backdrop, or: backdrop)
         backdropColor = try container.value(.backdropColor, or: backdropColor)
+        size = try container.decodeIfPresent(Size.self, forKey: .size)
+        presence = try container.decodeIfPresent(Presence.self, forKey: .presence)
+        fade = try container.decodeIfPresent(Double.self, forKey: .fade)
+        stroke = try container.decodeIfPresent(Bool.self, forKey: .stroke)
+        shadow = try container.decodeIfPresent(Bool.self, forKey: .shadow)
+        hover = try container.decodeIfPresent(Hover.self, forKey: .hover)
+        accent = try container.decodeIfPresent(PlaygroundColor.self, forKey: .accent)
         hidesInSettings = try container.value(.hidesInSettings, or: hidesInSettings)
+    }
+}
+
+extension PlaygroundSettings.Item: Codable {
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let fallback = Self()
+        self.init(
+            type: try container.value(.type, or: fallback.type),
+            symbol: try container.decodeIfPresent(String.self, forKey: .symbol),
+            title: try container.decodeIfPresent(String.self, forKey: .title),
+            action: try container.value(.action, or: fallback.action)
+        )
+        tint = try container.decodeIfPresent(PlaygroundColor.self, forKey: .tint)
+        fill = try container.value(.fill, or: fallback.fill)
+        fillColor = try container.decodeIfPresent(PlaygroundColor.self, forKey: .fillColor)
+        fade = try container.decodeIfPresent(Double.self, forKey: .fade)
+        size = try container.value(.size, or: fallback.size)
+    }
+}
+
+extension PlaygroundSettings.CompanionDefaults: Codable {
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let fallback = Self()
+        size = try container.value(.size, or: fallback.size)
+        presence = try container.value(.presence, or: fallback.presence)
+        fade = try container.value(.fade, or: fallback.fade)
+        stroke = try container.value(.stroke, or: fallback.stroke)
+        shadow = try container.value(.shadow, or: fallback.shadow)
+        hover = try container.value(.hover, or: fallback.hover)
     }
 }
 

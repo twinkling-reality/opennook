@@ -76,7 +76,7 @@ final class PlaygroundSettingsTests: XCTestCase {
         var configuration = NookConfiguration()
         configuration.addCompanion(id: "reference") { Placeholder() }
         let reference = configuration.companions[0]
-        let companion = PlaygroundSettings.Companion(id: "reference", kind: .actions)
+        let companion = PlaygroundSettings.Companion(id: "reference", template: .actions)
 
         XCTAssertEqual(companion.nookAnchor, reference.anchor)
         XCTAssertEqual(CGFloat(companion.spacing), reference.spacing)
@@ -85,6 +85,31 @@ final class PlaygroundSettingsTests: XCTestCase {
         XCTAssertEqual(companion.nookBackdrop, reference.backdrop)
         XCTAssertEqual(companion.hidesInSettings, reference.hidesInSettings)
         XCTAssertEqual(companion.accessibilityLabel, reference.accessibilityLabel)
+        XCTAssertNil(companion.gap)
+        XCTAssertNil(reference.gap)
+        XCTAssertNil(companion.rowAlignment)
+        XCTAssertNil(reference.rowAlignment)
+        XCTAssertNil(companion.size)
+        XCTAssertNil(reference.size)
+        XCTAssertNil(companion.presence)
+        XCTAssertNil(reference.presence)
+        XCTAssertFalse(companion.overridesStyle)
+        XCTAssertNil(reference.style)
+        XCTAssertNil(companion.accent)
+        XCTAssertNil(reference.theme)
+    }
+
+    /// Untouched companion defaults are the framework's own.
+    func testCompanionDefaultsDescribeTheFrameworksDefaults() {
+        let configuration = configuration(.default)
+        let stock = NookConfiguration()
+        XCTAssertEqual(configuration.companionSize, stock.companionSize)
+        XCTAssertEqual(configuration.companionPresence, stock.companionPresence)
+        XCTAssertEqual(
+            configuration.companionStyle.base as? NookStandardCompanionStyle,
+            stock.companionStyle.base as? NookStandardCompanionStyle
+        )
+        XCTAssertEqual(PlaygroundSettings.CompanionDefaults().style, .standard)
     }
 
     // MARK: - Mapping
@@ -181,7 +206,7 @@ final class PlaygroundSettingsTests: XCTestCase {
     }
 
     func testCompanionsMapOntoAddCompanionAndSkipUnusableIDs() {
-        var pill = PlaygroundSettings.Companion(id: "pill", kind: .actions, accessibilityLabel: "Actions")
+        var pill = PlaygroundSettings.Companion(id: "pill", template: .actions, accessibilityLabel: "Actions")
         pill.anchor = .trailing
         pill.alignment = .end
         pill.spacing = 14
@@ -191,7 +216,7 @@ final class PlaygroundSettingsTests: XCTestCase {
         pill.backdrop = .solid
         pill.backdropColor = PlaygroundColor(red: 0, green: 0, blue: 1)
         pill.hidesInSettings = false
-        var glass = PlaygroundSettings.Companion(id: "glass", kind: .chip)
+        var glass = PlaygroundSettings.Companion(id: "glass", template: .chip)
         glass.backdrop = .glass
         glass.visibility = .compact
         glass.outline = .circle
@@ -199,8 +224,8 @@ final class PlaygroundSettingsTests: XCTestCase {
         settings.companions = [
             pill,
             glass,
-            PlaygroundSettings.Companion(id: "pill", kind: .button),
-            PlaygroundSettings.Companion(id: "", kind: .chip),
+            PlaygroundSettings.Companion(id: "pill", template: .button),
+            PlaygroundSettings.Companion(id: "", template: .chip),
         ]
 
         let companions = configuration(settings).companions
@@ -223,6 +248,166 @@ final class PlaygroundSettingsTests: XCTestCase {
         XCTAssertNil(companions[1].accessibilityLabel)
     }
 
+    func testCompanionDefaultsLandOnTheConfiguration() {
+        var settings = PlaygroundSettings()
+        settings.companionDefaults.size = .large
+        settings.companionDefaults.presence = .pop
+        settings.companionDefaults.fade = 0.25
+        settings.companionDefaults.stroke = true
+        settings.companionDefaults.shadow = true
+        settings.companionDefaults.hover = .glow
+
+        let configuration = configuration(settings)
+        XCTAssertEqual(configuration.companionSize, .large)
+        XCTAssertEqual(configuration.companionPresence, .pop)
+        XCTAssertEqual(
+            configuration.companionStyle.base as? NookStandardCompanionStyle,
+            NookStandardCompanionStyle(fade: .standard, stroke: .hairline, shadow: .soft, hover: .glow)
+        )
+    }
+
+    /// Buttons the size of a surface are surfaces of their own, so a companion of nothing else draws
+    /// none around them: it takes the plain style, whatever the defaults say.
+    func testSurfaceButtonsMakeAPlainCompanion() {
+        var settings = PlaygroundSettings()
+        settings.companionDefaults.fade = 0.25
+        var leave = PlaygroundSettings.Item(symbol: "phone.down.fill", title: "Leave")
+        leave.size = .surface
+        var alone = PlaygroundSettings.Companion(id: "leave", items: [leave])
+        alone.shadow = true
+        let mixed = PlaygroundSettings.Companion(
+            id: "mixed",
+            items: [leave, PlaygroundSettings.Item(symbol: "mic.fill", title: "Mute")]
+        )
+        XCTAssertTrue(alone.itemsAreSurfaces)
+        XCTAssertFalse(mixed.itemsAreSurfaces, "a control-sized item needs a surface around it")
+        XCTAssertFalse(PlaygroundSettings.Companion(id: "empty").itemsAreSurfaces)
+        var label = PlaygroundSettings.Item(type: .label, title: "Live")
+        label.size = .surface
+        XCTAssertFalse(PlaygroundSettings.Companion(id: "label", items: [label]).itemsAreSurfaces)
+
+        XCTAssertTrue(alone.overridesStyle)
+        XCTAssertEqual(alone.style(over: settings.companionDefaults), .plain)
+        settings.companions = [alone, mixed]
+        let companions = configuration(settings).companions
+        XCTAssertEqual(companions[0].style?.base as? NookStandardCompanionStyle, .plain)
+        XCTAssertNil(companions[1].style)
+    }
+
+    /// Taking the lock or gear out of the companions puts it back in the top bar, one control at a
+    /// time, and leaves a control the companions never held alone.
+    func testLosingTheLockOrGearPutsItBackInTheTopBar() {
+        var settings = PlaygroundSettings()
+        settings.companions = [PlaygroundSettings.Companion(id: "controls", template: .controls)]
+        settings.topBar.showsKeepOpenButton = false
+        settings.topBar.showsSettingsButton = false
+
+        var edited = settings
+        edited.companions[0].items.removeFirst()
+        edited.restoreChromeControls(heldBy: settings.companions)
+        XCTAssertTrue(edited.topBar.showsKeepOpenButton, "the lock is gone from the companion")
+        XCTAssertFalse(edited.topBar.showsSettingsButton, "the gear is still in it")
+
+        var retyped = settings
+        retyped.companions[0].items[1].type = .button
+        retyped.restoreChromeControls(heldBy: settings.companions)
+        XCTAssertFalse(retyped.topBar.showsKeepOpenButton)
+        XCTAssertTrue(retyped.topBar.showsSettingsButton)
+
+        var emptied = settings
+        emptied.companions = []
+        emptied.restoreChromeControls(heldBy: settings.companions)
+        XCTAssertTrue(emptied.topBar.showsKeepOpenButton)
+        XCTAssertTrue(emptied.topBar.showsSettingsButton)
+
+        var hidden = PlaygroundSettings()
+        hidden.topBar.showsKeepOpenButton = false
+        hidden.companions = [PlaygroundSettings.Companion(id: "actions", template: .actions)]
+        let before = hidden.companions
+        hidden.companions = []
+        hidden.restoreChromeControls(heldBy: before)
+        XCTAssertFalse(hidden.topBar.showsKeepOpenButton, "a lock hidden on its own stays hidden")
+    }
+
+    /// A companion's own values win over the defaults one by one; the ones it leaves unset still
+    /// come from the defaults.
+    func testACompanionsOwnValuesWinOverTheDefaults() {
+        var settings = PlaygroundSettings()
+        settings.companionDefaults.fade = 0.25
+        settings.companionDefaults.shadow = true
+        settings.theme.primaryLabel = PlaygroundColor(red: 0, green: 1, blue: 0)
+        var own = PlaygroundSettings.Companion(id: "own", template: .actions)
+        own.gap = 18
+        own.rowAlignment = .start
+        own.size = .small
+        own.presence = .slide
+        own.fade = 1
+        own.hover = .lift
+        own.accent = PlaygroundColor(red: 1, green: 0, blue: 0)
+        settings.companions = [own, PlaygroundSettings.Companion(id: "plain", template: .chip)]
+
+        let companions = configuration(settings).companions
+        XCTAssertEqual(companions[0].gap, 18)
+        XCTAssertEqual(companions[0].rowAlignment, .start)
+        XCTAssertEqual(companions[0].size, .small)
+        XCTAssertEqual(companions[0].presence, .slide)
+        XCTAssertEqual(
+            companions[0].style?.base as? NookStandardCompanionStyle,
+            NookStandardCompanionStyle(shadow: .soft, hover: .lift),
+            "its own fade of 1 turns the default fade off, and the default shadow stays"
+        )
+        let theme = companions[0].theme?(AppState())
+        XCTAssertEqual(theme?.accent, PlaygroundColor(red: 1, green: 0, blue: 0).color)
+        XCTAssertEqual(theme?.primaryLabel, PlaygroundColor(red: 0, green: 1, blue: 0).color, "on the chrome's theme")
+
+        XCTAssertNil(companions[1].style, "a companion that sets nothing takes the configuration's style")
+        XCTAssertNil(companions[1].size)
+        XCTAssertNil(companions[1].theme)
+    }
+
+    func testTemplatesStartWithTheirItemsAndPlacement() {
+        typealias Companion = PlaygroundSettings.Companion
+        XCTAssertEqual(Companion(id: "a", template: .actions).items.map(\.displayTitle), ["Previous", "Play", "Next"])
+        XCTAssertEqual(Companion(id: "b", template: .button).outline, .circle)
+        let controls = Companion(id: "c", template: .controls)
+        XCTAssertEqual(controls.anchor, .trailing)
+        XCTAssertFalse(controls.hidesInSettings)
+        XCTAssertTrue(controls.holdsChromeControls)
+        XCTAssertEqual(controls.resolvedLayout, .column, "beside the nook, items stack")
+        XCTAssertEqual(Companion(id: "d", template: .chip).items.map(\.type), [.label])
+        XCTAssertTrue(Companion(id: "e", template: .empty).items.isEmpty)
+
+        XCTAssertEqual(Companion(id: "", template: .actions).suggestedID, "actions")
+        XCTAssertEqual(Companion(id: "", template: .button).suggestedID, "button")
+        XCTAssertEqual(Companion(id: "", template: .controls).suggestedID, "controls")
+        XCTAssertEqual(Companion(id: "", template: .chip).suggestedID, "status")
+        XCTAssertEqual(Companion(id: "", template: .empty).suggestedID, "companion")
+
+        XCTAssertEqual(Companion(id: "", template: .actions).contentSummary, "3 buttons")
+        XCTAssertEqual(Companion(id: "", template: .controls).contentSummary, "lock and gear")
+        XCTAssertEqual(Companion(id: "", template: .chip).contentSummary, "a label")
+        XCTAssertEqual(Companion(id: "", template: .empty).contentSummary, "nothing")
+
+        var row = Companion(id: "r", template: .controls)
+        row.layout = .row
+        XCTAssertEqual(row.resolvedLayout, .row, "an explicit layout wins")
+    }
+
+    func testItemsNameThemselves() {
+        typealias Item = PlaygroundSettings.Item
+        XCTAssertEqual(Item(action: .collapse).displaySymbol, "chevron.up")
+        XCTAssertEqual(Item(action: .collapse).displayTitle, "Collapse")
+        XCTAssertEqual(Item(symbol: "star", title: "Star").displaySymbol, "star")
+        XCTAssertNil(Item(type: .label).displaySymbol, "a label without a symbol is text only")
+        XCTAssertEqual(Item(type: .settings).displayTitle, "Settings")
+        XCTAssertEqual(
+            Item.summary(of: [Item(), Item(type: .label), Item(type: .keepOpen)]),
+            "a button and a label and a chrome control"
+        )
+        XCTAssertEqual(Item.titles(of: [Item(title: "A"), Item(title: "B")]), "A, B")
+        XCTAssertEqual(Item.titles(of: []), "nothing")
+    }
+
     func testEverySampleBuildsAConfiguration() {
         for sample in PlaygroundPreset.samples {
             let configuration = configuration(sample.preset.settings)
@@ -239,11 +424,11 @@ final class PlaygroundSettingsTests: XCTestCase {
     func testNormalizingMakesCompanionIDsUniqueAndNonEmpty() {
         var settings = PlaygroundSettings()
         settings.companions = [
-            PlaygroundSettings.Companion(id: " actions ", kind: .actions),
-            PlaygroundSettings.Companion(id: "actions", kind: .actions),
-            PlaygroundSettings.Companion(id: "", kind: .actions),
-            PlaygroundSettings.Companion(id: "  ", kind: .chip),
-            PlaygroundSettings.Companion(id: "status", kind: .button),
+            PlaygroundSettings.Companion(id: " actions ", template: .actions),
+            PlaygroundSettings.Companion(id: "actions", template: .actions),
+            PlaygroundSettings.Companion(id: "", template: .actions),
+            PlaygroundSettings.Companion(id: "  ", template: .chip),
+            PlaygroundSettings.Companion(id: "status", template: .button),
         ]
         XCTAssertEqual(
             settings.normalized().companions.map(\.id),
@@ -263,7 +448,7 @@ final class PlaygroundSettingsTests: XCTestCase {
         settings.rimGlow.intensity = 3
         settings.scrollEdgeFade.length = -10
         settings.topBar.leadingIcon = "  "
-        var companion = PlaygroundSettings.Companion(id: "a", kind: .chip, accessibilityLabel: "   ")
+        var companion = PlaygroundSettings.Companion(id: "a", template: .chip, accessibilityLabel: "   ")
         companion.spacing = -3
         companion.cornerRadius = -3
         settings.companions = [companion]
@@ -286,6 +471,30 @@ final class PlaygroundSettingsTests: XCTestCase {
         XCTAssertEqual(normalized.companions[0].spacing, 0)
         XCTAssertEqual(normalized.companions[0].cornerRadius, 0)
         XCTAssertNil(normalized.companions[0].accessibilityLabel)
+    }
+
+    func testNormalizingKeepsCompanionStyleAndItemsInRange() {
+        var settings = PlaygroundSettings()
+        settings.companionDefaults.fade = 4
+        var item = PlaygroundSettings.Item(symbol: "  star  ", title: " ")
+        item.fade = -1
+        var companion = PlaygroundSettings.Companion(
+            id: "a",
+            items: Array(repeating: item, count: PlaygroundSettings.Companion.maximumItems + 3)
+        )
+        companion.gap = -8
+        companion.fade = .nan
+        settings.companions = [companion]
+
+        let normalized = settings.normalized()
+        XCTAssertEqual(normalized.companionDefaults.fade, 1)
+        let result = normalized.companions[0]
+        XCTAssertEqual(result.gap, 0)
+        XCTAssertEqual(result.fade, 1, "a fade that is not a number is no fade")
+        XCTAssertEqual(result.items.count, PlaygroundSettings.Companion.maximumItems)
+        XCTAssertEqual(result.items[0].symbol, "star")
+        XCTAssertNil(result.items[0].title)
+        XCTAssertEqual(result.items[0].fade, 0)
     }
 
     func testNormalizingLeavesUsableSettingsAlone() {

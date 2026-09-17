@@ -264,18 +264,21 @@ appState.showStatus("Imported 3 files", severity: .success)
 configuration.topBar.showsStatusBanner = false
 ```
 
-**Companion surfaces.** Float your own views beside the nook - a pill of actions
-below it, a round button beside it. They are anchored to the chrome (below,
-leading, or trailing), shown in the compact state, the expanded state, or both,
-painted with the chrome's backdrop, and move with its expand and collapse in every
-layout. Clicking one never takes focus from the nook. See
+**Companion surfaces.** Float your own controls beside the nook - one button, a
+group, several groups - anchored to the chrome (below, leading, or trailing), shown
+in the compact state, the expanded state, or both, and moving with its expand and
+collapse in every layout. Companions share one size so neighbours line up, are drawn
+by a style you pick or write (with fade, edge, shadow, and hover), come and go with a
+presence effect, and can be added and removed while the app runs. Clicking one never
+takes focus from the nook. See
 [Companion surfaces](https://opennook.dev/guides/companion-surfaces/) and
 `Examples/CompanionNook`:
 
 ```swift
+configuration.companionStyle = .faded
 configuration.addCompanion(id: "actions", anchor: .below, spacing: 10) { ActionPill() }
-configuration.addCompanion(id: "timer", anchor: .trailing, visibility: .both, shape: .circle) {
-    TimerButton()
+configuration.addCompanion(id: "timer", visibility: .both, shape: .circle, presence: .pop) {
+    TimerButton()  // a view with Button(...).buttonStyle(.nookGlyph)
 }
 ```
 

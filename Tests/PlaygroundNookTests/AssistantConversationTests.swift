@@ -189,9 +189,19 @@ final class AssistantConversationTests: XCTestCase {
         XCTAssertTrue(prompt.contains("four system designs"))
     }
 
-    func testThePromptExplainsThatListingCompanionsReplacesTheList() {
-        XCTAssertTrue(
-            AssistantPrompt.systemPrompt(capabilities: .fake).contains("replaces the whole list")
-        )
+    func testThePromptExplainsHowCompanionListsAreWritten() {
+        let prompt = AssistantPrompt.systemPrompt(capabilities: .fake)
+        XCTAssertTrue(prompt.contains("sets which companions exist and in what order"))
+        XCTAssertTrue(prompt.contains("keeps any field you leave out"))
+        XCTAssertTrue(prompt.contains("listing items replaces that companion's items"))
+    }
+
+    /// Controls outside the panel are the assistant's to compose now; only what is inside the panel
+    /// is off limits.
+    func testThePromptLetsTheModelComposeCompanionControls() {
+        let prompt = AssistantPrompt.systemPrompt(capabilities: .fake)
+        XCTAssertTrue(prompt.contains("you can compose them freely"))
+        XCTAssertTrue(prompt.contains("controls inside the panel"))
+        XCTAssertFalse(prompt.contains("custom controls"))
     }
 }

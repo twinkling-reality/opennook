@@ -175,10 +175,12 @@ extension AssistantFakeProvider {
                     "showsSettingsButton": false
                   },
                   "companions": [
-                    { "id": "sleep-timer", "kind": "button", "outline": "circle", "anchor": "trailing", "spacing": 10,
+                    { "id": "sleep-timer", "outline": "circle", "anchor": "trailing", "spacing": 10,
+                      "items": [ { "type": "button", "symbol": "moon.zzz.fill", "title": "Sleep timer" } ],
                       "accessibilityLabel": "Sleep timer" },
-                    { "id": "controls", "kind": "controls", "anchor": "trailing", "spacing": 10,
-                      "hidesInSettings": false, "accessibilityLabel": "Nook controls" }
+                    { "id": "controls", "anchor": "trailing", "spacing": 10, "hidesInSettings": false,
+                      "items": [ { "type": "keepOpen" }, { "type": "settings" } ],
+                      "accessibilityLabel": "Nook controls" }
                   ]
                 }
             }

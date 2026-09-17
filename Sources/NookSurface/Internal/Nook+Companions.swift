@@ -152,11 +152,6 @@ extension Nook {
         dropHoverOfHiddenCompanions(in: state, stateChanged: false)
     }
 
-    /// The companion rows the chrome lays out.
-    var companionRows: [NookCompanionRow] {
-        NookCompanionRow.rows(from: companions)
-    }
-
     // MARK: Panel size
 
     /// Records how far down the panel companion `id` reaches, and grows the panel if it no

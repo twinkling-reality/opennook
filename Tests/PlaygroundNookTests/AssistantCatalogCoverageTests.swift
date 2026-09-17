@@ -84,7 +84,36 @@ final class AssistantCatalogCoverageTests: XCTestCase {
             "settings.typography.headerIcon.weight",
             PlaygroundSettings.FontWeight.allCases.map(\.rawValue)
         )
-        try assertChoices("settings.companions[].kind", PlaygroundSettings.Companion.Kind.allCases.map(\.rawValue))
+        try assertChoices(
+            "settings.companionDefaults.size",
+            PlaygroundSettings.Companion.Size.allCases.map(\.rawValue)
+        )
+        try assertChoices(
+            "settings.companionDefaults.presence",
+            PlaygroundSettings.Companion.Presence.allCases.map(\.rawValue)
+        )
+        try assertChoices(
+            "settings.companionDefaults.hover",
+            PlaygroundSettings.Companion.Hover.allCases.map(\.rawValue)
+        )
+        try assertChoices("settings.companions[].layout", PlaygroundSettings.Companion.Layout.allCases.map(\.rawValue))
+        try assertChoices("settings.companions[].size", PlaygroundSettings.Companion.Size.allCases.map(\.rawValue))
+        try assertChoices(
+            "settings.companions[].presence",
+            PlaygroundSettings.Companion.Presence.allCases.map(\.rawValue)
+        )
+        try assertChoices("settings.companions[].hover", PlaygroundSettings.Companion.Hover.allCases.map(\.rawValue))
+        try assertChoices(
+            "settings.companions[].rowAlignment",
+            PlaygroundSettings.Companion.AnchorAlignment.allCases.map(\.rawValue)
+        )
+        try assertChoices("settings.companions[].items[].type", PlaygroundSettings.Item.Kind.allCases.map(\.rawValue))
+        try assertChoices("settings.companions[].items[].fill", PlaygroundSettings.Item.Fill.allCases.map(\.rawValue))
+        try assertChoices("settings.companions[].items[].size", PlaygroundSettings.Item.Size.allCases.map(\.rawValue))
+        try assertChoices(
+            "settings.companions[].items[].action",
+            PlaygroundSettings.Item.Action.allCases.map(\.rawValue)
+        )
         try assertChoices("settings.companions[].anchor", PlaygroundSettings.Companion.Anchor.allCases.map(\.rawValue))
         try assertChoices(
             "settings.companions[].alignment",
@@ -195,16 +224,30 @@ final class AssistantCatalogCoverageTests: XCTestCase {
 
     // MARK: - Walking a preset
 
-    /// A preset with every optional field present and one companion, so encoding it reaches every
-    /// key the format has. The values do not matter; the keys do.
+    /// A preset with every optional field present and one companion holding one item, so encoding
+    /// it reaches every key the format has. The values do not matter; the keys do.
     private static var fullyPopulatedPreset: PlaygroundPreset {
         var settings = PlaygroundSettings()
         for role in PlaygroundSettings.Theme.ColorRole.allCases {
             settings.theme[role] = PlaygroundColor(red: 0.5, green: 0.5, blue: 0.5)
         }
         settings.topBar.leadingIcon = "music.note"
-        var companion = PlaygroundSettings.Companion(id: "sleep-timer", kind: .button, accessibilityLabel: "Timer")
+        var item = PlaygroundSettings.Item(symbol: "moon.fill", title: "Sleep")
+        item.tint = PlaygroundColor(red: 1, green: 1, blue: 1)
+        item.fill = .color
+        item.fillColor = PlaygroundColor(red: 0, green: 0, blue: 1)
+        item.fade = 0.5
+        var companion = PlaygroundSettings.Companion(id: "sleep-timer", items: [item], accessibilityLabel: "Timer")
         companion.outline = .circle
+        companion.gap = 12
+        companion.rowAlignment = .start
+        companion.size = .small
+        companion.presence = .pop
+        companion.fade = 0.4
+        companion.stroke = true
+        companion.shadow = false
+        companion.hover = .lift
+        companion.accent = PlaygroundColor(red: 1, green: 0, blue: 0)
         settings.companions = [companion]
         return PlaygroundPreset(
             appearance: NookAppearancePreferences(chromePalette: .dark, surfaceStyle: .liquidGlass),

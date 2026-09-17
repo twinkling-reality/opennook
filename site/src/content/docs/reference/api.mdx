@@ -70,11 +70,17 @@ The app chrome layered over `NookSurface`.
 - **Input and display** - `NookHotkey` (`Sources/NookKit/System/NookHotkey.swift`),
   `NookDisplayPreference` (`Sources/NookKit/App/NookDisplayPreference.swift`).
 - **Companion surfaces** - `NookCompanion` and
-  `NookConfiguration.addCompanion(...)`; the chrome controls `NookChromeActions`
-  (`\.nookChromeActions`), `NookKeepOpenButton`, and `NookSettingsButton`, with the
-  `topBar.showsKeepOpenButton` / `showsSettingsButton` flags. See
+  `NookConfiguration.addCompanion(...)`, with the shared `companionStyle`,
+  `companionSize`, and `companionPresence`; `NookCompanionSource`
+  (`NookConfiguration.companionSource`) for companions that come and go while the app
+  runs; the glyph button style `NookGlyphButtonStyle` (`.nookGlyph`); and the chrome
+  controls `NookChromeActions` (`\.nookChromeActions`), `NookKeepOpenButton`, and
+  `NookSettingsButton`, with the `topBar.showsKeepOpenButton` /
+  `showsSettingsButton` flags. See
   [Companion surfaces](/guides/companion-surfaces/). Source:
   `Sources/NookKit/App/NookCompanion.swift`,
+  `Sources/NookKit/App/NookCompanionSource.swift`,
+  `Sources/NookKit/App/NookGlyphButtonStyle.swift`,
   `Sources/NookKit/App/NookChromeActions.swift`.
 - **Layout metrics** - `NookLayout`, the public chrome dimension constants
   (expanded width, edge padding, compact-slot size, breadcrumb width), and
@@ -108,8 +114,15 @@ these through `NookKit` rather than directly; the host-facing knobs are:
 - `NookCompanionSurface`, `NookCompanionAnchor`, `NookCompanionVisibility`,
   `NookCompanionShape`, `NookCompanionBackdrop` - companion surfaces at the engine
   level (`Nook.companions`), with the `nookCompanionVisibility(_:)` /
-  `nookCompanionHidden(_:)` modifiers and `\.nookCompanionIsPresented`. See
-  [Companion surfaces](/guides/companion-surfaces/).
+  `nookCompanionHidden(_:)` modifiers, `\.nookCompanionIsPresented`, and
+  `\.nookCompanionIsHovered`. See [Companion surfaces](/guides/companion-surfaces/).
+- `NookCompanionStyle`, `AnyNookCompanionStyle`, `NookStandardCompanionStyle`,
+  `NookCompanionStyleConfiguration`, `NookCompanionFadeMask`, `NookOutlineShadow` -
+  how a companion surface is drawn; `NookCompanionSize` (`\.nookCompanionSize`) -
+  the size a companion shares with its controls; `NookCompanionPresence` - how it
+  comes and goes. See [Companion surfaces](/guides/companion-surfaces/#look).
+- `NookBackdropView`, `\.nookChromeBackdrop` - the chrome's backdrop, painted in any
+  shape by content and styles.
 - `NookRimGlowStyle`, `NookRimGlowPreferenceKey`, `nookRimGlow(_:)` - the glowing
   rim; `NookScrollEdgeFade`, `nookScrollEdgeFade(...)`, `\.nookScrollEdgeFade` - the
   scroll edge fade. See [Rim glow and edge fade](/guides/panel-effects/).

@@ -1,6 +1,6 @@
 ---
 title: Companion surfaces
-description: Float your own views beside the nook - an action pill below it, a round button beside it - anchored to the chrome and moving with it
+description: Float your own controls beside the nook - one button, a group, several groups - anchored to the chrome, styled your way, and changeable while the app runs
 ---
 
 A *companion surface* is a host view that floats outside the nook but belongs to
@@ -11,8 +11,9 @@ does the rest:
 
 - it anchors the view to the chrome and keeps it there as the nook expands and
   collapses, in the notch, floating, and auto layouts, on any display;
-- it paints the view with the chrome's backdrop - solid, translucent, or Liquid
-  Glass - and gives it the chrome's palette and environment;
+- it draws the view with a style - by default the chrome's own backdrop, padded
+  and sized so companions side by side match - and gives it the chrome's palette
+  and environment;
 - it treats the chrome and its companions as one hover region, so moving the
   pointer onto a companion never collapses the nook;
 - clicking a companion never takes focus from the nook or activates the app, and
@@ -21,13 +22,13 @@ does the rest:
 
 The working example is `Examples/CompanionNook/main.swift`: a media player with a
 pill of three section buttons and a separate round sleep-timer button below it,
-and the lock and gear moved into a capsule beside it. Run it with
-`swift run CompanionNook`.
+the lock and gear moved into a capsule beside it, and a speaker chip that comes and
+goes while the app runs. Run it with `swift run CompanionNook`.
 
 ## When to use one
 
 - **Controls that act on the home view but should not take its space** - section
-  tabs, quick actions, a "Show results" pill.
+  tabs, quick actions, call controls, a "Show results" pill.
 - **A glance that stays beside the compact pill while something runs** - a timer,
   a download, a recording indicator.
 - **The chrome's own controls, somewhere else** - see [Moving the lock and
@@ -45,6 +46,17 @@ queue](/guides/activity-queue/).
 import NookApp
 import SwiftUI
 
+struct ActionPill: View {
+    var body: some View {
+        HStack(spacing: 2) {
+            Button("Previous", systemImage: "backward.fill") { player.previous() }
+            Button("Play", systemImage: "play.fill") { player.toggle() }
+            Button("Next", systemImage: "forward.fill") { player.next() }
+        }
+        .buttonStyle(.nookGlyph)
+    }
+}
+
 var configuration = NookConfiguration()
 configuration.setHome { PlayerView() }
 configuration.addCompanion(id: "actions") { ActionPill() }
@@ -52,17 +64,23 @@ NookApp.main(configuration)
 ```
 
 With no other arguments the companion hangs centered below the expanded panel,
-8 pt under it, in a capsule painted with the chrome's backdrop, and steps aside
-while Settings is showing. Every argument has a default:
+8 pt under it, in a capsule painted with the chrome's backdrop, 40 pt tall around
+32 pt controls, and steps aside while Settings is showing. Every argument has a
+default:
 
 ```swift
 configuration.addCompanion(
     id: "actions",                  // unique; keys hover and the accessibility identifier
     anchor: .below,                 // .below, .leading, .trailing (+ alignment)
-    spacing: 8,                     // gap to the chrome, or to the companion before it
+    spacing: 8,                     // gap to the chrome, and to the companion before it
+    gap: nil,                       // a different gap to the companion before it
+    rowAlignment: nil,              // .start, .center, .end across its row
     visibility: .expanded,          // .compact, .expanded, .both
     shape: .capsule,                // .capsule, .circle, .roundedRectangle(cornerRadius:)
     backdrop: .inherit,             // .inherit, .custom(NookBackdrop), .none
+    style: nil,                     // nil uses configuration.companionStyle
+    size: nil,                      // nil uses configuration.companionSize
+    presence: nil,                  // nil uses configuration.companionPresence
     hidesInSettings: true,          // step aside while Settings fills the panel
     accessibilityLabel: "Actions",  // read by VoiceOver before the contents
     theme: nil                      // nil uses the configuration's theme
@@ -71,8 +89,84 @@ configuration.addCompanion(
 }
 ```
 
-Registering two companions with the same `id` on one configuration traps: the id
-keys each companion's hover tracking and its accessibility identifier.
+Registering two companions with the same `id` with `addCompanion` traps: the id
+keys each companion's hover tracking and its accessibility identifier. A
+`companions` array built from data is not checked at registration; there the
+first companion with an id is shown and the rest are logged and left out.
+
+## Composing action chrome
+
+Each companion is one surface. A group of controls is one companion whose content
+holds them; a control that stands apart is a companion of its own. Nothing about
+the count, grouping, or color of controls is fixed - it is all your content.
+
+As with `setHome` and the other content builders, a companion's content must be
+`Sendable`. A `View` struct is, whatever it holds, so put the controls in a small
+view and pass an instance of it. A modified view written straight into the closure,
+such as `Button(...).buttonStyle(...)`, is not, and Swift 6 rejects it.
+
+**One button:**
+
+```swift
+struct RecordButton: View {
+    @ObservedObject var recorder: Recorder  // a @MainActor ObservableObject
+
+    var body: some View {
+        Button("Record", systemImage: "record.circle.fill") { recorder.toggle() }
+            .buttonStyle(.nookGlyph(foreground: .red))
+    }
+}
+
+configuration.addCompanion(id: "record", shape: .circle) { RecordButton(recorder: recorder) }
+```
+
+**Three grouped and one separate** - two companions in the same row:
+
+```swift
+configuration.addCompanion(id: "transport") { TransportControls() }  // three buttons in an HStack
+configuration.addCompanion(id: "share", gap: 16, shape: .circle) { ShareButton() }
+```
+
+**Two and two** - two companions in one centered row, or one at each end:
+
+```swift
+configuration.addCompanion(id: "media", anchor: .below(alignment: .start)) { MediaControls() }
+configuration.addCompanion(id: "call", anchor: .below(alignment: .end)) { CallControls() }
+```
+
+**Mixed colors and shapes** - color each control in its content, and give a
+surface its own backdrop, style, or palette:
+
+```swift
+struct DrawingTools: View {
+    var body: some View {
+        HStack(spacing: 2) {
+            Button("Pencil", systemImage: "pencil.tip") {}
+                .buttonStyle(.nookGlyph(foreground: .orange))
+            Button("Eraser", systemImage: "eraser.fill") {}
+                .buttonStyle(.nookGlyph(foreground: .pink))
+        }
+    }
+}
+
+struct LeaveButton: View {
+    var body: some View {
+        // Its own red circle, so the companion uses the plain style with no pill behind it.
+        Button("Leave", systemImage: "phone.down.fill") {}
+            .buttonStyle(.nookGlyph(size: .surface, foreground: .white, fill: .color(.red)))
+    }
+}
+
+configuration.addCompanion(id: "tools") { DrawingTools() }
+configuration.addCompanion(id: "send", shape: .circle, backdrop: .custom(.solid(.blue)), style: .raised) {
+    SendButton()  // a .nookGlyph(foreground: .white) button
+}
+configuration.addCompanion(id: "leave", style: .plain) { LeaveButton() }
+```
+
+Because every companion shares one [size](#size), neighbours line up without any
+arithmetic: a circle holding one control and a capsule holding three are the same
+height.
 
 ## Placement
 
@@ -99,25 +193,32 @@ Placement is measured from the chrome's *body* - the visible panel - not from th
 notch ears that flare into the menu bar, so the gap you ask for is the gap the user
 sees in both the notch and the floating layout.
 
-### Rows and spacing
+### Rows, spacing, and gap
 
 Companions that share an anchor form one row, in registration order. A `.below`
 row runs left to right under the chrome; a `.leading` or `.trailing` row runs
-outward, the first companion nearest the chrome.
+outward, the first companion nearest the chrome. Each edge takes up to three rows,
+one per alignment. Rows at different alignments are placed independently, so keep
+wide ones from meeting on a narrow panel.
 
-`spacing` is the gap between a companion and whatever is on its chrome side: the
-chrome itself, or the companion before it in the row. A `.below` companion uses it
-both for its drop under the chrome and for its gap to its left neighbour. The
-media player's two companions share the `.below` row:
+`spacing` is the gap between a companion and the chrome, and between it and the
+companion before it in the row. In a `.below` row, `gap` sets the second one alone,
+so a separate button can sit further from its neighbour without dropping further
+below the chrome:
 
 ```swift
-configuration.addCompanion(id: "sections", spacing: 10) {
-    MediaSectionsPill(player: player)
-}
-configuration.addCompanion(id: "sleep-timer", spacing: 10, visibility: .both, shape: .circle) {
+configuration.addCompanion(id: "sections", spacing: 10) { MediaSectionsPill(player: player) }
+configuration.addCompanion(id: "sleep-timer", spacing: 10, gap: 14, shape: .circle) {
     SleepTimerButton(player: player)
 }
 ```
+
+Companions in one `.below` row hang from the same drop, the largest `spacing`
+among the ones shown, so their surfaces line up even when their spacings differ.
+When companions in a row differ in height, each sits across the row by its
+`rowAlignment`: centered by default below the chrome, and following the anchor's
+alignment beside it. Every companion spans its row, so the pointer never leaves
+the hover region beside a short one.
 
 Only companions that are shown take up room in a row, so a hidden companion never
 leaves a hole.
@@ -133,6 +234,172 @@ than that - a tall expanded surface on a small display, say - the panel grows
 downward to fit it, top edge pinned. The file-drag region stays the top half of the
 screen it has always been.
 
+## Size
+
+`NookCompanionSize` is the size a companion shares with its controls: the
+surface's height, a control's side, a glyph's point size, and the space between
+controls.
+
+| Size | Surface | Control | Glyph |
+|---|---|---|---|
+| `.small` | 32 pt | 26 pt | 11 pt |
+| `.regular` (default) | 40 pt | 32 pt | 13 pt |
+| `.large` | 48 pt | 40 pt | 16 pt |
+
+Set it for every companion with `configuration.companionSize`, or for one with
+`size:`. The standard style pads the content by the difference, so a control sits
+concentric with the surface's rounded end, and makes the surface at least that
+tall. Content reads the size from `\.nookCompanionSize`, which is `nil` outside a
+companion:
+
+```swift
+struct TimerRing: View {
+    @Environment(\.nookCompanionSize) private var size
+
+    var body: some View {
+        Circle().stroke(.blue, lineWidth: 2)
+            .frame(width: size?.controlSize ?? 32, height: size?.controlSize ?? 32)
+    }
+}
+```
+
+Beside the compact pill, a companion is fitted to the pill's height with
+`NookCompanionSize.fitting(height:)`: its surface, controls, and glyphs scale down
+so it is no taller than the pill and never reaches above the top of the screen.
+Beside the expanded panel it has its full size again. A custom size is
+`NookCompanionSize(height:controlSize:glyphSize:controlSpacing:)`.
+
+## Look
+
+### Shape
+
+`shape` is the outline the companion is filled and hit-tested with:
+
+- `.capsule` (the default) - a pill;
+- `.circle` - the companion is squared to its content's larger dimension, so a
+  single control comes out round;
+- `.roundedRectangle(cornerRadius:)` - a card.
+
+The content is not clipped to the shape, so a badge can overhang the edge.
+
+### Backdrop
+
+`backdrop` decides what the surface is painted with:
+
+- `.inherit` (the default) - the chrome's current backdrop, so the companion
+  follows the user's surface style (solid, translucent, or Liquid Glass) and
+  Reduce Transparency along with the panel;
+- `.custom(NookBackdrop)` - a backdrop of its own, for example
+  `.custom(.solid(.accentColor))`;
+- `.none` - nothing behind the content. The style still pads and sizes the
+  surface; for content that draws every piece itself at its own size, such as a
+  separately filled button, use the `.plain` style.
+
+### Style
+
+A companion's style draws the surface around its content. The default,
+`NookStandardCompanionStyle`, has every part adjustable:
+
+| Part | What it does | Default |
+|---|---|---|
+| `fill` | `.backdrop` paints the backdrop; `.none` paints nothing | `.backdrop` |
+| `fade` | thins the fill away from the chrome, from `start` to `end` opacity | none |
+| `stroke` | a line inside the edge | none |
+| `shadow` | a shadow cast by the outline, with or without a fill | none |
+| `hover` | a wash, a scale, and a glow under the pointer | none |
+| `padding` | around the content | the size's inset |
+| `height` | `.shared`, `.content`, `.minimum(_:)`, `.fixed(_:)` | `.shared` |
+| `animation` | the curve hover animates on | a short snappy spring |
+
+Pick a preset, adjust the standard style, or write your own:
+
+```swift
+configuration.companionStyle = .faded   // every companion
+configuration.addCompanion(id: "send", style: .raised) { SendButton() }
+configuration.addCompanion(id: "badge", style: .standard(fade: .toClear, hover: .glow)) { Badge() }
+```
+
+| Preset | Looks like |
+|---|---|
+| `.standard` | the backdrop, padded and sized |
+| `.faded` | solid where it meets the chrome, a quarter strength at the far side |
+| `.raised` | a hairline edge and a soft shadow, lifting under the pointer |
+| `.plain` | no fill and no padding, at the content's own size |
+
+`.faded` is the chrome's own trick: the Liquid Glass chrome is shaded strongest
+under the notch and thins toward the wallpaper, and a faded companion runs the same
+way away from the chrome - down from a `.below` companion, outward from a side one.
+
+For full control, conform to `NookCompanionStyle`. The configuration hands you the
+content, the shape, the resolved backdrop, the edge, the size, and whether the
+surface is hovered and shown:
+
+```swift
+struct NeonStyle: NookCompanionStyle {
+    var color: Color
+
+    func makeBody(configuration: Configuration) -> some View {
+        let outline = configuration.shape.outline
+        configuration.content
+            .padding(configuration.size.inset)
+            .frame(minHeight: configuration.size.height)
+            .background { outline.fill(color.opacity(configuration.isHovered ? 0.34 : 0.2)) }
+            .overlay { outline.stroke(color, lineWidth: 1.5) }
+            .shadow(color: color.opacity(0.55), radius: configuration.isHovered ? 12 : 6)
+    }
+}
+
+configuration.addCompanion(id: "live", style: .custom(NeonStyle(color: .cyan))) { LiveBadge() }
+```
+
+A style that wants the chrome's material paints it with `NookBackdropView`, in any
+shape - an `UnevenRoundedRectangle` for a segmented pill, say. The same view is
+there for content: `\.nookChromeBackdrop` holds the chrome's current backdrop
+inside compact, expanded, and companion content. `NookCompanionFadeMask` is the
+fade the standard style uses, and `NookOutlineShadow` draws its shadow and glow.
+
+### Controls
+
+`NookGlyphButtonStyle` - `.buttonStyle(.nookGlyph)` - is a glyph button in the
+chrome's palette, sized from the companion it sits in. Every part is adjustable:
+
+```swift
+Button("Leave", systemImage: "phone.down.fill") { call.leave() }
+    .buttonStyle(
+        .nookGlyph(
+            size: .surface,           // .control (default), .surface, or .points(_:)
+            foreground: .white,       // nil uses the palette's primary label
+            shape: .circle,           // any NookCompanionShape
+            fill: .color(.red),       // .none, .subtle, .color(_:), .chromeBackdrop
+            fade: .standard,          // thins the fill from the top down
+            hover: .lift,             // wash, scale, and glow under the pointer
+            pressedScale: 0.9
+        )
+    )
+```
+
+Only the glyph shows; the title stays the button's accessibility label, and
+`help(_:)` adds a tooltip. `.control` suits a button inside a surface; `.surface`
+makes a button as tall as a companion, for a filled button that stands on its own
+in a `.plain` companion.
+
+### Theme and environment
+
+Companion content renders in the same chrome environment as the home view:
+
+- the resolved palette, `\.nookResolvedTheme` - the configuration's `theme`, or the
+  companion's own `theme` when you pass one;
+- `AppState` as an `@EnvironmentObject`;
+- the module's services, `\.appServices`;
+- the chrome labels, metrics, motion, and typography;
+- the chrome actions, `\.nookChromeActions` (see below);
+- the companion's size, `\.nookCompanionSize`, and the chrome's backdrop,
+  `\.nookChromeBackdrop`;
+- whether the companion is shown, `\.nookCompanionIsPresented`, and hovered,
+  `\.nookCompanionIsHovered`;
+- the panel-wide scroll edge fade, `\.nookScrollEdgeFade` (see [Rim glow and edge
+  fade](/guides/panel-effects/#scroll-edge-fade)).
+
 ## Visibility
 
 `visibility` is the set of nook states a companion is shown in:
@@ -141,11 +408,13 @@ screen it has always been.
 - `.compact` - beside the compact pill;
 - `.both` - in both states.
 
-A companion that is not shown in the current state stays mounted and folds into
-the chrome edge it hangs from, so it grows out of the panel as the nook expands and
-folds back in as it collapses, on the same animation. Because the content stays
-mounted, read `\.nookCompanionIsPresented` to pause timers or animations while it
-is folded away:
+A control that should sit somewhere else in each state is two companions, one
+`.compact` and one `.expanded`, sharing a model.
+
+A companion that is not shown in the current state stays mounted and goes away
+with its *presence*, so it grows out of the panel as the nook expands and folds
+back in as it collapses, on the same animation. Because the content stays mounted,
+read `\.nookCompanionIsPresented` to pause timers or animations while it is hidden:
 
 ```swift
 struct LiveGlance: View {
@@ -157,13 +426,35 @@ struct LiveGlance: View {
 }
 ```
 
+### Presence
+
+`NookCompanionPresence` is how a companion comes and goes: when the chrome changes
+state, when its content hides it, and when it is added or removed.
+
+- `.fold` (the default) - shrinks toward the chrome edge and blurs;
+- `.fade` - fades in place;
+- `.slide` - slides back toward the chrome;
+- `.pop` - shrinks toward its own center.
+
+Set it for every companion with `configuration.companionPresence`, or for one with
+`presence:`. By default a companion moves on the chrome's own expand and collapse
+curve. A companion added or removed plays its presence as well, on the curve the
+change was made with, or on the chrome's curve if the change was made outside
+`withAnimation`. Give a presence a curve of its own with `.animation(_:)`:
+
+```swift
+configuration.addCompanion(id: "badge", presence: .pop.animation(.bouncy)) { Badge() }
+```
+
+Under Reduce Motion every presence is a plain fade.
+
 ### Showing and hiding from inside
 
 The registered visibility is the most a companion can be shown. Its content can
 narrow that at runtime with `nookCompanionVisibility(_:)`, or hide it entirely with
-`nookCompanionHidden(_:)`; the change animates like a chrome state change. The
-media player's sleep-timer button is registered for `.both` and stays beside the
-compact pill only while its timer runs:
+`nookCompanionHidden(_:)`; the change runs on its presence. The media player's
+sleep-timer button is registered for `.both` and stays beside the compact pill only
+while its timer runs:
 
 ```swift
 struct SleepTimerButton: View {
@@ -187,49 +478,44 @@ While the built-in Settings screen fills the expanded panel, companions with
 view that Settings replaces. The compact state is unaffected. Pass `false` for a
 companion that should stay, such as one holding the gear.
 
-## Look
+## Changing companions while the app runs
 
-### Shape
+There are two kinds of change, and neither needs a restart.
 
-`shape` is the outline the companion is filled and hit-tested with:
+**What a companion holds** is its content, so it changes like any SwiftUI view: a
+group that shows two buttons or five just observes its model. Nothing else is
+needed.
 
-- `.capsule` (the default) - a pill;
-- `.circle` - the companion is squared to its content's larger dimension, so
-  size the content square;
-- `.roundedRectangle(cornerRadius:)` - a card.
+**Which companions exist** - a button that appears while a call is live, a group
+per open document - goes on a `NookCompanionSource`. Set one on the configuration,
+then add, replace, move, and remove companions on it whenever you like; the chrome
+follows at once:
 
-The content is not clipped to the shape, so a badge can overhang the edge. Pad
-your content for the shape you pick; the framework adds no padding of its own.
+```swift
+let live = NookCompanionSource()
+configuration.companionSource = live
 
-### Backdrop
+// Later, anywhere on the main actor:
+live.set(NookCompanion(id: "leave", shape: .circle, presence: .pop) { LeaveButton() })
+live.remove(id: "leave")
+```
 
-`backdrop` decides what is painted behind the content:
+A source's companions come after the configuration's own, take the configuration's
+style, size, and presence unless they set their own, and add and remove with their
+presence. Make a change inside `withAnimation` to run it on a curve of your
+choosing. `CompanionNook` adds a speaker chip beside the compact pill this way while
+music plays on a speaker.
 
-- `.inherit` (the default) - the chrome's current backdrop, so the companion
-  follows the user's surface style (solid, translucent, or Liquid Glass) and
-  Reduce Transparency along with the panel;
-- `.custom(NookBackdrop)` - a backdrop of its own, for example
-  `.custom(.solid(.accentColor))`;
-- `.none` - nothing; the content draws its own background.
-
-### Theme and environment
-
-Companion content renders in the same chrome environment as the home view:
-
-- the resolved palette, `\.nookResolvedTheme` - the configuration's `theme`, or the
-  companion's own `theme` when you pass one;
-- `AppState` as an `@EnvironmentObject`;
-- the module's services, `\.appServices`;
-- the chrome labels, metrics, motion, and typography;
-- the chrome actions, `\.nookChromeActions` (see below);
-- the panel-wide scroll edge fade, `\.nookScrollEdgeFade` (see [Rim glow and edge
-  fade](/guides/panel-effects/#scroll-edge-fade)).
+A module can also rebuild its whole configuration with
+`AppCoordinator.reloadActiveConfiguration()`, which projects its companions again;
+see [Playground](/guides/playground/) for a module that does that on every change.
 
 ## Moving the lock and gear
 
 The top bar's keep-open lock and Settings gear can live in a companion instead.
 Turn them off in the top bar and drop the framework's own controls into a
-companion - they look and behave exactly like the top bar's:
+companion - they behave exactly like the top bar's, and take the companion's
+control size so they line up with its other controls:
 
 ```swift
 configuration.topBar.showsKeepOpenButton = false
@@ -245,11 +531,10 @@ configuration.addCompanion(
 
 struct ChromeControls: View {
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 2) {
             NookKeepOpenButton()
             NookSettingsButton()
         }
-        .padding(6)
     }
 }
 ```
@@ -269,6 +554,7 @@ struct SettingsChip: View {
 
     var body: some View {
         Button("Settings", systemImage: "gearshape") { chromeActions.toggleSettings() }
+            .buttonStyle(.nookGlyph)
     }
 }
 ```
@@ -279,17 +565,18 @@ else.
 ## Interaction
 
 **Hover.** The chrome and its companions are one hover region. Each companion
-carries a transparent bridge across its gap to the chrome, and while companions are
-shown a hover exit waits a quarter of a second before collapsing, so the pointer can
-cross between surfaces. Hovering a companion keeps the nook open and counts as the
-user engaging it (an [activity queue](/guides/activity-queue/) waits), but it never
-*expands* a compact nook - only the chrome itself does - so a compact-only companion
-cannot fold away under the pointer.
+fills its row and carries a transparent bridge across its gap to the chrome, and
+while companions are shown a hover exit waits a quarter of a second before
+collapsing, so the pointer can cross between surfaces. Hovering a companion keeps
+the nook open and counts as the user engaging it (an [activity
+queue](/guides/activity-queue/) waits), but it never *expands* a compact nook -
+only the chrome itself does - so a compact-only companion cannot fold away under
+the pointer.
 
 **Clicks and focus.** Companions render in the nook's own non-activating panel.
 Clicking one is clicking the nook: the app is not activated, focus stays where the
 nook left it, and the global show/hide hotkey keeps toggling the nook. Clicks on the
-transparent gaps around a companion fall through to whatever is behind the panel.
+transparent space around a companion fall through to whatever is behind the panel.
 
 **Popovers and menus.** A popover, menu, or sheet opens in a window of its own, so
 the pointer leaves the panel while it is up. Hold the nook open for its duration
@@ -310,9 +597,14 @@ included. A basket-style companion can light up during a drag by reading
 Companions belong to the `NookConfiguration` that registered them. In a
 [multi-module host](/guides/multiple-modules/) a switch takes the outgoing module's
 companions off the surface in the same transaction that brings the incoming
-module's in, cross-fading with the content. Their views disappear, so
+module's in, each playing its presence. Their views disappear, so
 `onDisappear` runs, a presentation pin they held is released, and any hover they
-held ends.
+held ends. A module's `companionSource` stops reaching the surface while the module
+is switched away, and the surface shows whatever the source holds when the module
+comes back. A module with the default `.unloadOnSwitchAway` background policy is
+rebuilt on its way back, so a source the module creates starts over. Keep the
+source somewhere that outlives the module, or use `.stayResident`, to keep what it
+holds.
 
 Work a module runs *for* its companions - a timer, a download - is the module's to
 stop, in `onDeactivate()` or `prepareForSwitchAway()`, the way `ActivityNook`
@@ -328,16 +620,20 @@ initializer.
   `opennook.panel`. Use them in UI tests.
 - `accessibilityLabel` names the group for VoiceOver.
 - A companion that is not shown is hidden from VoiceOver.
-- Under Reduce Motion a companion fades in and out without the scale and blur of
-  its fold.
+- `.nookGlyph` buttons keep their titles as their accessibility labels.
+- Under Reduce Motion a companion fades in and out without the movement of its
+  presence.
 
 ## See also
 
-- `Examples/CompanionNook/main.swift` - the media player with two companions below
-  the panel and the lock and gear beside it.
+- `Examples/CompanionNook/main.swift` - the media player with companions below and
+  beside the panel, and one that comes and goes.
+- [Playground](/guides/playground/) - compose companions live, item by item, and
+  export the Swift.
 - [Rim glow and edge fade](/guides/panel-effects/) - the two panel effects the
   example also uses.
 - [Settings chrome](/guides/settings-chrome/) - the top bar flags, including
   `showsKeepOpenButton` and `showsSettingsButton`.
-- `Sources/NookSurface/NookCompanionSurface.swift` and
+- `Sources/NookSurface/NookCompanionSurface.swift`,
+  `Sources/NookSurface/NookCompanionStyle.swift`, and
   `Sources/NookKit/App/NookCompanion.swift` - the types behind this guide.

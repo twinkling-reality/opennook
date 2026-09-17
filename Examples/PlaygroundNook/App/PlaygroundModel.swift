@@ -252,11 +252,10 @@ final class PlaygroundModel: ObservableObject {
                 settings.labels = .init()
             case .companions:
                 // The lock and gear go back to the top bar with the companion that held them.
-                if settings.companions.contains(where: { $0.kind == .controls }) {
-                    settings.topBar.showsKeepOpenButton = true
-                    settings.topBar.showsSettingsButton = true
-                }
+                let previous = settings.companions
                 settings.companions = []
+                settings.restoreChromeControls(heldBy: previous)
+                settings.companionDefaults = .init()
             case .effects:
                 settings.rimGlow = .init()
                 settings.scrollEdgeFade = .init()

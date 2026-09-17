@@ -12,20 +12,26 @@ import SwiftUI
 /// button beside it, a file basket - registered through ``NookConfiguration``.
 ///
 /// The framework anchors it to the chrome (`NookCompanionAnchor`), shows it in the nook
-/// states you choose (`NookCompanionVisibility`), paints it with the chrome's backdrop,
-/// and moves it with the chrome's expand and collapse, in every presentation mode and on
-/// every display. Its content renders in the same chrome environment as the home view: the
+/// states you choose (`NookCompanionVisibility`), draws it with a style
+/// (`NookCompanionStyle`) at a size its controls share (`NookCompanionSize`), and moves it
+/// with the chrome's expand and collapse, in every presentation mode and on every display. Its content renders in the same chrome environment as the home view: the
 /// resolved palette (`\.nookResolvedTheme`), ``AppState`` as an environment object, the
 /// module's services (`\.appServices`), and the chrome labels, metrics, motion, and
 /// typography. Clicking it never takes focus away from the nook.
 ///
-/// Register one with ``NookConfiguration/addCompanion(id:anchor:spacing:visibility:shape:backdrop:hidesInSettings:accessibilityLabel:theme:content:)``:
+/// Register one with ``NookConfiguration/addCompanion(id:anchor:spacing:gap:rowAlignment:visibility:shape:backdrop:style:size:presence:hidesInSettings:accessibilityLabel:theme:content:)``:
 ///
 /// ```swift
 /// configuration.addCompanion(id: "actions", anchor: .below, visibility: .expanded) {
 ///     MyActionPill()
 /// }
 /// ```
+///
+/// Each companion is one surface: a group of controls is one companion, and a control that
+/// stands apart is another. Leave ``style``, ``size``, and ``presence`` unset to use the
+/// configuration's ``NookConfiguration/companionStyle``, ``NookConfiguration/companionSize``,
+/// and ``NookConfiguration/companionPresence``. To change which companions exist while the
+/// nook runs, put them in a ``NookCompanionSource``.
 ///
 /// A companion belongs to the ``NookConfiguration`` that registered it, so in a multi-module
 /// host it leaves the surface when its module is switched away, in the same transaction that
@@ -42,8 +48,17 @@ public struct NookCompanion: Identifiable, Sendable {
     public var anchor: NookCompanionAnchor
 
     /// Gap, in points, between the companion and the chrome - or the companion before it in
-    /// the same row. See `NookCompanionSurface/spacing`.
+    /// the same row, unless ``gap`` sets that. See `NookCompanionSurface/spacing`.
     public var spacing: CGFloat
+
+    /// Gap, in points, between a `.below` companion and the companion before it in its row.
+    /// `nil` uses ``spacing``, so setting it changes the gap without moving the companion
+    /// further from the chrome.
+    public var gap: CGFloat?
+
+    /// Where the companion sits across its row when a neighbour is taller. `nil` centers a
+    /// `.below` companion and follows the anchor's alignment in a side row.
+    public var rowAlignment: NookCompanionAnchor.Alignment?
 
     /// The nook states the companion is shown in. Content can narrow this further at runtime
     /// with `nookCompanionVisibility(_:)`.
@@ -55,6 +70,18 @@ public struct NookCompanion: Identifiable, Sendable {
     /// What the companion paints behind its content. `NookCompanionBackdrop/inherit` (the
     /// default) follows the chrome, including the user's Liquid Glass setting.
     public var backdrop: NookCompanionBackdrop
+
+    /// How the surface is drawn: fill, fade, edge, shadow, padding, height, and hover. `nil`
+    /// (the default) uses the configuration's ``NookConfiguration/companionStyle``.
+    public var style: AnyNookCompanionStyle?
+
+    /// The size the surface shares with its controls. `nil` (the default) uses the
+    /// configuration's ``NookConfiguration/companionSize``.
+    public var size: NookCompanionSize?
+
+    /// How the companion appears and disappears. `nil` (the default) uses the configuration's
+    /// ``NookConfiguration/companionPresence``.
+    public var presence: NookCompanionPresence?
 
     /// Whether the companion steps aside while the built-in Settings screen fills the
     /// expanded surface. Defaults to `true`: companions usually act on the home content,
@@ -75,9 +102,14 @@ public struct NookCompanion: Identifiable, Sendable {
         id: String,
         anchor: NookCompanionAnchor = .below,
         spacing: CGFloat = NookCompanionSurface.defaultSpacing,
+        gap: CGFloat? = nil,
+        rowAlignment: NookCompanionAnchor.Alignment? = nil,
         visibility: NookCompanionVisibility = .expanded,
         shape: NookCompanionShape = .capsule,
         backdrop: NookCompanionBackdrop = .inherit,
+        style: AnyNookCompanionStyle? = nil,
+        size: NookCompanionSize? = nil,
+        presence: NookCompanionPresence? = nil,
         hidesInSettings: Bool = true,
         accessibilityLabel: String? = nil,
         theme: (@Sendable @MainActor (AppState) -> NookResolvedTheme)? = nil,
@@ -86,9 +118,14 @@ public struct NookCompanion: Identifiable, Sendable {
         self.id = id
         self.anchor = anchor
         self.spacing = spacing
+        self.gap = gap
+        self.rowAlignment = rowAlignment
         self.visibility = visibility
         self.shape = shape
         self.backdrop = backdrop
+        self.style = style
+        self.size = size
+        self.presence = presence
         self.hidesInSettings = hidesInSettings
         self.accessibilityLabel = accessibilityLabel
         self.theme = theme
