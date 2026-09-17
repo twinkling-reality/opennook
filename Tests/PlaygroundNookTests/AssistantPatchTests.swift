@@ -135,6 +135,86 @@ final class AssistantPatchTests: XCTestCase {
         }
     }
 
+    // MARK: - Fidelity
+
+    /// A patch merge rewrites the whole preset on its way through JSON, so a value it does not mention
+    /// has to come back bit for bit. A slider leaves values such as 0.8300000000000001 behind, and
+    /// rounding one of those on the way through would make the proposal list a change to a field
+    /// nobody asked about.
+    func testAValueTheePatchDoesNotMentionSurvivesExactly() throws {
+        var base = PlaygroundPreset()
+        base.settings.motion.viewModeChange = PlaygroundSettings.SpringSpec(
+            response: 0.38,
+            dampingFraction: 0.8300000000000001
+        )
+        base.settings.rimGlow.intensity = 0.7000000000000001
+        base.appearance.backdropStrength = 0.6900000000000001
+
+        let result = try AssistantPatch.apply(
+            patch(#"{ "settings": { "panel": { "expandedWidth": 420 } } }"#),
+            to: base
+        )
+
+        XCTAssertEqual(
+            result.settings.motion.viewModeChange.dampingFraction,
+            0.8300000000000001,
+            "the damping fraction was rewritten"
+        )
+        XCTAssertEqual(result.settings.rimGlow.intensity, 0.7000000000000001)
+        XCTAssertEqual(result.appearance.backdropStrength, 0.6900000000000001)
+    }
+
+    /// The same thing seen from the proposal: a patch that changes one field lists exactly one change,
+    /// however much precision the other values carry.
+    func testAPatchOfOneFieldListsOneChange() throws {
+        var base = PlaygroundPreset()
+        base.settings.motion.viewModeChange = PlaygroundSettings.SpringSpec(
+            response: 0.38,
+            dampingFraction: 0.8300000000000001
+        )
+        base.settings.rimGlow.intensity = 0.7000000000000001
+
+        let proposal = try AssistantDiff.proposal(
+            base: base,
+            patch: patch(#"{ "settings": { "panel": { "expandedWidth": 420 } } }"#),
+            explanation: "Narrower.",
+            notReproduced: []
+        )
+        XCTAssertEqual(proposal.changes.map(\.summary), ["Width 520 -> 420 pt"])
+    }
+
+    /// Every number in a preset reads back as itself.
+    func testEveryNumberSurvivesBeingWrittenAndReadBack() throws {
+        let awkward: [Double] = [0.8300000000000001, 0.1 + 0.2, 1.0 / 3.0, 0.0001, 1e-7, 12345.6789, 520, -0.0]
+        for value in awkward {
+            let text = AssistantJSON.numberText(value)
+            let json = try XCTUnwrap(AssistantJSON(parsing: text))
+            guard case .number(let read) = json else {
+                return XCTFail("\(text) did not read back as a number")
+            }
+            XCTAssertEqual(read, value, "\(value) came back as \(read) through \(text)")
+        }
+    }
+
+    /// Whole numbers still print without a decimal point, so a schema's bounds stay readable.
+    func testWholeNumbersStayTidy() {
+        XCTAssertEqual(AssistantJSON.numberText(520), "520")
+        XCTAssertEqual(AssistantJSON.numberText(0), "0")
+        XCTAssertEqual(AssistantJSON.numberText(-8), "-8")
+        XCTAssertEqual(AssistantJSON.numberText(1.5), "1.5")
+    }
+
+    /// A proposal row rounds for reading even though the JSON behind it does not.
+    func testAChangeRowRoundsForReading() {
+        XCTAssertEqual(
+            AssistantChange.Value.number(0.8300000000000001, .none).text,
+            "0.83"
+        )
+        XCTAssertEqual(AssistantChange.Value.number(420, .points).text, "420 pt")
+        XCTAssertEqual(AssistantChange.Value.number(0.38, .seconds).text, "0.38 s")
+        XCTAssertEqual(AssistantChange.Value.number(0.9, .fraction).text, "90%")
+    }
+
     // MARK: - Errors
 
     func testAnInventedFieldIsNamed() throws {

@@ -174,21 +174,20 @@ extension AssistantJSON {
         }
     }
 
-    /// A whole number prints without a decimal point, so a schema's bounds read as `100` rather
-    /// than `100.0`.
+    /// A number as text that reads back as the same number.
+    ///
+    /// Exactness matters more than tidiness here, because this is how a preset is written on the way
+    /// through a patch merge. Rounding for looks would quietly rewrite every value with more precision
+    /// than the format shows: a damping fraction a slider left at `0.8300000000000001` would come back
+    /// as `0.83`, and the proposal would then list a change to a field nobody touched. `Double`'s own
+    /// description is the shortest text that round trips, so it is used for everything except whole
+    /// numbers, which print without a decimal point so a schema's bounds read as `100`.
     static func numberText(_ value: Double) -> String {
         guard value.isFinite else { return "0" }
         if value == value.rounded(), abs(value) < 1e15 {
             return String(Int(value))
         }
-        var text = String(format: "%.4f", value)
-        while text.hasSuffix("0") {
-            text.removeLast()
-        }
-        if text.hasSuffix(".") {
-            text.removeLast()
-        }
-        return text
+        return value.description
     }
 
     static func quoted(_ text: String) -> String {

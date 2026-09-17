@@ -46,6 +46,7 @@ extension View {
 /// A page: its title and symbol, then its cards, in a scrolling column.
 struct PlaygroundPageView<Content: View>: View {
     let page: PlaygroundPage
+    @Environment(\.assistantDocked) private var assistantDocked
     @ViewBuilder var content: Content
 
     var body: some View {
@@ -64,8 +65,7 @@ struct PlaygroundPageView<Content: View>: View {
             .frame(maxWidth: 600, alignment: .leading)
             .padding(.horizontal, 28)
             .padding(.top, 12)
-            // Room for the confirmation that floats over the bottom.
-            .padding(.bottom, 64)
+            .padding(.bottom, assistantDocked ? 140 : 64)
             .frame(maxWidth: .infinity)
         }
     }

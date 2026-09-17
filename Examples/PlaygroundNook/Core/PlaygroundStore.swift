@@ -39,6 +39,7 @@ public struct PlaygroundDemo: Codable, Equatable, Sendable {
 public struct PlaygroundStore {
     static let settingsKey = "playground.settings"
     static let demoKey = "playground.demo"
+    static let assistantKey = "playground.assistant"
 
     private let defaults: UserDefaults
 
@@ -61,6 +62,16 @@ public struct PlaygroundStore {
 
     public func saveDemo(_ demo: PlaygroundDemo) {
         save(demo, forKey: Self.demoKey)
+    }
+
+    /// Which way of asking the assistant is set to, or what was detected on this machine when nothing
+    /// has been chosen yet. Never a key: those are in the Keychain.
+    public func loadAssistant() -> AssistantConfiguration {
+        load(AssistantConfiguration.self, forKey: Self.assistantKey) ?? .detected()
+    }
+
+    public func saveAssistant(_ configuration: AssistantConfiguration) {
+        save(configuration, forKey: Self.assistantKey)
     }
 
     private func load<Value: Decodable>(_ type: Value.Type, forKey key: String) -> Value? {

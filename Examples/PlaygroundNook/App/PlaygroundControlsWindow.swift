@@ -20,7 +20,7 @@ import SwiftUI
 final class PlaygroundControlsWindowController: NSWindowController, NSWindowDelegate {
     init(model: PlaygroundModel, appState: AppState) {
         let hostingController = NSHostingController(
-            rootView: PlaygroundControlsView(model: model, appState: appState)
+            rootView: PlaygroundControlsView(model: model, appState: appState, assistant: model.assistant)
         )
         // The window's actions are drawn by the page itself, so nothing is bridged to AppKit.
         hostingController.sceneBridgingOptions = []
@@ -59,6 +59,7 @@ final class PlaygroundControlsWindowController: NSWindowController, NSWindowDele
         hostingController.rootView = PlaygroundControlsView(
             model: model,
             appState: appState,
+            assistant: model.assistant,
             titleBarHeight: Self.titleBarHeight(of: window)
         )
     }

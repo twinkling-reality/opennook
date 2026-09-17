@@ -83,8 +83,11 @@ enum PlaygroundPage: String, CaseIterable, Identifiable, Hashable {
 struct PlaygroundControlsView: View {
     @ObservedObject var model: PlaygroundModel
     @ObservedObject var appState: AppState
+    @ObservedObject var assistant: AssistantModel
     @State private var page = PlaygroundPage.appearance
     @AppStorage("playground.showsCode") private var showsCode = true
+    /// Shared by the assistant pill and the composer, so one grows out of the other.
+    @Namespace private var assistantNamespace
     /// The strip the traffic lights sit in, centered on them. The window's own actions share it,
     /// and the cards start a little below it.
     var titleBarHeight: CGFloat = 50
@@ -113,8 +116,22 @@ struct PlaygroundControlsView: View {
                 .frame(width: 208)
             pageView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .environment(\.assistantDocked, assistant.isPresented)
+                .overlay {
+                    if assistant.isPresented {
+                        Color.clear
+                            .contentShape(Rectangle())
+                            .onTapGesture { assistant.close() }
+                            .accessibilityHidden(true)
+                    }
+                }
                 .overlay(alignment: .bottom) {
-                    ToastView(model: model)
+                    VStack(spacing: 8) {
+                        ToastView(model: model)
+                        AssistantOverlay(assistant: assistant, namespace: assistantNamespace)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 14)
                 }
             if showsCode {
                 CodePanel(model: model, appState: appState)
@@ -150,6 +167,7 @@ struct PlaygroundControlsView: View {
     private var titleBar: some View {
         HStack(spacing: 10) {
             Spacer(minLength: 0)
+            AssistantPill(model: assistant, namespace: assistantNamespace)
             Toggle(isOn: keepsExpanded) {
                 Label("Keep Open", systemImage: appState.keepNookOpen ? "lock.fill" : "lock.open")
             }
@@ -273,6 +291,33 @@ private struct PlaygroundSidebar: View {
     }
 }
 
+/// The composer over the page, with a scrim that closes it on a click outside.
+///
+/// The spring matches the window's own motion, and Reduce Motion gets a cross fade instead: growing
+/// out of a pill is exactly the kind of movement that setting exists to turn off.
+private struct AssistantOverlay: View {
+    @ObservedObject var assistant: AssistantModel
+    let namespace: Namespace.ID
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            if assistant.isPresented {
+                AssistantComposer(model: assistant, namespace: namespace)
+                    .transition(
+                        reduceMotion
+                            ? .opacity
+                            : .move(edge: .bottom).combined(with: .opacity)
+                    )
+            }
+        }
+        .animation(
+            reduceMotion ? .easeInOut(duration: 0.2) : .spring(response: 0.3, dampingFraction: 0.86),
+            value: assistant.isPresented
+        )
+    }
+}
+
 /// The model's current confirmation, floating over the bottom of the page.
 private struct ToastView: View {
     @ObservedObject var model: PlaygroundModel
@@ -298,7 +343,6 @@ private struct ToastView: View {
                 .background(.regularMaterial, in: Capsule())
                 .overlay { Capsule().strokeBorder(PlaygroundTheme.stroke) }
                 .shadow(color: .black.opacity(0.15), radius: 12, y: 4)
-                .padding(.bottom, 16)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }

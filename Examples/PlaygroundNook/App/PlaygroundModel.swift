@@ -37,6 +37,11 @@ final class PlaygroundModel: ObservableObject {
     /// A message for the controls window to show in an alert, such as why a preset did not open.
     @Published var alertMessage: String?
 
+    /// Whether the assistant has a request in flight. The nook lights its own rim while it does, so
+    /// the thing being edited is what says work is happening. Not persisted: it is about this moment,
+    /// not about the look.
+    @Published var assistantIsBusy = false
+
     /// A short confirmation at the bottom of the controls window, such as "Copied".
     @Published private(set) var toast: Toast?
 
@@ -48,6 +53,10 @@ final class PlaygroundModel: ObservableObject {
 
     /// Weak because the coordinator owns this model, through the module host.
     private(set) weak var coordinator: AppCoordinator?
+
+    /// The assistant's state. Created with the model rather than with the window, so a request keeps
+    /// running when the controls window is closed.
+    private(set) lazy var assistant = AssistantModel(store: store, playground: self)
 
     private let store: PlaygroundStore
     private var isApplyScheduled = false
@@ -197,7 +206,13 @@ final class PlaygroundModel: ObservableObject {
 
     /// Applies a preset and offers to undo it.
     func apply(_ preset: PlaygroundPreset, announcing message: String) {
-        let previous = self.preset
+        apply(preset, replacing: self.preset, announcing: message)
+    }
+
+    /// Applies a preset and offers to undo back to `previous` rather than to the state right before
+    /// this call. The assistant needs this: after a preview, what is on screen is already the change,
+    /// and Undo has to reach the settings from before the preview started.
+    func apply(_ preset: PlaygroundPreset, replacing previous: PlaygroundPreset, announcing message: String) {
         apply(preset)
         flash(message, undoing: previous)
     }
