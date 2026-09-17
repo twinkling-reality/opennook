@@ -22,6 +22,29 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   switched away. At the engine level: `Nook.companions` (`NookCompanionSurface`),
   the `nookCompanionVisibility(_:)` / `nookCompanionHidden(_:)` modifiers, and
   `\.nookCompanionIsPresented`.
+- Companion styling and sizing. Every companion shares a size with its controls
+  (`NookConfiguration.companionSize`, `NookCompanionSize`: small, regular, and large),
+  so companions side by side are the same height, a companion beside the compact pill
+  is fitted to the pill's height, and a row below the chrome hangs every surface from
+  one drop so they line up. A companion is drawn by a style
+  (`NookConfiguration.companionStyle`, `NookCompanionStyle`, `AnyNookCompanionStyle`):
+  `NookStandardCompanionStyle` adjusts the fill, a fade away from the chrome, an edge,
+  a shadow, hover (wash, scale, glow), padding, and height, with the `.standard`,
+  `.faded`, `.raised`, and `.plain` presets, and a host can write its own; its shadow
+  and glow are cast by the outline (`NookOutlineShadow`), so they show without a
+  fill. A companion comes and goes with a presence
+  (`NookConfiguration.companionPresence`, `NookCompanionPresence`: fold, fade, slide,
+  pop, with its own curve), including when it is added or removed. Each
+  companion can set its own style, size, and presence, a `gap` to its neighbour
+  separate from its `spacing` to the chrome, and a `rowAlignment` across its row.
+  `NookGlyphButtonStyle` (`.buttonStyle(.nookGlyph)`) is a glyph button in the
+  chrome's palette at the companion's size, with its size, colors, shape, fill, fade,
+  hover, and press adjustable. `NookBackdropView` and `\.nookChromeBackdrop` paint the
+  chrome's own material in any shape, and `\.nookCompanionIsHovered` and
+  `\.nookCompanionSize` reach companion content.
+- `NookCompanionSource` (`NookConfiguration.companionSource`): companions a host
+  adds, replaces, moves, and removes while the nook runs, with no configuration
+  reload.
 - Movable top bar controls: `NookTopBarConfiguration.showsKeepOpenButton` and
   `showsSettingsButton` take the lock or the gear out of the top bar without
   removing the feature, and `NookKeepOpenButton`, `NookSettingsButton`, and the
@@ -63,8 +86,10 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   and shape, typography and motion, top bar and notch clearance, companion surfaces,
   rim glow, scroll edge fade, and hover behavior, and exports the result as Swift
   that sets only what differs from the defaults, or as a JSON preset it can open
-  again (`--preset <file>`). Its settings model and exporters are the tested
-  `PlaygroundNookCore` target. New site guide: "Playground".
+  again (`--preset <file>`). Companions are composed from items - glyph buttons,
+  labels, and the lock and gear - with shared and per-companion size, style, and
+  presence, and export as real SwiftUI views. Its settings model and exporters are
+  the tested `PlaygroundNookCore` target. New site guide: "Playground".
 
 ### Changed
 

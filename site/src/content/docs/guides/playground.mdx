@@ -57,7 +57,7 @@ swift run PlaygroundNook --expand                  # open the nook at launch
 | Panel | expanded width, corner radii, content insets, a few metrics | `expandedWidth`, `style`, `metrics` |
 | Type and Motion | four typography roles, the Settings and banner springs | `typography`, `motion` |
 | Top Bar | top bar and Settings switches, width, leading title and icon, notch clearance, labels | `topBar`, `labels` |
-| Companions | add, remove, and reorder; placement, style, and details of the selected one | `addCompanion(...)` |
+| Companions | the size, look, and entrance every companion shares; add, duplicate, remove, and reorder companions; the selected one's items, placement, style, and details | `companionSize`, `companionStyle`, `companionPresence`, `addCompanion(...)` |
 | Effects | rim style, scroll edge fade edges and length | `rimGlow`, `scrollEdgeFade` |
 | Behavior | hover keeps visible, hover haptics | `chromeBehavior.hoverBehavior` |
 
@@ -69,6 +69,26 @@ band beside the notch with `nookNotchAccessories(leading:trailing:)`; with the t
 off, it shows what [clearing the notch](/guides/layout-and-insets/#clearing-the-notch)
 does. The theme colors start as **Live** - the palette the chrome resolves from the
 user's preferences - until you pick a color.
+
+### Composing companions
+
+A companion holds a list of items, each one of:
+
+- a **button** - an SF Symbol, a name, a glyph color, a fill (none, subtle, a color,
+  or the nook's material) with an optional fade, a size, and an action (post a
+  status, toggle the rim glow, keep open, Settings, or collapse);
+- a **label** - an SF Symbol and some text;
+- the nook's own **lock** or **gear**.
+
+A group of controls is one companion with several items, laid out in a row or a
+column; a control that stands apart is a companion of its own. **Add** starts a
+companion from a template - an action pill, a round button, the nook controls, a
+status chip, or nothing - and its Content tab adds, reorders, and edits the items.
+The **Every Companion** card sets the size, entrance, fade, edge, shadow, and hover
+every companion shares, and each companion's Style tab can set its own, with
+**Default** following the card. A button sized **Surface** is as tall as the
+companion and draws its own surface, so a companion holding only those draws none
+around them and takes the `.plain` style.
 
 ## How a change reaches the nook
 
@@ -165,16 +185,35 @@ configuration.style?.bottomCornerRadius = 30
 configuration.topBar.showsKeepOpenButton = false
 configuration.topBar.showsSettingsButton = false
 
+// How every companion looks and appears, unless it says otherwise.
+configuration.companionStyle = .faded
+
 configuration.addCompanion(id: "controls", anchor: .trailing, hidesInSettings: false) {
-    ChromeControls()  // your view stacking NookKeepOpenButton() and NookSettingsButton()
+    ControlsCompanion()
 }
 
 NookApp.main(configuration)
+
+// MARK: - Companion content
+
+struct ControlsCompanion: View {
+    var body: some View {
+        VStack(spacing: 2) {
+            NookKeepOpenButton()
+            NookSettingsButton()
+        }
+    }
+}
 ```
 
-- The playground's own views appear as placeholders - `MyHomeView`, `ActionPill`,
-  `RoundButton`, `ChromeControls`, `StatusChip`, `HeaderTitle`, `HeaderButtons` - for
-  you to replace with yours.
+- Each companion's items are written out as a view of its own, named after the
+  companion: glyph buttons with `.nookGlyph`, labels, and the framework's lock and
+  gear. A button's action is a comment to replace with yours, except the ones the
+  framework runs - keep open, Settings, and collapse - which call
+  `NookChromeActions`. A companion with no items is hidden in the playground, so it is
+  left out, with a comment saying so.
+- The home view appears as a placeholder - `MyHomeView`, and with a header beside
+  the notch `HeaderTitle` and `HeaderButtons` - for you to replace with yours.
 - With **Header beside notch** on, the home view is wrapped in a small view type that
   applies `nookNotchAccessories(leading:trailing:)`, since `setHome(_:)` takes a
   `Sendable` view.
@@ -207,8 +246,24 @@ key, sorted, so presets diff cleanly under version control, and writes colors as
   },
   "format" : "opennook.playground-preset",
   "settings" : {
+    "companionDefaults" : { "fade" : 0.35, "hover" : "lift" },
     "companions" : [
-      { "alignment" : "end", "id" : "status", "kind" : "chip" }
+      {
+        "alignment" : "end",
+        "id" : "status",
+        "items" : [ { "symbol" : "sparkles", "title" : "3 new", "type" : "label" } ]
+      },
+      {
+        "gap" : 16,
+        "id" : "leave",
+        "items" : [
+          { "action" : "collapse", "fill" : "color", "fillColor" : "#FF3B30",
+            "size" : "surface", "symbol" : "phone.down.fill", "tint" : "#FFFFFF",
+            "title" : "Leave", "type" : "button" }
+        ],
+        "backdrop" : "none",
+        "outline" : "circle"
+      }
     ],
     "panel" : { "expandedWidth" : 440 },
     "theme" : { "accent" : "#FA5C85", "fontDesign" : "rounded" }
@@ -228,7 +283,11 @@ Presets are read leniently:
 - A preset whose `version` is newer than the playground reads is refused rather
   than misread.
 - Companion ids are made unique and non-empty, and negative lengths become zero,
-  since `addCompanion` traps on a duplicate id.
+  since `addCompanion` traps on a duplicate id. Fades are kept between 0 and 1, and a
+  companion keeps at most twelve items.
+- A companion from an earlier playground names its content with `kind` (`actions`,
+  `button`, `controls`, or `chip`) rather than listing `items`, and opens with the
+  items that kind stood for. The playground writes `items` from then on.
 
 Keep Open is never part of a preset, and neither are the demo switches - the lit
 rim, the scrolling demo, the banner message - which the playground remembers

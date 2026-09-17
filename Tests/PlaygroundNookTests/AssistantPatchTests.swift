@@ -74,20 +74,21 @@ final class AssistantPatchTests: XCTestCase {
         XCTAssertNil(result.settings.theme.accent)
     }
 
-    /// The companions list replaces rather than merges, so a patch that lists one companion is a
+    /// The companions list says which companions exist, so a patch that lists one companion is a
     /// list of one.
-    func testAListReplacesRatherThanMerges() throws {
+    func testAListSetsWhichCompanionsExist() throws {
         var base = PlaygroundPreset()
         base.settings.companions = [
-            PlaygroundSettings.Companion(id: "actions", kind: .actions),
-            PlaygroundSettings.Companion(id: "status", kind: .chip),
+            PlaygroundSettings.Companion(id: "actions", template: .actions),
+            PlaygroundSettings.Companion(id: "status", template: .chip),
         ]
 
         let result = try AssistantPatch.apply(
             patch(
                 """
                 { "settings": { "companions": [
-                    { "id": "sleep-timer", "kind": "button", "outline": "circle", "anchor": "trailing" }
+                    { "id": "sleep-timer", "outline": "circle", "anchor": "trailing",
+                      "items": [ { "type": "button", "symbol": "moon.zzz.fill", "title": "Sleep timer" } ] }
                 ] } }
                 """
             ),
@@ -97,6 +98,82 @@ final class AssistantPatchTests: XCTestCase {
         XCTAssertEqual(result.settings.companions.map(\.id), ["sleep-timer"])
         XCTAssertEqual(result.settings.companions.first?.outline, .circle)
         XCTAssertEqual(result.settings.companions.first?.anchor, .trailing)
+        XCTAssertEqual(result.settings.companions.first?.items.map(\.symbol), ["moon.zzz.fill"])
+    }
+
+    /// A companion that already exists keeps what the patch leaves out, so moving it does not wipe
+    /// its items or style, and the list's order is the patch's.
+    func testAListedCompanionKeepsWhatThePatchLeavesOut() throws {
+        var base = PlaygroundPreset()
+        var actions = PlaygroundSettings.Companion(id: "actions", template: .actions)
+        actions.hover = .lift
+        actions.spacing = 14
+        base.settings.companions = [actions, PlaygroundSettings.Companion(id: "status", template: .chip)]
+
+        let result = try AssistantPatch.apply(
+            patch(
+                """
+                { "settings": { "companions": [
+                    { "id": "status" },
+                    { "id": "actions", "anchor": "trailing" }
+                ] } }
+                """
+            ),
+            to: base
+        )
+
+        XCTAssertEqual(result.settings.companions.map(\.id), ["status", "actions"])
+        let moved = result.settings.companions[1]
+        XCTAssertEqual(moved.anchor, .trailing)
+        XCTAssertEqual(moved.items, actions.items)
+        XCTAssertEqual(moved.hover, .lift)
+        XCTAssertEqual(moved.spacing, 14)
+        XCTAssertEqual(result.settings.companions[0], base.settings.companions[1])
+    }
+
+    /// Items have no ids, so a patch that lists a companion's items replaces them.
+    func testListedItemsReplaceACompanionsItems() throws {
+        var base = PlaygroundPreset()
+        base.settings.companions = [PlaygroundSettings.Companion(id: "actions", template: .actions)]
+
+        let result = try AssistantPatch.apply(
+            patch(
+                """
+                { "settings": { "companions": [
+                    { "id": "actions", "items": [ { "type": "keepOpen" } ] }
+                ] } }
+                """
+            ),
+            to: base
+        )
+        XCTAssertEqual(result.settings.companions[0].items, [PlaygroundSettings.Item(type: .keepOpen)])
+    }
+
+    /// A companion's content used to be a `kind`. The field is gone, so an answer that still uses it
+    /// gets a repair round that names it.
+    func testTheOldKindIsNoLongerAField() throws {
+        XCTAssertThrowsError(
+            try AssistantPatch.apply(
+                patch(#"{ "settings": { "companions": [ { "id": "a", "kind": "button" } ] } }"#),
+                to: PlaygroundPreset()
+            )
+        ) { error in
+            XCTAssertEqual(error as? AssistantPatchError, .unknownField(path: "settings.companions[].kind"))
+        }
+    }
+
+    func testAnItemFieldIsCheckedLikeAnyOther() throws {
+        XCTAssertThrowsError(
+            try AssistantPatch.apply(
+                patch(#"{ "settings": { "companions": [ { "id": "a", "items": [ { "icon": "x" } ] } ] } }"#),
+                to: PlaygroundPreset()
+            )
+        ) { error in
+            XCTAssertEqual(
+                error as? AssistantPatchError,
+                .unknownField(path: "settings.companions[].items[].icon")
+            )
+        }
     }
 
     /// A value out of range is clamped by the same normalizing an imported preset goes through, so
@@ -116,8 +193,8 @@ final class AssistantPatchTests: XCTestCase {
             patch(
                 """
                 { "settings": { "companions": [
-                    { "id": "actions", "kind": "actions" },
-                    { "id": "actions", "kind": "chip" }
+                    { "id": "actions", "items": [ { "type": "button" } ] },
+                    { "id": "actions", "items": [ { "type": "label", "title": "New" } ] }
                 ] } }
                 """
             ),
@@ -329,6 +406,38 @@ final class AssistantPatchTests: XCTestCase {
 
     // MARK: - Merging JSON
 
+    func testAListMergesElementsByIDOnlyWhenEveryElementHasOne() throws {
+        let base = try patch(#"[ { "id": "a", "x": 1, "y": 2 }, { "id": "b", "x": 3 } ]"#)
+
+        let byID = try patch(#"[ { "id": "b" }, { "id": "a", "x": 9 }, { "id": "c", "x": 5 } ]"#)
+        XCTAssertEqual(
+            AssistantPatch.merge(byID, onto: base),
+            try patch(#"[ { "id": "b", "x": 3 }, { "id": "a", "x": 9, "y": 2 }, { "id": "c", "x": 5 } ]"#),
+            "the patch's order and members, each merged onto its namesake"
+        )
+
+        let mixed = try patch(#"[ { "id": "a" }, { "x": 1 } ]"#)
+        XCTAssertEqual(AssistantPatch.merge(mixed, onto: base), mixed, "a list without ids throughout replaces")
+
+        let empty = try patch("[]")
+        XCTAssertEqual(AssistantPatch.merge(empty, onto: base), empty, "an empty list empties")
+
+        let twice = try patch(#"[ { "id": "a" }, { "id": "a", "y": 7 } ]"#)
+        XCTAssertEqual(
+            AssistantPatch.merge(twice, onto: base),
+            try patch(#"[ { "id": "a", "x": 1, "y": 2 }, { "id": "a", "x": 1, "y": 7 } ]"#),
+            "a repeated id merges onto the same original; normalizing renames it later"
+        )
+    }
+
+    /// An empty companions list removes every companion, as a list always has.
+    func testAnEmptyCompanionsListRemovesThemAll() throws {
+        var base = PlaygroundPreset()
+        base.settings.companions = [PlaygroundSettings.Companion(id: "a", template: .chip)]
+        let result = try AssistantPatch.apply(patch(#"{ "settings": { "companions": [] } }"#), to: base)
+        XCTAssertTrue(result.settings.companions.isEmpty)
+    }
+
     func testMergingKeepsTheOrderOfTheBase() throws {
         let base = try patch(#"{ "a": 1, "b": { "c": 2, "d": 3 } }"#)
         let overlay = try patch(#"{ "b": { "c": 9 }, "e": 5 }"#)
@@ -345,5 +454,33 @@ final class AssistantPatchTests: XCTestCase {
             }
             """
         )
+    }
+
+    /// A companion the patch adds must say what it holds, or the lenient decoder would fill it
+    /// with the three buttons an older preset's missing kind means.
+    func testANewCompanionWithoutItemsIsRejected() throws {
+        let patch = try XCTUnwrap(
+            AssistantJSON(parsing: #"{ "settings": { "companions": [{ "id": "timer", "anchor": "trailing" }] } }"#)
+        )
+        XCTAssertThrowsError(try AssistantPatch.apply(patch, to: PlaygroundPreset())) { error in
+            XCTAssertEqual(error as? AssistantPatchError, .missingItems(companion: "timer"))
+            XCTAssertEqual(
+                (error as? AssistantPatchError)?.errorDescription,
+                "The new companion timer has no items."
+            )
+            XCTAssertTrue((error as? AssistantPatchError)?.repairRequest.contains("needs its items") == true)
+        }
+
+        // A companion that already exists keeps its items when the patch leaves them out.
+        var base = PlaygroundPreset()
+        base.settings.companions = [PlaygroundSettings.Companion(id: "timer", template: .button)]
+        let moved = try AssistantPatch.apply(patch, to: base)
+        XCTAssertEqual(moved.settings.companions.first?.items, PlaygroundSettings.Companion.Template.button.items)
+        XCTAssertEqual(moved.settings.companions.first?.anchor, .trailing)
+
+        let listed = try XCTUnwrap(
+            AssistantJSON(parsing: #"{ "settings": { "companions": [{ "id": "timer", "items": [] }] } }"#)
+        )
+        XCTAssertEqual(try AssistantPatch.apply(listed, to: PlaygroundPreset()).settings.companions.first?.items, [])
     }
 }

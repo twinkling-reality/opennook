@@ -28,13 +28,17 @@ public enum AssistantDiff {
     }
 
     /// A proposal from a model's answer: the patch merged onto `base`, then diffed against it.
+    ///
+    /// A patch that takes the lock or gear out of the companions also puts it back in the top bar,
+    /// so a proposal can never leave the nook without them; the rows show it like any other change.
     public static func proposal(
         base: PlaygroundPreset,
         patch: AssistantJSON,
         explanation: String,
         notReproduced: [String]
     ) throws -> AssistantProposal {
-        let proposed = try AssistantPatch.apply(patch, to: base)
+        var proposed = try AssistantPatch.apply(patch, to: base)
+        proposed.settings.restoreChromeControls(heldBy: base.settings.companions)
         return AssistantProposal(
             explanation: explanation,
             notReproduced: notReproduced,
@@ -104,7 +108,7 @@ public enum AssistantDiff {
             )
         }
 
-        for field in AssistantSettingsCatalog.fields(in: .companions) {
+        for field in companionFields {
             guard case .key(let key)? = field.path.components.last else { continue }
             for (id, companion) in proposedByID {
                 guard let original = baseByID[id] else { continue }
@@ -126,6 +130,50 @@ public enum AssistantDiff {
                     )
                 )
             }
+        }
+
+        // A companion's items are one decision, like the list of companions: a row says what the
+        // content was and what it becomes, and switching the row off puts the old items back.
+        for (id, companion) in proposedByID {
+            guard let original = baseByID[id] else { continue }
+            let oldJSON = original["items"] ?? .array([])
+            let newJSON = companion["items"] ?? .array([])
+            guard oldJSON != newJSON else { continue }
+            changes.append(
+                AssistantChange(
+                    id: "settings.companions[\(id)].items",
+                    group: .companions,
+                    kind: .value,
+                    subject: id,
+                    title: "Content",
+                    oldValue: .text(itemTitles(oldJSON)),
+                    newValue: .text(itemTitles(newJSON)),
+                    location: .companionField(id: id, key: "items"),
+                    oldJSON: oldJSON,
+                    newJSON: newJSON
+                )
+            )
+        }
+
+        // A new order for the companions that stay is one decision of its own. Without a row it
+        // would go unseen, and a proposal that only reorders would look empty.
+        let baseOrder = ids(of: baseList).filter { proposedByID[$0] != nil }
+        let proposedOrder = ids(of: proposedList).filter { baseByID[$0] != nil }
+        if baseOrder != proposedOrder {
+            changes.append(
+                AssistantChange(
+                    id: "settings.companions.order",
+                    group: .companions,
+                    kind: .value,
+                    subject: nil,
+                    title: "Order",
+                    oldValue: .text(baseOrder.joined(separator: ", ")),
+                    newValue: .text(proposedOrder.joined(separator: ", ")),
+                    location: .companionOrder,
+                    oldJSON: .array(baseOrder.map { .string($0) }),
+                    newJSON: .array(proposedOrder.map { .string($0) })
+                )
+            )
         }
 
         for (index, companion) in proposedList.enumerated() {
@@ -165,6 +213,10 @@ public enum AssistantDiff {
         }
     }
 
+    private static func ids(of companions: [AssistantJSON]) -> [String] {
+        companions.compactMap { $0["id"]?.stringValue }
+    }
+
     private static func identified(_ companions: [AssistantJSON]) -> [String: AssistantJSON] {
         var byID: [String: AssistantJSON] = [:]
         for companion in companions {
@@ -175,18 +227,35 @@ public enum AssistantDiff {
         return byID
     }
 
-    /// A companion in a few words, for the row that adds or removes it: `round button, trailing`.
-    private static func describe(_ companion: AssistantJSON) -> String {
-        var parts: [String] = []
-        if let kind = companion["kind"]?.stringValue,
-            let kind = PlaygroundSettings.Companion.Kind(rawValue: kind)
-        {
-            parts.append(kind.title.lowercased())
+    /// The catalog fields a companion holds directly, one row each. Its items are compared as a
+    /// whole instead, since a list has no per-field rows.
+    private static var companionFields: [AssistantField] {
+        AssistantSettingsCatalog.fields(in: .companions).filter { field in
+            let components = field.path.components
+            return components.count == 4 && components.dropLast().last == .eachElement
         }
+    }
+
+    /// A companion in a few words, for the row that adds or removes it: `3 buttons, trailing`.
+    private static func describe(_ companion: AssistantJSON) -> String {
+        var parts = [PlaygroundSettings.Item.summary(of: items(in: companion["items"] ?? .array([])))]
         if let anchor = companion["anchor"]?.stringValue {
             parts.append(AssistantWording.choiceTitle(anchor).lowercased())
         }
         return parts.joined(separator: ", ")
+    }
+
+    /// Items as their names, for a content row: `Previous, Play, Next`.
+    private static func itemTitles(_ json: AssistantJSON) -> String {
+        PlaygroundSettings.Item.titles(of: items(in: json))
+    }
+
+    /// The items a JSON list holds, skipping any that do not decode.
+    private static func items(in json: AssistantJSON) -> [PlaygroundSettings.Item] {
+        guard let elements = json.arrayValue else { return [] }
+        return elements.compactMap { element in
+            try? JSONDecoder().decode(PlaygroundSettings.Item.self, from: element.data)
+        }
     }
 
     // MARK: - Values

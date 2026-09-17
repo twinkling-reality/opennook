@@ -218,6 +218,12 @@ extension PlaygroundPreset {
             summary: "Content only, no top bar",
             preset: bareGlance
         ),
+        Sample(
+            id: "call",
+            name: "Call controls",
+            summary: "Two faded groups and a red leave button",
+            preset: callControls
+        ),
     ]
 
     private static var mediaPlayer: PlaygroundPreset {
@@ -230,22 +236,24 @@ extension PlaygroundPreset {
 
         var sections = PlaygroundSettings.Companion(
             id: "sections",
-            kind: .actions,
+            template: .actions,
             accessibilityLabel: "Player sections"
         )
         sections.spacing = 10
-        var timer = PlaygroundSettings.Companion(id: "sleep-timer", kind: .button, accessibilityLabel: "Sleep timer")
+        var timer = PlaygroundSettings.Companion(
+            id: "sleep-timer",
+            template: .button,
+            accessibilityLabel: "Sleep timer"
+        )
         timer.spacing = 10
+        timer.gap = 14
         timer.visibility = .both
-        timer.outline = .circle
         var controls = PlaygroundSettings.Companion(
             id: "controls",
-            kind: .controls,
+            template: .controls,
             accessibilityLabel: "Nook controls"
         )
-        controls.anchor = .trailing
         controls.spacing = 10
-        controls.hidesInSettings = false
         settings.companions = [sections, timer, controls]
 
         settings.scrollEdgeFade.isEnabled = true
@@ -264,10 +272,11 @@ extension PlaygroundPreset {
         settings.rimGlow.glowRadius = 14
         settings.rimGlow.intensity = 0.8
 
-        var chip = PlaygroundSettings.Companion(id: "status", kind: .chip, accessibilityLabel: "Status")
+        var chip = PlaygroundSettings.Companion(id: "status", template: .chip, accessibilityLabel: "Status")
         chip.alignment = .end
         chip.spacing = 12
         settings.companions = [chip]
+        settings.companionDefaults.hover = .lift
         return PlaygroundPreset(
             appearance: NookAppearancePreferences(
                 surfaceStyle: .liquidGlass,
@@ -275,6 +284,49 @@ extension PlaygroundPreset {
                 accentPreset: .violet,
                 backdropStrength: 0.7
             ),
+            settings: settings
+        )
+    }
+
+    /// Two groups of call controls below the panel, drawn with the fade, and a leave button that is
+    /// a red surface of its own.
+    private static var callControls: PlaygroundPreset {
+        var settings = PlaygroundSettings()
+        settings.panel.expandedWidth = 440
+        settings.companionDefaults.fade = 0.35
+        settings.companionDefaults.hover = .highlight
+        settings.companionDefaults.presence = .slide
+
+        let media = PlaygroundSettings.Companion(
+            id: "media",
+            items: [
+                PlaygroundSettings.Item(symbol: "mic.fill", title: "Mute"),
+                PlaygroundSettings.Item(symbol: "video.fill", title: "Camera"),
+            ],
+            accessibilityLabel: "Microphone and camera"
+        )
+        let share = PlaygroundSettings.Companion(
+            id: "share",
+            items: [
+                PlaygroundSettings.Item(symbol: "rectangle.on.rectangle", title: "Share screen"),
+                PlaygroundSettings.Item(symbol: "hand.raised.fill", title: "Raise hand"),
+            ],
+            accessibilityLabel: "Sharing"
+        )
+        var leaveItem = PlaygroundSettings.Item(symbol: "phone.down.fill", title: "Leave", action: .collapse)
+        leaveItem.tint = PlaygroundColor(red: 1, green: 1, blue: 1)
+        leaveItem.fill = .color
+        leaveItem.fillColor = PlaygroundColor(red: 1, green: 0.23, blue: 0.19)
+        leaveItem.size = .surface
+        leaveItem.fade = 0.55
+        var leave = PlaygroundSettings.Companion(id: "leave", items: [leaveItem], accessibilityLabel: "Leave call")
+        leave.outline = .circle
+        leave.backdrop = .none
+        leave.gap = 16
+        leave.presence = .pop
+        settings.companions = [media, share, leave]
+        return PlaygroundPreset(
+            appearance: NookAppearancePreferences(chromePalette: .dark, surfaceStyle: .solid),
             settings: settings
         )
     }

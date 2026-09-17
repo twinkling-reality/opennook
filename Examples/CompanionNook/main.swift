@@ -9,15 +9,21 @@
 //
 // The expanded nook is a small media player. Two companion surfaces float below it,
 // registered with `NookConfiguration.addCompanion`:
-//   • a pill of three icon buttons that switches what the player shows, and
-//   • a separate round button that starts a sleep timer.
+//   - a pill of three icon buttons that switches what the player shows, and
+//   - a separate round button that starts a sleep timer.
 // Companions ride the nook's expand and collapse, follow it in the notch, floating, and
 // auto layouts, paint with the chrome's backdrop (switch to Liquid Glass in Settings), and
-// never take focus from the nook.
+// never take focus from the nook. Every companion shares one size
+// (`NookConfiguration.companionSize`), so the pill and the round button are the same height.
 //
 // A third companion hangs beside the panel: the framework's own keep-open lock and Settings
 // gear, moved out of the top bar (`showsKeepOpenButton` / `showsSettingsButton` off,
 // `NookKeepOpenButton` / `NookSettingsButton` in the companion).
+//
+// A fourth comes and goes while the app runs. Send the music to the living room speaker
+// with the speaker button, and a small chip saying so appears beside the compact pill; send
+// it back, and the chip leaves. The module adds and removes it on a `NookCompanionSource`,
+// with no configuration reload, and draws it with the faded style and the pop presence.
 //
 // Two smaller seams ride along. While the sleep timer runs, the round button stays beside
 // the compact pill (`nookCompanionVisibility`) and lights the rim blue (`nookRimGlow`). The
@@ -29,6 +35,7 @@
 //
 // Run with `swift run CompanionNook`, then press ⌥⌘; to expand.
 
+import Combine
 import NookApp
 import SwiftUI
 
@@ -97,12 +104,33 @@ final class MediaPlayer: ObservableObject {
         Track(id: 5, title: "Northbound", artist: "Field Notes", duration: 245, tint: .green, symbol: "leaf.fill"),
     ]
 
+    /// Where the music plays.
+    enum Output: Equatable {
+        case thisMac
+        case speaker(String)
+
+        var symbol: String {
+            switch self {
+                case .thisMac: "laptopcomputer"
+                case .speaker: "hifispeaker.fill"
+            }
+        }
+
+        var label: String {
+            switch self {
+                case .thisMac: "Playing on this Mac"
+                case .speaker(let name): "Playing on \(name)"
+            }
+        }
+    }
+
     @Published private(set) var index = 0
     @Published private(set) var elapsed: TimeInterval = 26
     @Published private(set) var isPlaying = true
     @Published var section: Section = .nowPlaying
     @Published private(set) var sleepTimerEndsAt: Date?
     @Published private(set) var now = Date()
+    @Published private(set) var output = Output.thisMac
 
     private var clock: Timer?
 
@@ -154,6 +182,11 @@ final class MediaPlayer: ObservableObject {
     func toggleSleepTimer() {
         now = Date()
         sleepTimerEndsAt = isSleepTimerRunning ? nil : now.addingTimeInterval(Self.sleepTimerDuration)
+    }
+
+    /// Moves the music between this Mac and the living room speaker.
+    func toggleOutput() {
+        output = output == .thisMac ? .speaker("Living Room") : .thisMac
     }
 
     private func tick() {
@@ -234,7 +267,9 @@ struct NowPlayingView: View {
                 Spacer()
                 TransportButton(symbol: "forward.fill", help: "Next") { player.skip(by: 1) }
                 Spacer()
-                TransportButton(symbol: "laptopcomputer", help: "Playing on this Mac") {}
+                TransportButton(symbol: player.output.symbol, help: player.output.label) {
+                    withAnimation(.snappy) { player.toggleOutput() }
+                }
             }
         }
         .padding(.horizontal, 4)
@@ -313,18 +348,19 @@ struct LibraryGrid: View {
 
 // MARK: - Companion surfaces
 
-/// The pill of three icon buttons under the expanded nook.
+/// The pill of three icon buttons under the expanded nook. The companion's style pads it and
+/// gives it its height; the buttons take their size from the companion.
 struct MediaSectionsPill: View {
     @ObservedObject var player: MediaPlayer
     @Environment(\.nookResolvedTheme) private var theme
+    @Environment(\.nookCompanionSize) private var size
 
     var body: some View {
-        HStack(spacing: 2) {
+        HStack(spacing: size?.controlSpacing ?? 2) {
             sectionButton(.nowPlaying, symbol: "house.fill", label: "Now Playing")
             sectionButton(.upNext, symbol: "tray.fill", label: "Up Next", count: player.upNext.count)
             sectionButton(.library, symbol: "square.grid.2x2.fill", label: "Library")
         }
-        .padding(5)
     }
 
     private func sectionButton(
@@ -334,19 +370,21 @@ struct MediaSectionsPill: View {
         count: Int? = nil
     ) -> some View {
         let isSelected = player.section == section
+        let side = size?.controlSize ?? 32
+        let glyph = size?.glyphSize ?? 13
         return Button {
             player.section = section
         } label: {
             HStack(spacing: 6) {
                 Image(systemName: symbol)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: glyph, weight: .semibold))
                 if let count {
                     Text("\(count)")
-                        .font(.system(size: 14, weight: .semibold).monospacedDigit())
+                        .font(.system(size: glyph, weight: .semibold).monospacedDigit())
                 }
             }
             .foregroundStyle(isSelected ? theme.primaryLabel : theme.secondaryLabel)
-            .frame(minWidth: 32, minHeight: 32)
+            .frame(minWidth: side, minHeight: side)
             .padding(.horizontal, count == nil ? 0 : 8)
             .background {
                 Capsule().fill(isSelected ? theme.primaryLabel.opacity(0.16) : .clear)
@@ -366,6 +404,7 @@ struct MediaSectionsPill: View {
 struct SleepTimerButton: View {
     @ObservedObject var player: MediaPlayer
     @Environment(\.nookResolvedTheme) private var theme
+    @Environment(\.nookCompanionSize) private var size
 
     var body: some View {
         Button {
@@ -377,14 +416,14 @@ struct SleepTimerButton: View {
                         .trim(from: 0, to: fraction)
                         .stroke(Color.blue, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
                         .rotationEffect(.degrees(-90))
-                        .padding(5)
+                        .padding(2)
                         .animation(.linear(duration: 1), value: fraction)
                 }
                 Image(systemName: "calendar.badge.clock")
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: size?.glyphSize ?? 13, weight: .semibold))
                     .foregroundStyle(player.isSleepTimerRunning ? Color.blue : theme.primaryLabel)
             }
-            .frame(width: 42, height: 42)
+            .frame(width: size?.controlSize ?? 32, height: size?.controlSize ?? 32)
             .contentShape(Circle())
         }
         .buttonStyle(.plain)
@@ -396,14 +435,32 @@ struct SleepTimerButton: View {
 }
 
 /// The framework's keep-open lock and Settings gear, stacked in a companion beside the
-/// panel instead of the top bar.
+/// panel instead of the top bar. In a companion they take its control size.
 struct ChromeControls: View {
+    @Environment(\.nookCompanionSize) private var size
+
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: size?.controlSpacing ?? 2) {
             NookKeepOpenButton()
             NookSettingsButton()
         }
-        .padding(6)
+    }
+}
+
+/// Where the music is going, beside the compact pill while it plays on a speaker.
+struct OutputChip: View {
+    let name: String
+    @Environment(\.nookResolvedTheme) private var theme
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: "hifispeaker.fill")
+                .foregroundStyle(theme.accent)
+            Text(name)
+                .foregroundStyle(theme.primaryLabel)
+        }
+        .font(.system(size: 11, weight: .semibold))
+        .padding(.horizontal, 8)
     }
 }
 
@@ -554,10 +611,48 @@ final class MediaModule: NookModule {
     let descriptor = MediaModule.moduleDescriptor
     private let player = MediaPlayer()
 
+    /// The companions that come and go while the app runs. The configuration carries the
+    /// source; the module changes what is on it.
+    private let liveCompanions = NookCompanionSource()
+    private var outputObservation: AnyCancellable?
+
     /// The host calls `onActivate()` only when the user switches *to* a module, not for the
     /// module it launches with, so the clock also starts here.
     init() {
         player.startClock()
+        // `@Published` sends the new value before storing it, on the main actor, so it is
+        // passed along rather than read back, and a change made in `withAnimation` animates.
+        outputObservation = player.$output
+            .removeDuplicates()
+            .sink { [liveCompanions] output in
+                MainActor.assumeIsolated {
+                    Self.show(output, on: liveCompanions)
+                }
+            }
+    }
+
+    /// Adds the output chip while the music plays on a speaker, and removes it when it comes
+    /// back to this Mac.
+    private static func show(_ output: MediaPlayer.Output, on companions: NookCompanionSource) {
+        switch output {
+            case .thisMac:
+                companions.remove(id: "output")
+            case .speaker(let name):
+                companions.set(
+                    NookCompanion(
+                        id: "output",
+                        anchor: .trailing,
+                        spacing: 8,
+                        visibility: .compact,
+                        style: .faded,
+                        size: .small,
+                        presence: .pop,
+                        accessibilityLabel: "Playing on \(name)"
+                    ) {
+                        OutputChip(name: name)
+                    }
+                )
+        }
     }
 
     func makeConfiguration() -> NookConfiguration {
@@ -569,9 +664,13 @@ final class MediaModule: NookModule {
         configuration.expandedWidth = 420
         configuration.topBar.leadingTitle = { _ in "Music" }
         configuration.topBar.leadingIcon = "music.note"
+        // Every companion is 40 pt tall around 32 pt controls unless it says otherwise.
+        configuration.companionSize = .regular
+        configuration.companionSource = liveCompanions
 
         // The two companion surfaces. Both hang below the nook, so they share one row,
-        // centered, in registration order.
+        // centered, in registration order. The round button keeps a wider gap to the pill
+        // without dropping any further below the nook.
         configuration.addCompanion(
             id: "sections",
             anchor: .below,
@@ -586,6 +685,7 @@ final class MediaModule: NookModule {
             id: "sleep-timer",
             anchor: .below,
             spacing: 10,
+            gap: 14,
             visibility: .both,
             shape: .circle,
             accessibilityLabel: "Sleep timer"

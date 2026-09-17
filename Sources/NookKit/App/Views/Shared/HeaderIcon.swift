@@ -5,6 +5,7 @@
 // you may not use this file except in compliance with the License.
 // A copy is included at /LICENSE in the repository root.
 
+import NookSurface
 import SwiftUI
 
 /// Static header icon (no hover, no action) used by the persistent "Home" cluster.
@@ -39,6 +40,8 @@ struct HeaderGlyphButton<Glyph: View>: View {
     let isActive: Bool
     let activeColor: Color
     let help: String
+    /// A frame of its own instead of the top bar's, for a glyph that sits somewhere else.
+    var geometry: HeaderGlyphGeometry?
     let action: () -> Void
     @ViewBuilder let glyph: (Color) -> Glyph
 
@@ -47,17 +50,19 @@ struct HeaderGlyphButton<Glyph: View>: View {
     @State private var isHovering = false
 
     var body: some View {
+        let side = geometry?.side ?? metrics.headerIconSize
+        let chip = RoundedRectangle(
+            cornerRadius: geometry?.cornerRadius ?? metrics.headerIconCornerRadius,
+            style: .continuous
+        )
         Button(action: action) {
             glyph(foreground)
-                .frame(width: metrics.headerIconSize, height: metrics.headerIconSize)
-                .background(
-                    isHovering ? theme.subtleFill : .clear,
-                    in: RoundedRectangle(cornerRadius: metrics.headerIconCornerRadius, style: .continuous)
-                )
+                .frame(width: side, height: side)
+                .background(isHovering ? theme.subtleFill : .clear, in: chip)
                 .overlay(
-                    RoundedRectangle(cornerRadius: metrics.headerIconCornerRadius, style: .continuous)
-                        .stroke(isHovering ? theme.subtleStroke : .clear, lineWidth: metrics.headerIconStrokeWidth)
+                    chip.stroke(isHovering ? theme.subtleStroke : .clear, lineWidth: metrics.headerIconStrokeWidth)
                 )
+                .contentShape(chip)
         }
         .buttonStyle(.plain)
         .help(help)
@@ -79,6 +84,7 @@ struct HeaderIcon: View {
     let isActive: Bool
     let activeColor: Color
     let help: String
+    var geometry: HeaderGlyphGeometry?
     let action: () -> Void
 
     @Environment(\.nookChromeTypography) private var typography
@@ -88,11 +94,29 @@ struct HeaderIcon: View {
             isActive: isActive,
             activeColor: activeColor,
             help: help,
+            geometry: geometry,
             action: action
         ) { color in
             Image(systemName: systemName)
-                .font(typography.headerIcon)
+                .font(geometry?.font ?? typography.headerIcon)
                 .foregroundStyle(color)
         }
+    }
+}
+
+/// A header glyph's frame, hover chip, and font, when it sits outside the top bar.
+struct HeaderGlyphGeometry: Equatable {
+    var side: CGFloat
+    var cornerRadius: CGFloat
+    var font: Font
+
+    /// A round chip at a companion's control size, so the lock and gear line up with the
+    /// companion's other controls.
+    static func companion(_ size: NookCompanionSize) -> HeaderGlyphGeometry {
+        HeaderGlyphGeometry(
+            side: size.controlSize,
+            cornerRadius: size.controlSize / 2,
+            font: .system(size: size.glyphSize, weight: .semibold)
+        )
     }
 }

@@ -42,19 +42,33 @@ extension PlaygroundSettings {
         configuration.labels = labels.chromeLabels
         topBar.apply(to: &configuration.topBar)
 
+        configuration.companionSize = companionDefaults.size.nookSize
+        configuration.companionPresence = companionDefaults.presence.nookPresence
+        let defaultStyle = companionDefaults.style
+        if defaultStyle != .standard {
+            configuration.companionStyle = AnyNookCompanionStyle(defaultStyle)
+        }
+
         // `addCompanion` traps on a duplicate id, and the settings may not have been
         // normalized, so a repeated id is skipped rather than registered twice.
         var registeredIDs = Set<String>()
+        let chromeTheme = configuration.theme
         for item in companions where !item.id.isEmpty && registeredIDs.insert(item.id).inserted {
             configuration.addCompanion(
                 id: item.id,
                 anchor: item.nookAnchor,
                 spacing: CGFloat(item.spacing),
+                gap: item.gap.map { CGFloat($0) },
+                rowAlignment: item.rowAlignment?.nookAlignment,
                 visibility: item.nookVisibility,
                 shape: item.nookShape,
                 backdrop: item.nookBackdrop,
+                style: item.overridesStyle ? AnyNookCompanionStyle(item.style(over: companionDefaults)) : nil,
+                size: item.size?.nookSize,
+                presence: item.presence?.nookPresence,
                 hidesInSettings: item.hidesInSettings,
-                accessibilityLabel: item.accessibilityLabel
+                accessibilityLabel: item.accessibilityLabel,
+                theme: Self.theme(chromeTheme, accent: item.accent)
             ) {
                 companion(item)
             }
@@ -67,6 +81,20 @@ extension PlaygroundSettings {
         // configuration describes everything the settings do.
         configuration.chromeBehavior = chromeBehavior
         return configuration
+    }
+
+    /// `chromeTheme` with its accent replaced, for a companion with an accent of its own, or `nil`
+    /// to leave the companion on the chrome's palette.
+    private static func theme(
+        _ chromeTheme: @escaping @Sendable @MainActor (AppState) -> NookResolvedTheme,
+        accent: PlaygroundColor?
+    ) -> (@Sendable @MainActor (AppState) -> NookResolvedTheme)? {
+        guard let accent else { return nil }
+        return { appState in
+            var theme = chromeTheme(appState)
+            theme.accent = accent.color
+            return theme
+        }
     }
 
     /// The chrome behavior these settings describe.

@@ -77,7 +77,7 @@ final class PlaygroundPresetCoderTests: XCTestCase {
         XCTAssertEqual(partial.appearance, NookAppearancePreferences(surfaceStyle: .liquidGlass))
         XCTAssertEqual(partial.settings.panel.expandedWidth, 400)
         XCTAssertEqual(partial.settings.panel.bottomCornerRadius, PlaygroundSettings.Panel().bottomCornerRadius)
-        XCTAssertEqual(partial.settings.companions, [PlaygroundSettings.Companion(id: "x", kind: .actions)])
+        XCTAssertEqual(partial.settings.companions, [PlaygroundSettings.Companion(id: "x", template: .actions)])
         XCTAssertEqual(partial.settings.metrics, PlaygroundSettings.Metrics())
     }
 
@@ -117,6 +117,79 @@ final class PlaygroundPresetCoderTests: XCTestCase {
         )
         XCTAssertEqual(preset.settings.panel.topCornerRadius, 0)
         XCTAssertEqual(preset.settings.companions.map(\.id), ["a", "a-2", "status"])
+    }
+
+    /// A preset written before companions held items names its content with `kind`, and opens with
+    /// the same content.
+    func testAnOlderPresetsKindOpensAsItsTemplate() throws {
+        let preset = try Coder.decode(
+            #"""
+            {
+              "format": "opennook.playground-preset",
+              "version": 1,
+              "settings": {
+                "companions": [
+                  { "id": "a", "kind": "actions" },
+                  { "id": "b", "kind": "button", "outline": "circle" },
+                  { "id": "c", "kind": "controls", "anchor": "trailing", "hidesInSettings": false },
+                  { "id": "d", "kind": "chip" },
+                  { "id": "e", "kind": "chip", "items": [] }
+                ]
+              }
+            }
+            """#
+        )
+        let companions = preset.settings.companions
+        typealias Template = PlaygroundSettings.Companion.Template
+        XCTAssertEqual(companions[0].items, Template.actions.items)
+        XCTAssertEqual(companions[1].items, Template.button.items)
+        XCTAssertEqual(companions[1].outline, .circle)
+        XCTAssertEqual(companions[2].items, Template.controls.items)
+        XCTAssertEqual(companions[3].items, Template.chip.items)
+        XCTAssertTrue(companions[4].items.isEmpty, "items, when present, win over a kind")
+
+        // And it writes back as items, with no kind.
+        let written = try Coder.encodeString(preset)
+        XCTAssertFalse(written.contains("\"kind\""))
+        XCTAssertEqual(try Coder.decode(written), preset)
+    }
+
+    func testCompanionItemsAndStyleRoundTrip() throws {
+        var item = PlaygroundSettings.Item(symbol: "phone.down.fill", title: "Leave", action: .collapse)
+        item.tint = PlaygroundColor(red: 1, green: 1, blue: 1)
+        item.fill = .color
+        item.fillColor = PlaygroundColor(red: 1, green: 0, blue: 0)
+        item.fade = 0.5
+        item.size = .surface
+        var companion = PlaygroundSettings.Companion(id: "call", items: [item, PlaygroundSettings.Item(type: .label)])
+        companion.layout = .column
+        companion.gap = 12
+        companion.rowAlignment = .end
+        companion.size = .large
+        companion.presence = .slide
+        companion.fade = 0.3
+        companion.stroke = false
+        companion.shadow = true
+        companion.hover = .glow
+        companion.accent = PlaygroundColor(red: 0, green: 1, blue: 0)
+        var settings = PlaygroundSettings()
+        settings.companions = [companion]
+        settings.companionDefaults.size = .small
+        settings.companionDefaults.hover = .lift
+        let preset = PlaygroundPreset(settings: settings)
+
+        XCTAssertEqual(try Coder.decode(Coder.encode(preset)), preset)
+    }
+
+    func testAnUnknownItemTypeNamesItsPath() {
+        let text = #"""
+            {"format": "opennook.playground-preset", "version": 1,
+             "settings": {"companions": [{"id": "a", "items": [{"type": "slider"}]}]}}
+            """#
+        guard case .invalidValue(let detail) = decodingError(text) else {
+            return XCTFail("expected an invalid value")
+        }
+        XCTAssertTrue(detail.hasPrefix("settings.companions[0].items[0].type: "), detail)
     }
 
     // MARK: - Rejection
@@ -278,8 +351,8 @@ final class PlaygroundStoreTests: XCTestCase {
     func testLoadedSettingsAreNormalized() {
         var settings = PlaygroundSettings()
         settings.companions = [
-            PlaygroundSettings.Companion(id: "a", kind: .chip),
-            PlaygroundSettings.Companion(id: "a", kind: .chip),
+            PlaygroundSettings.Companion(id: "a", template: .chip),
+            PlaygroundSettings.Companion(id: "a", template: .chip),
         ]
         let store = PlaygroundStore(defaults: defaults)
         store.saveSettings(settings)

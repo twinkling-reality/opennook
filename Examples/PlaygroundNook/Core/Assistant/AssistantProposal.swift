@@ -63,6 +63,8 @@ public struct AssistantChange: Identifiable, Sendable, Equatable {
         case companionField(id: String, key: String)
         /// A whole companion, and where it sat in the list it came from.
         case companion(id: String, index: Int)
+        /// The order of the companions in both lists.
+        case companionOrder
     }
 
     public let id: String
@@ -154,6 +156,11 @@ public struct AssistantProposal: Sendable, Equatable {
                     guard let index = companions.firstIndex(where: { $0["id"]?.stringValue == id }) else { return }
                     companions[index] = setting([.key(key)], to: change.oldJSON, in: companions[index])
                 }
+            case .companionOrder:
+                let order = change.oldJSON.arrayValue?.compactMap(\.stringValue) ?? []
+                return updatingCompanions(in: json) { companions in
+                    companions = reordered(companions, as: order)
+                }
             case .companion(let id, let index):
                 return updatingCompanions(in: json) { companions in
                     switch change.kind {
@@ -166,6 +173,24 @@ public struct AssistantProposal: Sendable, Equatable {
                     }
                 }
         }
+    }
+
+    /// `companions` with the ones named in `order` put back in that order, in the places those
+    /// companions hold now. Companions `order` does not name keep their places.
+    static func reordered(_ companions: [AssistantJSON], as order: [String]) -> [AssistantJSON] {
+        let named = Set(order)
+        let slots = companions.indices.filter { named.contains(companions[$0]["id"]?.stringValue ?? "") }
+        var byID: [String: AssistantJSON] = [:]
+        for index in slots {
+            if let id = companions[index]["id"]?.stringValue { byID[id] = companions[index] }
+        }
+        let ordered = order.compactMap { byID[$0] }
+        guard ordered.count == slots.count else { return companions }
+        var result = companions
+        for (slot, companion) in zip(slots, ordered) {
+            result[slot] = companion
+        }
+        return result
     }
 
     private static func updatingCompanions(

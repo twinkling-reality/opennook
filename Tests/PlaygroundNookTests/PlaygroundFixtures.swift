@@ -33,21 +33,26 @@ enum PlaygroundFixtures {
         settings.topBar.leadingTitle = "Today"
         settings.topBar.leadingIcon = "sun.max"
 
-        var actions = PlaygroundSettings.Companion(id: "actions", kind: .actions, accessibilityLabel: "Actions")
+        settings.companionDefaults.fade = 0.25
+        var actions = PlaygroundSettings.Companion(id: "actions", template: .actions, accessibilityLabel: "Actions")
         actions.alignment = .end
         actions.spacing = 12
+        actions.gap = 16
+        var leave = PlaygroundSettings.Item(symbol: "phone.down.fill", title: "Leave", action: .collapse)
+        leave.fill = .color
+        leave.fillColor = PlaygroundColor(red: 1, green: 0.2, blue: 0.2)
+        actions.items.append(leave)
         var controls = PlaygroundSettings.Companion(
             id: "controls",
-            kind: .controls,
+            template: .controls,
             accessibilityLabel: "Nook controls"
         )
-        controls.anchor = .trailing
         controls.visibility = .both
         controls.outline = .roundedRectangle
         controls.cornerRadius = 9
         controls.backdrop = .solid
         controls.backdropColor = PlaygroundColor(red: 0, green: 0, blue: 0, opacity: 0.6)
-        controls.hidesInSettings = false
+        controls.size = .small
         settings.companions = [actions, controls]
 
         settings.rimGlow.lineWidth = 2
@@ -70,7 +75,7 @@ enum PlaygroundFixtures {
     }
 
     /// `PlaygroundSwiftExporter`'s output for ``everythingChanged``. It compiles as a
-    /// `main.swift` once the placeholder views exist.
+    /// `main.swift` once the home view's placeholder views exist.
     static let everythingChangedSwift = """
         import NookApp
         import SwiftUI
@@ -125,13 +130,17 @@ enum PlaygroundFixtures {
         configuration.topBar.leadingTitle = { _ in "Today" }
         configuration.topBar.leadingIcon = "sun.max"
 
+        // How every companion looks and appears, unless it says otherwise.
+        configuration.companionStyle = .faded
+
         configuration.addCompanion(
             id: "actions",
             anchor: .below(alignment: .end),
             spacing: 12,
+            gap: 16,
             accessibilityLabel: "Actions"
         ) {
-            ActionPill()  // your view: a row of icon buttons
+            ActionsCompanion()
         }
         configuration.addCompanion(
             id: "controls",
@@ -139,10 +148,11 @@ enum PlaygroundFixtures {
             visibility: .both,
             shape: .roundedRectangle(cornerRadius: 9),
             backdrop: .custom(.solid(Color(red: 0, green: 0, blue: 0, opacity: 0.6))),
+            size: .small,
             hidesInSettings: false,
             accessibilityLabel: "Nook controls"
         ) {
-            ChromeControls()  // your view stacking NookKeepOpenButton() and NookSettingsButton()
+            ControlsCompanion()
         }
 
         // The rim shows while chrome content lights it: .nookRimGlow(isBusy ? .blue : nil)
@@ -153,6 +163,32 @@ enum PlaygroundFixtures {
         configuration.chromeBehavior.hoverBehavior = .hapticFeedback
 
         NookApp.main(configuration)
+
+        // MARK: - Companion content
+
+        struct ActionsCompanion: View {
+            @Environment(\\.nookChromeActions) private var chromeActions
+
+            var body: some View {
+                HStack(spacing: 2) {
+                    Button("Previous", systemImage: "backward.fill") {}  // your action
+                    Button("Play", systemImage: "play.fill") {}  // your action
+                    Button("Next", systemImage: "forward.fill") {}  // your action
+                    Button("Leave", systemImage: "phone.down.fill") { chromeActions.collapse() }
+                        .buttonStyle(.nookGlyph(fill: .color(Color(red: 1, green: 0.2, blue: 0.2))))
+                }
+                .buttonStyle(.nookGlyph)
+            }
+        }
+
+        struct ControlsCompanion: View {
+            var body: some View {
+                VStack(spacing: 2) {
+                    NookKeepOpenButton()
+                    NookSettingsButton()
+                }
+            }
+        }
 
         """
 }

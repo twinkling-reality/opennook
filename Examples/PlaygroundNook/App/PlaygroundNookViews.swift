@@ -5,6 +5,7 @@
 // you may not use this file except in compliance with the License.
 // A copy is included at /LICENSE in the repository root.
 
+import AppKit
 import NookApp
 import PlaygroundNookCore
 import SwiftUI
@@ -275,98 +276,116 @@ extension PlaygroundModel {
 
 // MARK: - Companions
 
-/// A companion's content, picked by its kind.
+/// A companion's content: its items in a row or a column, spaced by the companion's size.
 struct PlaygroundCompanionView: View {
     @ObservedObject var model: PlaygroundModel
     let companion: PlaygroundSettings.Companion
+    @Environment(\.nookCompanionSize) private var size
 
     var body: some View {
-        switch companion.kind {
-            case .actions: ActionPillContent(model: model)
-            case .button: RimButtonContent(model: model)
-            case .controls: ChromeControlsContent(isVertical: companion.anchor != .below)
-            case .chip: StatusChipContent()
-        }
-    }
-}
-
-/// Three buttons that each post a status banner.
-private struct ActionPillContent: View {
-    @ObservedObject var model: PlaygroundModel
-    @Environment(\.nookResolvedTheme) private var theme
-
-    var body: some View {
-        HStack(spacing: 2) {
-            button("backward.fill", label: "Previous")
-            button("play.fill", label: "Play")
-            button("forward.fill", label: "Next")
-        }
-        .padding(5)
-    }
-
-    private func button(_ symbol: String, label: String) -> some View {
-        Button {
-            model.postStatus("\(label) pressed", severity: .info)
-        } label: {
-            Image(systemName: symbol)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(theme.primaryLabel)
-                .frame(width: 32, height: 32)
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .help(label)
-        .accessibilityLabel(label)
-    }
-}
-
-/// Lights or dims the rim, the same switch as the Effects page.
-private struct RimButtonContent: View {
-    @ObservedObject var model: PlaygroundModel
-    @Environment(\.nookResolvedTheme) private var theme
-
-    var body: some View {
-        Button {
-            model.demo.rimGlowLit.toggle()
-        } label: {
-            Image(systemName: model.demo.rimGlowLit ? "lightbulb.fill" : "lightbulb")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(model.demo.rimGlowLit ? model.demo.rimGlowColor.color : theme.primaryLabel)
-                .frame(width: 40, height: 40)
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .help(model.demo.rimGlowLit ? "Turn the rim glow off" : "Light the rim glow")
-        .accessibilityLabel(model.demo.rimGlowLit ? "Turn the rim glow off" : "Light the rim glow")
-    }
-}
-
-/// The framework's own lock and gear, stacked along the edge the companion hangs from.
-private struct ChromeControlsContent: View {
-    let isVertical: Bool
-
-    var body: some View {
-        let layout = isVertical ? AnyLayout(VStackLayout(spacing: 4)) : AnyLayout(HStackLayout(spacing: 4))
+        let spacing = size?.controlSpacing ?? 2
+        let layout =
+            companion.resolvedLayout == .column
+            ? AnyLayout(VStackLayout(spacing: spacing))
+            : AnyLayout(HStackLayout(spacing: spacing))
         layout {
-            NookKeepOpenButton()
-            NookSettingsButton()
+            ForEach(Array(companion.items.enumerated()), id: \.offset) { _, item in
+                PlaygroundCompanionItemView(model: model, item: item)
+            }
         }
-        .padding(6)
+        // An empty companion has nothing to show, so it stays out of the way until it holds
+        // something.
+        .nookCompanionHidden(companion.items.isEmpty)
     }
 }
 
-private struct StatusChipContent: View {
+/// One item: a glyph button, a label, or the framework's lock or gear.
+private struct PlaygroundCompanionItemView: View {
+    @ObservedObject var model: PlaygroundModel
+    let item: PlaygroundSettings.Item
     @Environment(\.nookResolvedTheme) private var theme
+    @Environment(\.nookChromeActions) private var chromeActions
 
     var body: some View {
+        switch item.type {
+            case .keepOpen:
+                NookKeepOpenButton()
+            case .settings:
+                NookSettingsButton()
+            case .label:
+                label
+            case .button:
+                Button(item.displayTitle, systemImage: symbol) { perform(item.action) }
+                    .buttonStyle(style)
+                    .help(item.displayTitle)
+        }
+    }
+
+    private var label: some View {
         HStack(spacing: 6) {
-            Image(systemName: "sparkles")
-                .foregroundStyle(theme.accent)
-            Text("3 new")
-                .foregroundStyle(theme.primaryLabel)
+            if let symbol = item.displaySymbol {
+                Image(systemName: Self.shown(symbol))
+                    .foregroundStyle(item.tint?.color ?? theme.accent)
+            }
+            if let title = item.title {
+                Text(title)
+                    .foregroundStyle(theme.primaryLabel)
+                    .lineLimit(1)
+            }
         }
         .font(.system(size: 12, weight: .semibold))
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 8)
+        .accessibilityElement(children: .combine)
+    }
+
+    /// The rim toggle shows whether the rim is lit, like the Effects page's switch.
+    private var isLit: Bool {
+        item.action == .rimGlow && model.demo.rimGlowLit
+    }
+
+    private var symbol: String {
+        let symbol = item.displaySymbol ?? item.action.defaultSymbol
+        guard isLit, NSImage(systemSymbolName: symbol + ".fill", accessibilityDescription: nil) != nil else {
+            return Self.shown(symbol)
+        }
+        return symbol + ".fill"
+    }
+
+    private var style: NookGlyphButtonStyle {
+        let fill: NookGlyphButtonStyle.Fill =
+            switch item.fill {
+                case .none: .none
+                case .subtle: .subtle
+                case .color: .color(item.fillColor?.color ?? theme.accent)
+                case .chrome: .chromeBackdrop
+            }
+        return NookGlyphButtonStyle(
+            size: item.size == .surface ? .surface : .control,
+            foreground: isLit ? model.demo.rimGlowColor.color : item.tint?.color,
+            fill: fill,
+            fade: item.fade.map { NookStandardCompanionStyle.Fade(start: 1, end: $0) }
+        )
+    }
+
+    private func perform(_ action: PlaygroundSettings.Item.Action) {
+        switch action {
+            case .none:
+                break
+            case .status:
+                model.postStatus("\(item.displayTitle) pressed", severity: .info)
+            case .rimGlow:
+                model.demo.rimGlowLit.toggle()
+            case .keepOpen:
+                chromeActions.toggleKeepOpen()
+            case .settings:
+                chromeActions.toggleSettings()
+            case .collapse:
+                chromeActions.collapse()
+        }
+    }
+
+    /// `symbol`, or a question mark when no SF Symbol has that name, so a typo shows as one.
+    static func shown(_ symbol: String) -> String {
+        NSImage(systemSymbolName: symbol, accessibilityDescription: nil) == nil ? "questionmark.circle" : symbol
     }
 }

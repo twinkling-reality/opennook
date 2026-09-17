@@ -107,6 +107,10 @@ public final class AppCoordinator: ObservableObject {
     /// so a rebuilt instance gets a fresh `onReady` (e.g. to re-bind an activity queue).
     private var modulesGivenOnReady: Set<String> = []
 
+    /// Follows the active configuration's ``NookConfiguration/companionSource``, replaced
+    /// whenever the surface decorations are projected again.
+    private var companionSourceSubscription: AnyCancellable?
+
     /// Tail of the serial chain that all surface lifecycle transitions
     /// (expand/compact/hide) run through. Without this, two rapid triggers - a
     /// double hotkey press, a display change landing mid-show - each spawn an
@@ -562,40 +566,78 @@ public final class AppCoordinator: ObservableObject {
     /// scroll edge fade - onto the surface. Called beside ``applyModuleHooks(_:)`` at init
     /// and in the switch transaction, so decorations always belong to the active module.
     ///
-    /// Each companion is wrapped in ``NookCompanionHost`` here, not in the surface: the chrome
-    /// environment (theme, `AppState`, services) is NookKit's, and the MIT surface only ever
-    /// sees a finished view.
+    /// The companions are the configuration's own followed by its ``NookConfiguration/companionSource``,
+    /// which is followed from here on, so a change to the source reaches the surface at once.
     private func applyModuleSurfaceDecorations(_ configuration: NookConfiguration) {
+        let source = configuration.companionSource
+        projectCompanions(configuration.companions + (source?.companions ?? []), of: configuration)
+        // `@Published` sends from `willSet` on the main actor, so the new list is passed along
+        // rather than read back, and it lands in the same transaction as the change itself: a
+        // change made inside `withAnimation` animates on the surface too.
+        companionSourceSubscription = source?.$companions
+            .dropFirst()
+            .sink { [weak self] companions in
+                MainActor.assumeIsolated {
+                    self?.projectCompanions(configuration.companions + companions, of: configuration)
+                }
+            }
+        surface.rimGlowStyle = configuration.rimGlow
+        surface.scrollEdgeFade = configuration.scrollEdgeFade
+    }
+
+    /// Wraps each companion in ``NookCompanionHost`` and hands the result to the surface.
+    ///
+    /// The wrapping happens here, not in the surface: the chrome environment (theme,
+    /// `AppState`, services) is NookKit's, and the MIT surface only ever sees a finished view.
+    /// A companion leaves its style, size, and presence unset to take the configuration's. A
+    /// companion whose id an earlier one already has is dropped, since the id keys its hover
+    /// tracking and its SwiftUI identity.
+    private func projectCompanions(_ companions: [NookCompanion], of configuration: NookConfiguration) {
         let appState = appState
         let services = moduleHost.activeServices
         let branding = moduleHost.branding
         let chromeActions = chromeActions
-        surface.companions = configuration.companions.map { companion in
-            NookCompanionSurface(
-                id: companion.id,
-                anchor: companion.anchor,
-                spacing: companion.spacing,
-                visibility: companion.visibility,
-                shape: companion.shape,
-                backdrop: companion.backdrop,
-                accessibilityLabel: companion.accessibilityLabel
-            ) {
-                NookCompanionHost(
-                    appState: appState,
-                    companion: companion,
-                    theme: configuration.theme,
-                    services: services,
-                    labels: configuration.labels,
-                    metrics: configuration.metrics,
-                    motion: configuration.motion,
-                    typography: configuration.typography,
-                    branding: branding,
-                    chromeActions: chromeActions
+        var seen = Set<String>()
+        var surfaces: [NookCompanionSurface] = []
+        for companion in companions {
+            guard seen.insert(companion.id).inserted else {
+                print(
+                    "[OpenNook] module '\(moduleHost.activeModuleID)' has more than one companion with id "
+                        + "'\(companion.id)'; only the first is shown"
                 )
+                continue
             }
+            surfaces.append(
+                NookCompanionSurface(
+                    id: companion.id,
+                    anchor: companion.anchor,
+                    spacing: companion.spacing,
+                    gap: companion.gap,
+                    rowAlignment: companion.rowAlignment,
+                    visibility: companion.visibility,
+                    shape: companion.shape,
+                    backdrop: companion.backdrop,
+                    style: companion.style ?? configuration.companionStyle,
+                    size: companion.size ?? configuration.companionSize,
+                    presence: companion.presence ?? configuration.companionPresence,
+                    accessibilityLabel: companion.accessibilityLabel
+                ) {
+                    NookCompanionHost(
+                        appState: appState,
+                        companion: companion,
+                        theme: configuration.theme,
+                        services: services,
+                        labels: configuration.labels,
+                        metrics: configuration.metrics,
+                        motion: configuration.motion,
+                        typography: configuration.typography,
+                        branding: branding,
+                        chromeActions: chromeActions
+                    )
+                }
+            )
         }
-        surface.rimGlowStyle = configuration.rimGlow
-        surface.scrollEdgeFade = configuration.scrollEdgeFade
+        surface.companions = surfaces
     }
 
     /// Returns to the home view when the active configuration turned Settings off while it

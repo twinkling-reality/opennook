@@ -76,7 +76,8 @@ public enum AssistantSchema {
         for field in AssistantSettingsCatalog.fields {
             root.insert(field, at: field.path.components[...])
         }
-        guard case .object(var members) = root.schema else { return root.schema }
+        let schema = root.schema(at: AssistantFieldPath(components: []))
+        guard case .object(var members) = schema else { return schema }
         members.append(
             AssistantJSON.Member(
                 "description",
@@ -157,35 +158,42 @@ private struct SchemaNode {
         }
     }
 
-    var schema: AssistantJSON {
+    /// The node's schema. `path` is where the node sits, which is how a list's elements find the
+    /// keys ``AssistantSettingsCatalog/requiredKeys`` says they must have.
+    func schema(at path: AssistantFieldPath) -> AssistantJSON {
         switch content {
             case .leaf(let field):
                 return Self.leafSchema(field)
             case .list(let element):
+                let elementPath = AssistantFieldPath(components: path.components + [.eachElement])
+                var elementSchema = element.schema(at: elementPath)
+                // An element is only meaningful with its required keys, and a list is written
+                // whole, so these are the one place the schema requires anything.
+                if let required = AssistantSettingsCatalog.requiredKeys[path.text],
+                    case .object(var members) = elementSchema
+                {
+                    let position = members.firstIndex { $0.name == "additionalProperties" } ?? members.endIndex
+                    members.insert(
+                        AssistantJSON.Member("required", .array(required.map { .string($0) })),
+                        at: position
+                    )
+                    elementSchema = .object(members)
+                }
                 return .object([
                     ("type", .string("array")),
-                    ("items", element.schema),
+                    ("items", elementSchema),
                 ])
             case .fields(let members):
                 var properties: [AssistantJSON.Member] = []
                 for member in members {
-                    properties.append(AssistantJSON.Member(member.name, member.node.schema))
+                    let memberPath = AssistantFieldPath(components: path.components + [.key(member.name)])
+                    properties.append(AssistantJSON.Member(member.name, member.node.schema(at: memberPath)))
                 }
-                var object: [AssistantJSON.Member] = [
+                return .object([
                     AssistantJSON.Member("type", .string("object")),
                     AssistantJSON.Member("properties", .object(properties)),
-                ]
-                // A companion is only meaningful with a name and a kind, and listing companions
-                // replaces the whole list, so those two are the one place the schema requires
-                // anything.
-                let names = members.map(\.name)
-                if names.contains("id"), names.contains("kind") {
-                    object.append(
-                        AssistantJSON.Member("required", .array([.string("id"), .string("kind")]))
-                    )
-                }
-                object.append(AssistantJSON.Member("additionalProperties", .bool(false)))
-                return .object(object)
+                    AssistantJSON.Member("additionalProperties", .bool(false)),
+                ])
         }
     }
 

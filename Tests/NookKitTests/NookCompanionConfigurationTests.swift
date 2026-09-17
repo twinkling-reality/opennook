@@ -164,6 +164,247 @@ final class NookCompanionConfigurationTests: XCTestCase {
         }
     }
 
+    // MARK: - Style, size, and presence
+
+    func testCompanionDefaultsAreTheStandardStyleAtTheRegularSizeWithTheFold() {
+        let configuration = NookConfiguration()
+        XCTAssertEqual(configuration.companionStyle.base as? NookStandardCompanionStyle, .standard)
+        XCTAssertEqual(configuration.companionSize, .regular)
+        XCTAssertEqual(configuration.companionPresence, .fold)
+        XCTAssertNil(configuration.companionSource)
+
+        let companion = NookCompanion(id: "a") { Text("a") }
+        XCTAssertNil(companion.style)
+        XCTAssertNil(companion.size)
+        XCTAssertNil(companion.presence)
+        XCTAssertNil(companion.gap)
+        XCTAssertNil(companion.rowAlignment)
+    }
+
+    /// A companion that leaves its style, size, and presence unset takes the configuration's; one
+    /// that sets them keeps its own.
+    func testCompanionsTakeTheConfigurationDefaultsUnlessTheySetTheirOwn() {
+        let surface = FakeNookSurface()
+        _ = makeCoordinator(
+            [
+                ConfiguredModule(id: "A") {
+                    var configuration = NookConfiguration()
+                    configuration.companionStyle = .faded
+                    configuration.companionSize = .large
+                    configuration.companionPresence = .slide
+                    configuration.addCompanion(id: "plain") { Text("plain") }
+                    configuration.addCompanion(
+                        id: "own",
+                        gap: 20,
+                        rowAlignment: .end,
+                        style: .plain,
+                        size: .small,
+                        presence: .pop
+                    ) {
+                        Text("own")
+                    }
+                    return configuration
+                }
+            ],
+            surface: surface
+        )
+
+        let plain = surface.companions[0]
+        XCTAssertEqual(plain.style.base as? NookStandardCompanionStyle, .faded)
+        XCTAssertEqual(plain.size, .large)
+        XCTAssertEqual(plain.presence, .slide)
+        XCTAssertNil(plain.gap)
+        XCTAssertNil(plain.rowAlignment)
+
+        let own = surface.companions[1]
+        XCTAssertEqual(own.style.base as? NookStandardCompanionStyle, .plain)
+        XCTAssertEqual(own.size, .small)
+        XCTAssertEqual(own.presence, .pop)
+        XCTAssertEqual(own.gap, 20)
+        XCTAssertEqual(own.rowAlignment, .end)
+    }
+
+    func testTheGlyphButtonStyleSizesFromTheCompanionSize() {
+        let control = NookGlyphButtonStyle()
+        XCTAssertEqual(control.side(in: .regular), 32)
+        XCTAssertEqual(control.resolvedGlyphSize(in: .regular), 13)
+        XCTAssertEqual(control.side(in: .small), 26)
+
+        let surface = NookGlyphButtonStyle(size: .surface)
+        XCTAssertEqual(surface.side(in: .regular), 40, "a button that is its own surface is surface height")
+        XCTAssertEqual(surface.resolvedGlyphSize(in: .regular), 16, "and its glyph scales with it")
+
+        let points = NookGlyphButtonStyle(size: .points(64), glyphSize: 20)
+        XCTAssertEqual(points.side(in: .regular), 64)
+        XCTAssertEqual(points.resolvedGlyphSize(in: .regular), 20)
+        XCTAssertEqual(NookGlyphButtonStyle(size: .points(-3)).side(in: .regular), 0)
+    }
+
+    /// The lock and gear keep the top bar's frame there, and take a companion's control size in one.
+    func testChromeGlyphsTakeTheCompanionControlSize() {
+        let geometry = HeaderGlyphGeometry.companion(.large)
+        XCTAssertEqual(geometry.side, 40)
+        XCTAssertEqual(geometry.cornerRadius, 20, "a round chip, like the glyph button style's")
+        XCTAssertEqual(geometry.font, .system(size: 16, weight: .semibold))
+    }
+
+    // MARK: - Live companions
+
+    func testASourceChangesTheSurfaceWithoutAReload() {
+        let surface = FakeNookSurface()
+        let source = NookCompanionSource([NookCompanion(id: "live") { Text("live") }])
+        let coordinator = makeCoordinator(
+            [
+                ConfiguredModule(id: "A") {
+                    var configuration = self.configurationWithCompanions()
+                    configuration.companionSource = source
+                    return configuration
+                }
+            ],
+            surface: surface
+        )
+        XCTAssertEqual(surface.companions.map(\.id), ["pill", "timer", "live"])
+
+        source.set(NookCompanion(id: "leave", shape: .circle) { Text("leave") })
+        XCTAssertEqual(surface.companions.map(\.id), ["pill", "timer", "live", "leave"])
+        XCTAssertEqual(surface.companions[3].shape, .circle)
+
+        source.set(NookCompanion(id: "live", spacing: 14) { Text("live") })
+        XCTAssertEqual(surface.companions.map(\.id), ["pill", "timer", "live", "leave"], "replaced in place")
+        XCTAssertEqual(surface.companions[2].spacing, 14)
+
+        source.remove(id: "live")
+        XCTAssertEqual(surface.companions.map(\.id), ["pill", "timer", "leave"])
+
+        source.removeAll()
+        XCTAssertEqual(surface.companions.map(\.id), ["pill", "timer"])
+        withExtendedLifetime(coordinator) {}
+    }
+
+    func testSourceCompanionsTakeTheConfigurationDefaults() {
+        let surface = FakeNookSurface()
+        let source = NookCompanionSource()
+        let coordinator = makeCoordinator(
+            [
+                ConfiguredModule(id: "A") {
+                    var configuration = NookConfiguration()
+                    configuration.companionSize = .small
+                    configuration.companionSource = source
+                    return configuration
+                }
+            ],
+            surface: surface
+        )
+        withExtendedLifetime(coordinator) {
+            source.set(NookCompanion(id: "late") { Text("late") })
+            XCTAssertEqual(surface.companions.first?.size, .small)
+        }
+    }
+
+    /// A switched-away module's source no longer reaches the surface, and switching back shows
+    /// whatever the source holds by then.
+    func testASourceFollowsItsModuleThroughSwitches() async {
+        let surface = FakeNookSurface()
+        let source = NookCompanionSource([NookCompanion(id: "a") { Text("a") }])
+        let coordinator = makeCoordinator(
+            [
+                ConfiguredModule(id: "A") {
+                    var configuration = NookConfiguration()
+                    configuration.companionSource = source
+                    return configuration
+                },
+                ConfiguredModule(id: "B", build: { NookConfiguration() }),
+            ],
+            surface: surface
+        )
+        await surface.expand(on: nil)
+        XCTAssertEqual(surface.companions.map(\.id), ["a"])
+
+        coordinator.switchModule(to: "B")
+        await coordinator.drainLifecycleForTesting()
+        XCTAssertTrue(surface.companions.isEmpty)
+
+        source.set(NookCompanion(id: "b") { Text("b") })
+        XCTAssertTrue(surface.companions.isEmpty, "module B's surface is not module A's to change")
+
+        coordinator.switchModule(to: "A")
+        await coordinator.drainLifecycleForTesting()
+        XCTAssertEqual(surface.companions.map(\.id), ["a", "b"])
+    }
+
+    /// A reload that brings a different source follows the new one and lets the old one go.
+    func testAReloadFollowsTheNewSource() {
+        @MainActor
+        final class Sources {
+            var current = NookCompanionSource([NookCompanion(id: "old") { Text("old") }])
+        }
+        let sources = Sources()
+        let surface = FakeNookSurface()
+        let coordinator = makeCoordinator(
+            [
+                ConfiguredModule(id: "A") {
+                    var configuration = NookConfiguration()
+                    configuration.companionSource = sources.current
+                    return configuration
+                }
+            ],
+            surface: surface
+        )
+        let old = sources.current
+        sources.current = NookCompanionSource([NookCompanion(id: "new") { Text("new") }])
+        coordinator.reloadActiveConfiguration()
+        XCTAssertEqual(surface.companions.map(\.id), ["new"])
+
+        old.set(NookCompanion(id: "stale") { Text("stale") })
+        XCTAssertEqual(surface.companions.map(\.id), ["new"])
+        sources.current.set(NookCompanion(id: "fresh") { Text("fresh") })
+        XCTAssertEqual(surface.companions.map(\.id), ["new", "fresh"])
+    }
+
+    /// Two companions with one id would merge on the surface, so the first one wins: the
+    /// configuration's own before its source's.
+    func testOnlyTheFirstCompanionWithAnIDReachesTheSurface() {
+        let surface = FakeNookSurface()
+        let source = NookCompanionSource([NookCompanion(id: "pill", spacing: 30) { Text("dupe") }])
+        _ = makeCoordinator(
+            [
+                ConfiguredModule(id: "A") {
+                    var configuration = self.configurationWithCompanions()
+                    configuration.companions.append(NookCompanion(id: "timer") { Text("dupe") })
+                    configuration.companionSource = source
+                    return configuration
+                }
+            ],
+            surface: surface
+        )
+        XCTAssertEqual(surface.companions.map(\.id), ["pill", "timer"])
+        XCTAssertEqual(surface.companions[0].spacing, 10, "the configuration's own pill wins")
+        XCTAssertEqual(surface.companions[1].shape, .circle, "and so does the first timer")
+    }
+
+    func testEditingASource() {
+        let source = NookCompanionSource()
+        source.set(NookCompanion(id: "a") { Text("a") })
+        source.set(NookCompanion(id: "b") { Text("b") })
+        source.insert(NookCompanion(id: "c") { Text("c") }, at: 0)
+        XCTAssertEqual(source.ids, ["c", "a", "b"])
+
+        source.insert(NookCompanion(id: "a", spacing: 3) { Text("a") }, at: 99)
+        XCTAssertEqual(source.ids, ["c", "b", "a"], "inserting an id that is there moves it")
+        XCTAssertEqual(source.companion(id: "a")?.spacing, 3)
+
+        source.move(id: "a", to: 0)
+        XCTAssertEqual(source.ids, ["a", "c", "b"])
+        source.move(id: "missing", to: 0)
+        XCTAssertEqual(source.ids, ["a", "c", "b"])
+
+        source.remove(id: "c")
+        XCTAssertEqual(source.ids, ["a", "b"])
+        XCTAssertNil(source.companion(id: "c"))
+        source.removeAll()
+        XCTAssertTrue(source.ids.isEmpty)
+    }
+
     // MARK: - Chrome actions
 
     func testKeepOpenActionFlipsThePreferenceAndTheSurface() {

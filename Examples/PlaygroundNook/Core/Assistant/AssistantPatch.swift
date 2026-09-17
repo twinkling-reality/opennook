@@ -20,6 +20,8 @@ public enum AssistantPatchError: Error, Equatable, LocalizedError {
     /// The merged preset would not decode. The detail comes from ``PlaygroundPresetCoder`` and
     /// already names the path.
     case invalidValue(detail: String)
+    /// A companion the patch adds does not say what it holds.
+    case missingItems(companion: String)
 
     public var errorDescription: String? {
         switch self {
@@ -31,6 +33,8 @@ public enum AssistantPatchError: Error, Equatable, LocalizedError {
                 "\(path) should be \(expected)."
             case .invalidValue(let detail):
                 "The patch has a value the playground cannot use: \(detail)."
+            case .missingItems(let companion):
+                "The new companion \(companion) has no items."
         }
     }
 
@@ -48,6 +52,9 @@ public enum AssistantPatchError: Error, Equatable, LocalizedError {
             case .invalidValue(let detail):
                 "The patch could not be read: \(detail). Answer with the corrected JSON object and "
                     + "nothing else."
+            case .missingItems(let companion):
+                "The new companion \(companion) needs its items: list what it holds in its items. Answer "
+                    + "with the corrected JSON object and nothing else."
         }
     }
 }
@@ -67,6 +74,7 @@ public enum AssistantPatch {
         guard case .object = patch else { throw AssistantPatchError.notAnObject }
         try validate(patch)
         let current = try encoded(preset)
+        try requireItems(ofCompanionsAddedBy: patch, to: current)
         let merged = merge(patch, onto: current)
         do {
             return try PlaygroundPresetCoder.decode(merged.data)
@@ -93,15 +101,21 @@ public enum AssistantPatch {
 
     /// `patch` laid over `base`: objects merge key by key, and everything else replaces.
     ///
-    /// A list replaces rather than merges, which is what makes `settings.companions` a single
-    /// decision. Merging by position would let "add a sleep timer" silently rewrite the companion
-    /// that happened to be first, and merging by id would need a patch format of its own. The
-    /// field guide says so plainly, and the proposal still diffs companions by id, so a replaced
-    /// list that keeps a companion untouched shows no rows for it.
+    /// A list is the patch's own: which elements it holds, and in what order, is what the patch
+    /// says, which is what makes `settings.companions` a single decision. A list whose elements
+    /// all carry an `id` also merges each element onto the base element with the same id, so a
+    /// patch that lists a companion to move it keeps the items and style it does not mention;
+    /// merging by position would let "add a sleep timer" rewrite whichever companion happened to
+    /// be first. A list without ids, such as a companion's items, replaces outright. The field
+    /// guide says both plainly, and the proposal diffs companions by id, so a companion that comes
+    /// through unchanged shows no rows.
     ///
     /// An explicit null is a value, not a deletion: it is how a theme color goes back to following
     /// the user's palette.
     static func merge(_ patch: AssistantJSON, onto base: AssistantJSON) -> AssistantJSON {
+        if case .array(let patchElements) = patch, case .array(let baseElements) = base {
+            return .array(mergingByID(patchElements, onto: baseElements))
+        }
         guard case .object(let patchMembers) = patch, case .object(let baseMembers) = base else {
             return patch
         }
@@ -116,7 +130,35 @@ public enum AssistantPatch {
         return .object(members)
     }
 
+    /// `patch`'s elements, each merged onto the element of `base` with the same `id`. A list
+    /// whose elements do not all have one is returned as it is.
+    private static func mergingByID(_ patch: [AssistantJSON], onto base: [AssistantJSON]) -> [AssistantJSON] {
+        let ids = patch.map { $0["id"]?.stringValue }
+        guard !patch.isEmpty, ids.allSatisfy({ $0 != nil }) else { return patch }
+        return zip(patch, ids).map { element, id in
+            guard let original = base.first(where: { $0["id"]?.stringValue == id }) else { return element }
+            return merge(element, onto: original)
+        }
+    }
+
     // MARK: - Validating
+
+    /// A companion the patch adds must list its items. Without them the preset decoder would
+    /// fall back to the content an older preset's missing `kind` means, and the proposal would
+    /// show buttons nobody asked for.
+    static func requireItems(ofCompanionsAddedBy patch: AssistantJSON, to base: AssistantJSON) throws {
+        let path = AssistantFieldPath("settings.companions").components[...]
+        guard let listed = AssistantProposal.value(at: path, in: patch)?.arrayValue else { return }
+        let existing = Set(
+            (AssistantProposal.value(at: path, in: base)?.arrayValue ?? []).compactMap { $0["id"]?.stringValue }
+        )
+        for companion in listed {
+            guard let id = companion["id"]?.stringValue, !existing.contains(id), companion["items"] == nil else {
+                continue
+            }
+            throw AssistantPatchError.missingItems(companion: id)
+        }
+    }
 
     /// Checks every path in the patch against the catalog before a merge, so the error names the
     /// field the model got wrong.

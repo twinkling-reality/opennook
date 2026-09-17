@@ -14,7 +14,8 @@ import SwiftUI
 ///
 /// Companions that share an anchor form one row, in registration order. A ``Edge/below``
 /// row runs left to right under the chrome; a ``Edge/leading`` or ``Edge/trailing`` row
-/// runs outward from the chrome's side, the first companion nearest the chrome.
+/// runs outward from the chrome's side, the first companion nearest the chrome. Each edge
+/// takes up to three rows, one per alignment.
 public struct NookCompanionAnchor: Hashable, Sendable {
     /// The side of the chrome a companion row hangs from.
     public enum Edge: Hashable, Sendable {
@@ -127,7 +128,9 @@ public enum NookCompanionBackdrop: Equatable, Sendable {
     /// A backdrop of the companion's own, independent of the chrome's.
     case custom(NookBackdrop)
 
-    /// Nothing. The content draws its own background.
+    /// Nothing behind the content. The style still pads and sizes the surface; for content that
+    /// draws every piece itself at its own size, such as a separately filled button, use the
+    /// plain style (``AnyNookCompanionStyle/plain``).
     case none
 
     /// The backdrop to paint, given the chrome's current one. `nil` paints nothing.
@@ -156,6 +159,9 @@ public enum NookCompanionBackdrop: Equatable, Sendable {
 /// narrow the states it appears in from inside with
 /// `nookCompanionVisibility(_:)`.
 ///
+/// What the surface looks like is its ``style``; how big it is, the ``size`` it shares with its
+/// controls; how it comes and goes, its ``presence``.
+///
 /// Each companion carries the accessibility identifier ``accessibilityIdentifier``
 /// (`opennook.companion.<id>`), alongside the panel's own `opennook.panel`.
 public struct NookCompanionSurface: Identifiable {
@@ -168,9 +174,20 @@ public struct NookCompanionSurface: Identifiable {
 
     /// Gap, in points, between the companion and whatever is on its chrome side: the
     /// chrome itself, or the previous companion in the same row. A `.below` companion
-    /// uses it both for its drop under the chrome and for its gap to the companion before
-    /// it in the row.
+    /// uses it for its drop under the chrome, and for its gap to the companion before it in
+    /// the row unless ``gap`` sets that separately. A `.below` row hangs every surface from the
+    /// largest drop among its shown companions, so the surfaces in it line up.
     public var spacing: CGFloat
+
+    /// Gap, in points, between a `.below` companion and the companion before it in its row.
+    /// `nil` uses ``spacing``. Side rows run outward from the chrome, so their companions use
+    /// ``spacing`` for both.
+    public var gap: CGFloat?
+
+    /// Where the companion sits across its row when a neighbour is taller: the top, middle, or
+    /// bottom. `nil` centers a `.below` companion and follows the anchor's own alignment in a
+    /// side row. See ``effectiveRowAlignment``.
+    public var rowAlignment: NookCompanionAnchor.Alignment?
 
     /// The chrome states the companion is shown in.
     public var visibility: NookCompanionVisibility
@@ -178,8 +195,21 @@ public struct NookCompanionSurface: Identifiable {
     /// The outline the companion is filled and hit-tested with.
     public var shape: NookCompanionShape
 
-    /// What the companion paints behind its content.
+    /// What the companion's backdrop is: the chrome's own, one of its own, or nothing. The
+    /// ``style`` decides how it is painted.
     public var backdrop: NookCompanionBackdrop
+
+    /// How the surface is drawn around its content: its fill, fade, edge, shadow, padding,
+    /// height, and hover response.
+    public var style: AnyNookCompanionStyle
+
+    /// The size the surface shares with its controls, published to its content as
+    /// `\.nookCompanionSize`. Beside the compact pill it is fitted to the pill's height (see
+    /// ``NookCompanionSize/fitting(height:)``).
+    public var size: NookCompanionSize
+
+    /// How the companion appears and disappears.
+    public var presence: NookCompanionPresence
 
     /// A label for the companion as a whole, read by VoiceOver before its contents. `nil`
     /// leaves the group unlabeled so VoiceOver reads the contents directly.
@@ -193,25 +223,53 @@ public struct NookCompanionSurface: Identifiable {
         id: String,
         anchor: NookCompanionAnchor = .below,
         spacing: CGFloat = NookCompanionSurface.defaultSpacing,
+        gap: CGFloat? = nil,
+        rowAlignment: NookCompanionAnchor.Alignment? = nil,
         visibility: NookCompanionVisibility = .expanded,
         shape: NookCompanionShape = .capsule,
         backdrop: NookCompanionBackdrop = .inherit,
+        style: AnyNookCompanionStyle = .standard,
+        size: NookCompanionSize = .regular,
+        presence: NookCompanionPresence = .fold,
         accessibilityLabel: String? = nil,
         @ViewBuilder content: () -> Content
     ) {
         self.id = id
         self.anchor = anchor
         self.spacing = spacing
+        self.gap = gap
+        self.rowAlignment = rowAlignment
         self.visibility = visibility
         self.shape = shape
         self.backdrop = backdrop
+        self.style = style
+        self.size = size
+        self.presence = presence
         self.accessibilityLabel = accessibilityLabel
         self.content = AnyView(content())
+    }
+
+    /// Where the companion sits across its row: ``rowAlignment``, or else the middle of a
+    /// `.below` row and the anchor's own alignment in a side row.
+    public var effectiveRowAlignment: NookCompanionAnchor.Alignment {
+        if let rowAlignment { return rowAlignment }
+        return anchor.edge == .below ? .center : anchor.alignment
+    }
+
+    /// The gap to the companion before it in a `.below` row: ``gap``, or else ``spacing``.
+    public var effectiveGap: CGFloat {
+        gap ?? spacing
     }
 
     /// The default gap between a companion and the chrome - the same 8 pt the chrome
     /// leaves around its own expanded content.
     public static let defaultSpacing: CGFloat = 8
+
+    /// `companions` with every companion whose id an earlier one already has left out.
+    static func removingDuplicateIDs(_ companions: [NookCompanionSurface]) -> [NookCompanionSurface] {
+        var seen = Set<String>()
+        return companions.filter { seen.insert($0.id).inserted }
+    }
 
     /// The accessibility identifier the chrome stamps on a companion with `id`.
     public static func accessibilityIdentifier(for id: String) -> String {
@@ -282,6 +340,10 @@ private struct NookCompanionIsPresentedKey: EnvironmentKey {
     static let defaultValue = true
 }
 
+private struct NookCompanionIsHoveredKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
 extension EnvironmentValues {
     /// `true` while the enclosing companion surface is shown. Companion content stays mounted
     /// in chrome states it is not shown in, so read this to pause timers or animations while
@@ -289,5 +351,12 @@ extension EnvironmentValues {
     public var nookCompanionIsPresented: Bool {
         get { self[NookCompanionIsPresentedKey.self] }
         set { self[NookCompanionIsPresentedKey.self] = newValue }
+    }
+
+    /// `true` while the pointer is over the enclosing companion surface, for content that
+    /// answers hover as a whole. Always `false` outside a companion surface.
+    public var nookCompanionIsHovered: Bool {
+        get { self[NookCompanionIsHoveredKey.self] }
+        set { self[NookCompanionIsHoveredKey.self] = newValue }
     }
 }

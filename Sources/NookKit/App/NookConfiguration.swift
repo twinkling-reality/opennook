@@ -169,9 +169,35 @@ public struct NookConfiguration: Sendable {
 
     /// Host surfaces floated beside the nook - an action pill under the expanded panel, a
     /// round button beside it - in registration order. Empty (the default) renders the chrome
-    /// exactly as before. Use ``addCompanion(id:anchor:spacing:visibility:shape:backdrop:hidesInSettings:accessibilityLabel:theme:content:)``
+    /// exactly as before. Use ``addCompanion(id:anchor:spacing:gap:rowAlignment:visibility:shape:backdrop:style:size:presence:hidesInSettings:accessibilityLabel:theme:content:)``
     /// to append one; see ``NookCompanion``.
+    ///
+    /// The array can also be built from data. A companion whose id an earlier one (here or in
+    /// ``companionSource``) already has is left off the surface, and the chrome logs it.
     public var companions: [NookCompanion] = []
+
+    /// Companions that can change while the nook runs, shown after ``companions``. Add, remove,
+    /// or replace them on the source and the surface follows at once, with no
+    /// ``AppCoordinator/reloadActiveConfiguration()``. `nil` (the default) is none. See
+    /// ``NookCompanionSource``.
+    public var companionSource: NookCompanionSource?
+
+    /// How every companion is drawn unless it sets its own ``NookCompanion/style``. Defaults to
+    /// `.standard`: the companion's backdrop, padded and sized by ``companionSize``.
+    ///
+    /// ```swift
+    /// configuration.companionStyle = .faded  // solid at the chrome, thinning away from it
+    /// ```
+    public var companionStyle: AnyNookCompanionStyle = .standard
+
+    /// The size every companion shares with its controls unless it sets its own
+    /// ``NookCompanion/size``. Defaults to `.regular`: 40 pt surfaces around 32 pt controls, so
+    /// companions side by side are the same height.
+    public var companionSize: NookCompanionSize = .regular
+
+    /// How every companion appears and disappears unless it sets its own
+    /// ``NookCompanion/presence``. Defaults to `.fold`.
+    public var companionPresence: NookCompanionPresence = .fold
 
     /// How the chrome draws its glowing rim while content lights it with
     /// `nookRimGlow(_:)` - for example a blue rim while work is running. The rim only
@@ -288,6 +314,9 @@ public struct NookConfiguration: Sendable {
     /// configuration.addCompanion(id: "timer", anchor: .trailing, visibility: .both, shape: .circle) {
     ///     TimerButton()
     /// }
+    /// configuration.addCompanion(id: "leave", gap: 16, style: .raised, presence: .pop) {
+    ///     LeaveButton()
+    /// }
     /// ```
     ///
     /// Traps on an `id` already registered on this configuration: the id keys the companion's
@@ -297,9 +326,14 @@ public struct NookConfiguration: Sendable {
         id: String,
         anchor: NookCompanionAnchor = .below,
         spacing: CGFloat = NookCompanionSurface.defaultSpacing,
+        gap: CGFloat? = nil,
+        rowAlignment: NookCompanionAnchor.Alignment? = nil,
         visibility: NookCompanionVisibility = .expanded,
         shape: NookCompanionShape = .capsule,
         backdrop: NookCompanionBackdrop = .inherit,
+        style: AnyNookCompanionStyle? = nil,
+        size: NookCompanionSize? = nil,
+        presence: NookCompanionPresence? = nil,
         hidesInSettings: Bool = true,
         accessibilityLabel: String? = nil,
         theme: (@Sendable @MainActor (AppState) -> NookResolvedTheme)? = nil,
@@ -315,9 +349,14 @@ public struct NookConfiguration: Sendable {
                 id: id,
                 anchor: anchor,
                 spacing: spacing,
+                gap: gap,
+                rowAlignment: rowAlignment,
                 visibility: visibility,
                 shape: shape,
                 backdrop: backdrop,
+                style: style,
+                size: size,
+                presence: presence,
                 hidesInSettings: hidesInSettings,
                 accessibilityLabel: accessibilityLabel,
                 theme: theme,

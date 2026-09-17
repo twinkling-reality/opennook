@@ -431,62 +431,115 @@ public enum AssistantSettingsCatalog {
     }
 
     private static var companionFields: [AssistantField] {
-        let defaults = PlaygroundSettings.Companion(id: "", kind: .actions)
+        companionDefaultFields + companionSurfaceFields + companionItemFields
+    }
+
+    private static var companionDefaultFields: [AssistantField] {
+        let defaults = PlaygroundSettings.CompanionDefaults()
+        return [
+            choice(
+                "settings.companionDefaults.size",
+                of: PlaygroundSettings.Companion.Size.self,
+                default: defaults.size.rawValue,
+                "How big every companion is: 32, 40, or 48 pt tall, with controls to match."
+            ),
+            choice(
+                "settings.companionDefaults.presence",
+                of: PlaygroundSettings.Companion.Presence.self,
+                default: defaults.presence.rawValue,
+                "How every companion appears and disappears."
+            ),
+            number(
+                "settings.companionDefaults.fade",
+                default: defaults.fade,
+                0,
+                1,
+                .fraction,
+                "How strong every companion's fill stays at its far side from the panel. 1 is no fade."
+            ),
+            flag(
+                "settings.companionDefaults.stroke",
+                default: defaults.stroke,
+                "Whether every companion has a hairline edge."
+            ),
+            flag(
+                "settings.companionDefaults.shadow",
+                default: defaults.shadow,
+                "Whether every companion has a soft shadow."
+            ),
+            choice(
+                "settings.companionDefaults.hover",
+                of: PlaygroundSettings.Companion.Hover.self,
+                default: defaults.hover.rawValue,
+                "How every companion answers the pointer."
+            ),
+        ]
+    }
+
+    private static var companionSurfaceFields: [AssistantField] {
+        let defaults = PlaygroundSettings.Companion(id: "")
         return [
             text(
                 "settings.companions[].id",
-                group: .companions,
                 default: "",
                 "A short unique name for this companion, such as \"sleep-timer\". Required."
             ),
             choice(
-                "settings.companions[].kind",
-                group: .companions,
-                of: PlaygroundSettings.Companion.Kind.self,
-                default: defaults.kind.rawValue,
-                "What the companion holds: a pill of icon buttons, one round button, the nook's "
-                    + "own lock and gear, or a short status label. Required."
+                "settings.companions[].layout",
+                of: PlaygroundSettings.Companion.Layout.self,
+                default: defaults.layout.rawValue,
+                "How its items are arranged. Automatic is a row below the panel and a column beside it."
             ),
             choice(
                 "settings.companions[].anchor",
-                group: .companions,
                 of: PlaygroundSettings.Companion.Anchor.self,
                 default: defaults.anchor.rawValue,
                 "Which side of the panel it sits on."
             ),
             choice(
                 "settings.companions[].alignment",
-                group: .companions,
                 of: PlaygroundSettings.Companion.AnchorAlignment.self,
                 default: defaults.alignment.rawValue,
-                "Where along that side it sits."
+                "Where along that side it sits. Companions with the same side and alignment form one row."
             ),
             number(
                 "settings.companions[].spacing",
-                group: .companions,
                 default: defaults.spacing,
                 0,
                 40,
                 .points,
-                "The gap between it and the panel."
+                "The gap between it and the panel, and between it and the companion before it."
+            ),
+            number(
+                "settings.companions[].gap",
+                nullable: true,
+                0,
+                40,
+                .points,
+                "Below the panel, the gap to the companion before it, without moving it further from the panel. "
+                    + "Null uses spacing."
+            ),
+            choice(
+                "settings.companions[].rowAlignment",
+                of: PlaygroundSettings.Companion.AnchorAlignment.self,
+                nullable: true,
+                "Where it sits across its row beside a taller companion. Null centers it below the panel "
+                    + "and follows alignment beside the panel."
             ),
             choice(
                 "settings.companions[].visibility",
-                group: .companions,
                 of: PlaygroundSettings.Companion.Visibility.self,
                 default: defaults.visibility.rawValue,
                 "Whether it shows while the nook is expanded, while it is collapsed, or both."
             ),
             choice(
                 "settings.companions[].outline",
-                group: .companions,
                 of: PlaygroundSettings.Companion.Outline.self,
                 default: defaults.outline.rawValue,
-                "Its shape. Use circle for a single round button."
+                "Its shape. Use circle for a single button."
             ),
             number(
                 "settings.companions[].cornerRadius",
-                group: .companions,
                 default: defaults.cornerRadius,
                 0,
                 30,
@@ -495,10 +548,9 @@ public enum AssistantSettingsCatalog {
             ),
             choice(
                 "settings.companions[].backdrop",
-                group: .companions,
                 of: PlaygroundSettings.Companion.Backdrop.self,
                 default: defaults.backdrop.rawValue,
-                "Its background: the chrome's own, a solid color, Liquid Glass, or none."
+                "Its background: the panel's own, a solid color, Liquid Glass, or none."
             ),
             AssistantField(
                 path: AssistantFieldPath("settings.companions[].backdropColor"),
@@ -507,9 +559,52 @@ public enum AssistantSettingsCatalog {
                 summary: "The color for the solid and glass backdrops.",
                 defaultValue: .string(defaults.backdropColor.hex)
             ),
+            choice(
+                "settings.companions[].size",
+                of: PlaygroundSettings.Companion.Size.self,
+                nullable: true,
+                "Its own size. Null uses the companion defaults."
+            ),
+            choice(
+                "settings.companions[].presence",
+                of: PlaygroundSettings.Companion.Presence.self,
+                nullable: true,
+                "How it appears and disappears. Null uses the companion defaults."
+            ),
+            number(
+                "settings.companions[].fade",
+                nullable: true,
+                0,
+                1,
+                .fraction,
+                "How strong its fill stays at its far side from the panel. 1 is no fade. Null uses the defaults."
+            ),
+            flag(
+                "settings.companions[].stroke",
+                nullable: true,
+                "Whether it has a hairline edge. Null uses the companion defaults."
+            ),
+            flag(
+                "settings.companions[].shadow",
+                nullable: true,
+                "Whether it has a soft shadow. Null uses the companion defaults."
+            ),
+            choice(
+                "settings.companions[].hover",
+                of: PlaygroundSettings.Companion.Hover.self,
+                nullable: true,
+                "How it answers the pointer. Null uses the companion defaults."
+            ),
+            AssistantField(
+                path: AssistantFieldPath("settings.companions[].accent"),
+                group: .companions,
+                kind: .color,
+                summary: "Its own accent, for its labels. Null uses the theme's.",
+                defaultValue: .null,
+                isNullable: true
+            ),
             flag(
                 "settings.companions[].hidesInSettings",
-                group: .companions,
                 default: defaults.hidesInSettings,
                 "Whether it disappears while the Settings screen is showing."
             ),
@@ -520,6 +615,76 @@ public enum AssistantSettingsCatalog {
                 summary: "What VoiceOver calls it. Always set one.",
                 defaultValue: .null,
                 isNullable: true
+            ),
+        ]
+    }
+
+    private static var companionItemFields: [AssistantField] {
+        let defaults = PlaygroundSettings.Item()
+        return [
+            choice(
+                "settings.companions[].items[].type",
+                of: PlaygroundSettings.Item.Kind.self,
+                default: defaults.type.rawValue,
+                "What the item is: a glyph button, a label, or the nook's own lock or gear. Required."
+            ),
+            AssistantField(
+                path: AssistantFieldPath("settings.companions[].items[].symbol"),
+                group: .companions,
+                kind: .text,
+                summary: "An SF Symbol name for a button or label, such as \"mic.fill\".",
+                defaultValue: .null,
+                isNullable: true
+            ),
+            AssistantField(
+                path: AssistantFieldPath("settings.companions[].items[].title"),
+                group: .companions,
+                kind: .text,
+                summary: "A button's name, read by VoiceOver, or a label's text.",
+                defaultValue: .null,
+                isNullable: true
+            ),
+            AssistantField(
+                path: AssistantFieldPath("settings.companions[].items[].tint"),
+                group: .companions,
+                kind: .color,
+                summary: "The glyph's color. Null uses the palette.",
+                defaultValue: .null,
+                isNullable: true
+            ),
+            choice(
+                "settings.companions[].items[].fill",
+                of: PlaygroundSettings.Item.Fill.self,
+                default: defaults.fill.rawValue,
+                "What a button is filled with: nothing, the palette's subtle fill, fillColor, or the panel's material."
+            ),
+            AssistantField(
+                path: AssistantFieldPath("settings.companions[].items[].fillColor"),
+                group: .companions,
+                kind: .color,
+                summary: "The color for the color fill. Null uses the accent.",
+                defaultValue: .null,
+                isNullable: true
+            ),
+            number(
+                "settings.companions[].items[].fade",
+                nullable: true,
+                0,
+                1,
+                .fraction,
+                "How strong a button's fill stays at its bottom. Null is no fade."
+            ),
+            choice(
+                "settings.companions[].items[].size",
+                of: PlaygroundSettings.Item.Size.self,
+                default: defaults.size.rawValue,
+                "Control size inside the companion, or surface size for a button that is a filled circle on its own."
+            ),
+            choice(
+                "settings.companions[].items[].action",
+                of: PlaygroundSettings.Item.Action.self,
+                default: defaults.action.rawValue,
+                "What a button does here. A host replaces it with its own action."
             ),
         ]
     }
@@ -637,7 +802,9 @@ public enum AssistantSettingsCatalog {
         if path.hasPrefix("settings.panel.") || path.hasPrefix("settings.metrics.") { return .panel }
         if path.hasPrefix("settings.typography.") || path.hasPrefix("settings.motion.") { return .typeAndMotion }
         if path.hasPrefix("settings.topBar.") || path.hasPrefix("settings.labels.") { return .topBar }
-        if path.hasPrefix("settings.companions") { return .companions }
+        if path.hasPrefix("settings.companions") || path.hasPrefix("settings.companionDefaults.") {
+            return .companions
+        }
         if path.hasPrefix("settings.rimGlow.") || path.hasPrefix("settings.scrollEdgeFade.") { return .effects }
         return .behavior
     }
@@ -660,6 +827,25 @@ public enum AssistantSettingsCatalog {
         )
     }
 
+    /// A number that is null until set.
+    private static func number(
+        _ path: String,
+        nullable: Bool,
+        _ minimum: Double?,
+        _ maximum: Double?,
+        _ unit: AssistantField.Unit,
+        _ summary: String
+    ) -> AssistantField {
+        AssistantField(
+            path: AssistantFieldPath(path),
+            group: inferredGroup(path),
+            kind: .number(minimum: minimum, maximum: maximum, unit: unit),
+            summary: summary,
+            defaultValue: .null,
+            isNullable: nullable
+        )
+    }
+
     private static func flag(
         _ path: String,
         group: AssistantFieldGroup? = nil,
@@ -672,6 +858,18 @@ public enum AssistantSettingsCatalog {
             kind: .flag,
             summary: summary,
             defaultValue: .bool(defaultValue)
+        )
+    }
+
+    /// A flag that is null until set.
+    private static func flag(_ path: String, nullable: Bool, _ summary: String) -> AssistantField {
+        AssistantField(
+            path: AssistantFieldPath(path),
+            group: inferredGroup(path),
+            kind: .flag,
+            summary: summary,
+            defaultValue: .null,
+            isNullable: nullable
         )
     }
 
@@ -720,4 +918,29 @@ public enum AssistantSettingsCatalog {
             defaultValue: .string(defaultValue)
         )
     }
+
+    /// A choice that is null until set.
+    private static func choice<Value>(
+        _ path: String,
+        of type: Value.Type,
+        nullable: Bool,
+        _ summary: String
+    ) -> AssistantField
+    where Value: RawRepresentable & CaseIterable, Value.RawValue == String {
+        AssistantField(
+            path: AssistantFieldPath(path),
+            group: inferredGroup(path),
+            kind: .choice(Value.allCases.map(\.rawValue)),
+            summary: summary,
+            defaultValue: .null,
+            isNullable: nullable
+        )
+    }
+
+    /// The keys every element of a list must have, by the list's path. A companion is only a
+    /// companion with a name, and an item only an item with a type.
+    public static let requiredKeys: [String: [String]] = [
+        "settings.companions": ["id"],
+        "settings.companions[].items": ["type"],
+    ]
 }

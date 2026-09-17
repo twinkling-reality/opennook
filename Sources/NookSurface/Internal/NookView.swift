@@ -234,22 +234,35 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
 
     // MARK: Companion surfaces
 
-    @ViewBuilder
+    /// Every companion, laid out around the chrome.
+    ///
+    /// The layer stays mounted with no companions, so the first one added is an insertion SwiftUI
+    /// can animate. Adding or removing a companion animates like any other change to the
+    /// surface: on the curve the change was made with, or the chrome's own if it was made
+    /// without one, and on the companion's presence curve if it sets one.
     private func companionLayer() -> some View {
-        let rows = nook.companionRows
-        if !rows.isEmpty {
-            NookCompanionLayerLayout(bodyInset: isFloating ? 0 : topCornerRadius) {
-                ForEach(rows) { row in
-                    NookCompanionRowLayout(anchor: row.anchor) {
-                        ForEach(row.surfaces) { surface in
-                            companionItem(surface)
-                                .transition(.opacity)
-                        }
-                    }
-                    .layoutValue(key: NookCompanionRowAnchorKey.self, value: row.anchor)
-                }
+        let companions = nook.companions
+        let conversionAnimation = nook.effectiveConversionAnimation
+        return NookCompanionLayerLayout(
+            bodyInset: isFloating ? 0 : topCornerRadius,
+            keepsSideRowsBelowTop: !isFloating
+        ) {
+            ForEach(companions) { surface in
+                companionItem(surface)
+                    .transition(companionTransition(for: surface))
             }
         }
+        .transaction(value: companions.map(\.id)) { transaction in
+            if transaction.animation == nil, !transaction.disablesAnimations {
+                transaction.animation = conversionAnimation
+            }
+        }
+    }
+
+    private func companionTransition(for surface: NookCompanionSurface) -> AnyTransition {
+        let transition = surface.presence.transition(edge: surface.anchor.edge, reduceMotion: reduceMotion)
+        guard let animation = surface.presence.animation else { return transition }
+        return transition.animation(animation)
     }
 
     private func companionItem(_ surface: NookCompanionSurface) -> some View {
@@ -258,6 +271,8 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
             surface: surface,
             chromeState: nook.state,
             backdrop: surface.backdrop.resolved(inheriting: nook.backdrop),
+            chromeBackdrop: nook.backdrop,
+            heightLimit: companionHeightLimit(for: surface),
             reduceMotion: reduceMotion,
             presenceAnimation: nook.effectiveConversionAnimation,
             onHover: { hovering in nook.updateCompanionHoverState(id: id, hovering: hovering) },
@@ -267,6 +282,16 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
             onExtent: { maxY in nook.noteCompanionExtent(id: id, maxY: maxY) }
         )
         .environment(\.nookScrollEdgeFade, nook.scrollEdgeFade)
+    }
+
+    /// A companion beside the compact pill is fitted to the pill's height, so it is no taller than
+    /// its neighbour and never reaches above the top of the screen. The expanded chrome is taller
+    /// than any companion size, and a companion below the chrome has room to hang.
+    private func companionHeightLimit(for surface: NookCompanionSurface) -> CGFloat? {
+        guard surface.anchor.edge != .below, nook.state != .expanded, nook.notchSize.height > 0 else {
+            return nil
+        }
+        return nook.notchSize.height
     }
 
     private func notchContent() -> some View {
@@ -292,6 +317,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
         .padding(.horizontal, topCornerRadius)
         .fixedSize()
         .frame(minWidth: minWidth, minHeight: nook.notchSize.height)
+        .environment(\.nookChromeBackdrop, nook.backdrop)
     }
 
     private func compactContent() -> some View {

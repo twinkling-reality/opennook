@@ -6,6 +6,7 @@
 // A copy is included at /LICENSE in the repository root.
 
 import NookKit
+import NookSurface
 import XCTest
 
 @testable import PlaygroundNookCore
@@ -185,28 +186,53 @@ final class PlaygroundSwiftExporterTests: XCTestCase {
     }
 
     func testACompanionWithDefaultsExportsItsIDAndContent() {
+        var settings = PlaygroundSettings()
+        settings.companions = [PlaygroundSettings.Companion(id: "chip", template: .chip)]
         XCTAssertEqual(
-            Exporter.companionLines([PlaygroundSettings.Companion(id: "chip", kind: .chip)]),
+            Exporter.companionLines(settings),
             [
                 #"configuration.addCompanion(id: "chip") {"#,
-                "    StatusChip()  // your view: a short label",
+                "    ChipCompanion()",
                 "}",
             ]
         )
-        XCTAssertEqual(Exporter.companionLines([]), [])
+        XCTAssertEqual(
+            Exporter.companionViewLines(settings),
+            [
+                "struct ChipCompanion: View {",
+                "    @Environment(\\.nookResolvedTheme) private var theme",
+                "",
+                "    var body: some View {",
+                "        HStack(spacing: 6) {",
+                #"            Image(systemName: "sparkles")"#,
+                "                .foregroundStyle(theme.accent)",
+                #"            Text("3 new")"#,
+                "                .foregroundStyle(theme.primaryLabel)",
+                "                .lineLimit(1)",
+                "        }",
+                "        .font(.system(size: 12, weight: .semibold))",
+                "        .padding(.horizontal, 8)",
+                "        .accessibilityElement(children: .combine)",
+                "    }",
+                "}",
+            ]
+        )
+        XCTAssertEqual(Exporter.companionLines(PlaygroundSettings()), [])
+        XCTAssertEqual(Exporter.companionViewLines(PlaygroundSettings()), [])
     }
 
     func testLongCompanionCallsBreakOneArgumentPerLine() {
-        var button = PlaygroundSettings.Companion(id: "timer", kind: .button, accessibilityLabel: "Sleep timer")
+        var button = PlaygroundSettings.Companion(id: "timer", template: .button, accessibilityLabel: "Sleep timer")
         button.anchor = .leading
         button.alignment = .start
         button.spacing = 10
         button.visibility = .compact
-        button.outline = .circle
         button.backdrop = .glass
         button.backdropColor = PlaygroundColor(red: 1, green: 1, blue: 1, opacity: 0.2)
+        var settings = PlaygroundSettings()
+        settings.companions = [button]
         XCTAssertEqual(
-            Exporter.companionLines([button]),
+            Exporter.companionLines(settings),
             [
                 "configuration.addCompanion(",
                 #"    id: "timer","#,
@@ -217,14 +243,229 @@ final class PlaygroundSwiftExporterTests: XCTestCase {
                 "    backdrop: .custom(.liquidGlass(.init(tint: Color(red: 1, green: 1, blue: 1, opacity: 0.2)))),",
                 #"    accessibilityLabel: "Sleep timer""#,
                 ") {",
-                "    RoundButton()  // your view: a single icon button",
+                "    TimerCompanion()",
                 "}",
             ]
         )
     }
 
+    /// The companion defaults come first, then each companion names only what it sets itself.
+    func testCompanionDefaultsAndOverridesExport() {
+        var settings = PlaygroundSettings()
+        settings.companionDefaults.size = .large
+        settings.companionDefaults.presence = .slide
+        settings.companionDefaults.fade = 0.25
+        var pill = PlaygroundSettings.Companion(id: "pill", template: .actions)
+        pill.gap = 16
+        pill.rowAlignment = .end
+        pill.size = .small
+        pill.presence = .pop
+        pill.stroke = true
+        pill.hover = .glow
+        settings.companions = [pill]
+
+        XCTAssertEqual(
+            Exporter.companionLines(settings),
+            [
+                "// How every companion looks and appears, unless it says otherwise.",
+                "configuration.companionSize = .large",
+                "configuration.companionStyle = .faded",
+                "configuration.companionPresence = .slide",
+                "",
+                "configuration.addCompanion(",
+                #"    id: "pill","#,
+                "    gap: 16,",
+                "    rowAlignment: .end,",
+                "    style: .standard(fade: .standard, stroke: .hairline, hover: .glow),",
+                "    size: .small,",
+                "    presence: .pop",
+                ") {",
+                "    PillCompanion()",
+                "}",
+            ]
+        )
+    }
+
+    /// A companion with its own accent builds its palette on the chrome's.
+    func testACompanionAccentExportsAThemeOnTheChromes() {
+        var settings = PlaygroundSettings()
+        var chip = PlaygroundSettings.Companion(id: "chip", template: .chip)
+        chip.accent = PlaygroundColor(red: 1, green: 0, blue: 0)
+        settings.companions = [chip]
+        XCTAssertEqual(
+            Exporter.companionLines(settings),
+            [
+                "let chromeTheme = configuration.theme",
+                "configuration.addCompanion(",
+                #"    id: "chip","#,
+                "    theme: { appState in",
+                "        var theme = chromeTheme(appState)",
+                "        theme.accent = Color(red: 1, green: 0, blue: 0)",
+                "        return theme",
+                "    }",
+                ") {",
+                "    ChipCompanion()",
+                "}",
+            ]
+        )
+    }
+
+    /// Items export as real controls: glyph buttons styled once for the group, a button with
+    /// changes of its own styled on its own, and the framework's chrome controls and actions.
+    func testCompanionContentExportsItsItems() {
+        var leave = PlaygroundSettings.Item(symbol: "phone.down.fill", title: "Leave", action: .collapse)
+        leave.tint = PlaygroundColor(red: 1, green: 1, blue: 1)
+        leave.fill = .color
+        leave.fillColor = PlaygroundColor(red: 1, green: 0, blue: 0)
+        leave.fade = 0.5
+        leave.size = .surface
+        var call = PlaygroundSettings.Companion(
+            id: "call-controls",
+            items: [
+                PlaygroundSettings.Item(symbol: "mic.fill", title: "Mute"),
+                PlaygroundSettings.Item(symbol: "gearshape", title: "Options", action: .settings),
+                leave,
+            ]
+        )
+        call.size = .large
+        var column = PlaygroundSettings.Companion(id: "2 controls", template: .controls)
+        column.anchor = .trailing
+        var settings = PlaygroundSettings()
+        settings.companions = [call, column, PlaygroundSettings.Companion(id: "", template: .empty)]
+
+        XCTAssertEqual(
+            Exporter.companionViewLines(settings),
+            [
+                "struct CallControlsCompanion: View {",
+                "    @Environment(\\.nookChromeActions) private var chromeActions",
+                "",
+                "    var body: some View {",
+                "        HStack(spacing: 4) {",
+                #"            Button("Mute", systemImage: "mic.fill") {}  // your action"#,
+                #"            Button("Options", systemImage: "gearshape") { chromeActions.toggleSettings() }"#,
+                #"            Button("Leave", systemImage: "phone.down.fill") { chromeActions.collapse() }"#,
+                "                .buttonStyle(",
+                "                    .nookGlyph(",
+                "                        size: .surface,",
+                "                        foreground: Color(red: 1, green: 1, blue: 1),",
+                "                        fill: .color(Color(red: 1, green: 0, blue: 0)),",
+                "                        fade: .init(end: 0.5)",
+                "                    )",
+                "                )",
+                "        }",
+                "        .buttonStyle(.nookGlyph)",
+                "    }",
+                "}",
+                "",
+                "struct Item2ControlsCompanion: View {",
+                "    var body: some View {",
+                "        VStack(spacing: 2) {",
+                "            NookKeepOpenButton()",
+                "            NookSettingsButton()",
+                "        }",
+                "    }",
+                "}",
+            ]
+        )
+        // The empty companion is hidden in the playground, so it is left out with a note.
+        let calls = Exporter.companionLines(settings)
+        XCTAssertTrue(calls.contains(#"// "" holds nothing yet, so it is left out."#), "\(calls)")
+        XCTAssertFalse(calls.contains { $0.contains("ItemCompanion()") })
+    }
+
+    /// A label shows only what it has, the way the playground draws it: an icon in its color or
+    /// the accent, and its text when it has some.
+    func testLabelsExportWhatThePlaygroundShows() {
+        var icon = PlaygroundSettings.Item(type: .label, symbol: "bolt.fill")
+        icon.tint = PlaygroundColor(red: 1, green: 0, blue: 1)
+        let lines = Exporter.itemLines(icon, indent: 0, containerStyled: false)
+        XCTAssertEqual(
+            lines,
+            [
+                "HStack(spacing: 6) {",
+                #"    Image(systemName: "bolt.fill")"#,
+                "        .foregroundStyle(Color(red: 1, green: 0, blue: 1))",
+                "}",
+                ".font(.system(size: 12, weight: .semibold))",
+                ".padding(.horizontal, 8)",
+                ".accessibilityElement(children: .combine)",
+            ]
+        )
+        XCTAssertFalse(lines.contains { $0.contains("Label") }, "no placeholder title")
+
+        let text = PlaygroundSettings.Item(type: .label, title: "Live")
+        XCTAssertEqual(
+            Exporter.itemLines(text, indent: 0, containerStyled: false).prefix(4),
+            [
+                "HStack(spacing: 6) {",
+                #"    Text("Live")"#,
+                "        .foregroundStyle(theme.primaryLabel)",
+                "        .lineLimit(1)",
+            ]
+        )
+    }
+
+    /// A color fill with no color of its own uses the companion's accent, as the playground does.
+    func testAnAccentFillExportsTheThemesAccent() {
+        var button = PlaygroundSettings.Item(symbol: "star.fill", title: "Star")
+        button.fill = .color
+        var settings = PlaygroundSettings()
+        settings.companions = [PlaygroundSettings.Companion(id: "star", items: [button])]
+        XCTAssertEqual(Exporter.glyphStyleArguments(button), ["fill: .color(theme.accent)"])
+        XCTAssertEqual(
+            Exporter.companionViewLines(settings).prefix(3),
+            ["struct StarCompanion: View {", "    @Environment(\\.nookResolvedTheme) private var theme", ""]
+        )
+    }
+
+    /// A companion of buttons that are surfaces of their own draws no surface, and says so.
+    func testSurfaceButtonsExportThePlainStyle() {
+        var leave = PlaygroundSettings.Item(symbol: "phone.down.fill", title: "Leave", action: .collapse)
+        leave.size = .surface
+        var settings = PlaygroundSettings()
+        settings.companions = [PlaygroundSettings.Companion(id: "leave", items: [leave])]
+        XCTAssertEqual(
+            Exporter.companionLines(settings),
+            [
+                #"configuration.addCompanion(id: "leave", style: .plain) {"#,
+                "    LeaveCompanion()",
+                "}",
+            ]
+        )
+        XCTAssertEqual(Exporter.styleLiteral(.plain), ".plain")
+    }
+
+    func testCompanionViewNamesAreUniqueSwiftTypes() {
+        let companions = ["sleep-timer", "sleep timer", "home", "", "9 lives", "café"].map {
+            PlaygroundSettings.Companion(id: $0)
+        }
+        XCTAssertEqual(
+            Exporter.companionViewNames(companions),
+            [
+                "SleepTimerCompanion",
+                "SleepTimerCompanion2",
+                "HomeCompanion",
+                "ItemCompanion",
+                "Item9LivesCompanion",
+                "ItemCafCompanion",
+            ]
+        )
+    }
+
+    func testStyleLiteralsNamePresetsAndListDifferences() {
+        XCTAssertEqual(Exporter.styleLiteral(.standard), ".standard")
+        XCTAssertEqual(Exporter.styleLiteral(.faded), ".faded")
+        XCTAssertEqual(Exporter.styleLiteral(.raised), ".raised")
+        XCTAssertEqual(
+            Exporter.styleLiteral(NookStandardCompanionStyle(fade: .init(end: 0.4), shadow: .soft)),
+            ".standard(fade: .init(end: 0.4), shadow: .soft)"
+        )
+        XCTAssertEqual(Exporter.styleLiteral(NookStandardCompanionStyle(fade: .toClear)), ".standard(fade: .toClear)")
+        XCTAssertEqual(Exporter.fadeLiteral(0.25), ".standard")
+    }
+
     func testCompanionAnchorShapeAndBackdropLiterals() {
-        var companion = PlaygroundSettings.Companion(id: "x", kind: .actions)
+        var companion = PlaygroundSettings.Companion(id: "x", template: .actions)
         XCTAssertEqual(Exporter.anchorLiteral(companion), ".below")
         companion.anchor = .trailing
         XCTAssertEqual(Exporter.anchorLiteral(companion), ".trailing")

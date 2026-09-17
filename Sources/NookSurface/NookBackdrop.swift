@@ -144,3 +144,46 @@ public enum NookBackdrop: Equatable, Sendable {
     /// `NookBackdropConfiguration.solidBlack`; rendering is byte-identical.
     public static let solidBlack = NookBackdrop.solid(.black)
 }
+
+/// Paints a ``NookBackdrop`` in a shape the way the chrome paints its own - solid, vibrancy, or
+/// Liquid Glass, with the same availability fallbacks - for companion styles and content that
+/// draw their own pieces, such as a segmented pill or separately filled buttons.
+///
+/// ```swift
+/// @Environment(\.nookChromeBackdrop) private var chromeBackdrop
+///
+/// var body: some View {
+///     if let chromeBackdrop {
+///         NookBackdropView(chromeBackdrop, in: UnevenRoundedRectangle(topLeadingRadius: 20))
+///     }
+/// }
+/// ```
+///
+/// The backdrop is clipped to `shape`.
+public struct NookBackdropView<S: Shape>: View {
+    let backdrop: NookBackdrop
+    let shape: S
+
+    public init(_ backdrop: NookBackdrop, in shape: S) {
+        self.backdrop = backdrop
+        self.shape = shape
+    }
+
+    public var body: some View {
+        NookBackdropFill(backdrop: backdrop, shape: shape)
+            .clipShape(shape)
+    }
+}
+
+private struct NookChromeBackdropKey: EnvironmentKey {
+    static let defaultValue: NookBackdrop? = nil
+}
+
+extension EnvironmentValues {
+    /// What the chrome is painted with right now, inside compact, expanded, and companion
+    /// content. `nil` anywhere else. Paint it with ``NookBackdropView``.
+    public var nookChromeBackdrop: NookBackdrop? {
+        get { self[NookChromeBackdropKey.self] }
+        set { self[NookChromeBackdropKey.self] = newValue }
+    }
+}

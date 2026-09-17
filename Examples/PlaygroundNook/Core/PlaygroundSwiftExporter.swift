@@ -12,9 +12,9 @@ import NookSurface
 /// Writes playground state out as Swift a host can paste into its `main.swift`. Pure.
 ///
 /// The snippet uses the single-module `NookConfiguration` path and sets only what differs from
-/// the framework's defaults, so an untouched playground exports an empty configuration. The
-/// views the playground demonstrates with - its home view and companion contents - appear as
-/// placeholder views to replace with your own.
+/// the framework's defaults, so an untouched playground exports an empty configuration. The home
+/// view appears as a placeholder to replace with your own. Each companion's content is written
+/// out as a view of its own, with a comment where a button's action goes.
 public enum PlaygroundSwiftExporter {
     public static func snippet(for preset: PlaygroundPreset) -> String {
         let settings = preset.settings
@@ -24,7 +24,7 @@ public enum PlaygroundSwiftExporter {
             panelLines(settings.panel),
             tokenLines(settings),
             topBarLines(settings.topBar),
-            companionLines(settings.companions),
+            companionLines(settings),
             effectLines(rimGlow: settings.rimGlow, scrollEdgeFade: settings.scrollEdgeFade),
             behaviorLines(settings.behavior),
         ]
@@ -40,6 +40,10 @@ public enum PlaygroundSwiftExporter {
             lines += section
         }
         lines += ["", "NookApp.main(configuration)"]
+        let views = companionViewLines(settings)
+        if !views.isEmpty {
+            lines += ["", "// MARK: - Companion content", ""] + views
+        }
         return lines.joined(separator: "\n") + "\n"
     }
 
@@ -237,37 +241,261 @@ public enum PlaygroundSwiftExporter {
         return lines
     }
 
-    static func companionLines(_ companions: [PlaygroundSettings.Companion]) -> [String] {
-        let defaults = PlaygroundSettings.Companion(id: "", kind: .actions)
-        var lines: [String] = []
-        for companion in companions {
+    /// The companion defaults, then one `addCompanion` call per companion. A companion's content
+    /// is the view ``companionViewLines(_:)`` writes for it.
+    ///
+    /// A companion with no items is hidden in the playground, so it is left out here, with a
+    /// comment saying so.
+    static func companionLines(_ settings: PlaygroundSettings) -> [String] {
+        var lines = companionDefaultLines(settings.companionDefaults)
+        if !lines.isEmpty, !settings.companions.isEmpty {
+            lines.append("")
+        }
+        let blank = PlaygroundSettings.Companion(id: "")
+        let exported = exportedCompanions(settings)
+        let names = companionViewNames(exported)
+        let accented = exported.contains { $0.accent != nil }
+        if accented {
+            lines.append("let chromeTheme = configuration.theme")
+        }
+        for companion in settings.companions where companion.items.isEmpty {
+            lines.append("// \(stringLiteral(companion.id)) holds nothing yet, so it is left out.")
+        }
+        for (companion, name) in zip(exported, names) {
             var arguments = ["id: \(stringLiteral(companion.id))"]
-            if companion.anchor != defaults.anchor || companion.alignment != defaults.alignment {
+            if companion.anchor != blank.anchor || companion.alignment != blank.alignment {
                 arguments.append("anchor: \(anchorLiteral(companion))")
             }
-            if differs(companion.spacing, defaults.spacing) {
+            if differs(companion.spacing, blank.spacing) {
                 arguments.append("spacing: \(number(companion.spacing))")
             }
-            if companion.visibility != defaults.visibility {
+            if let gap = companion.gap {
+                arguments.append("gap: \(number(gap))")
+            }
+            if let rowAlignment = companion.rowAlignment {
+                arguments.append("rowAlignment: \(literal(rowAlignment))")
+            }
+            if companion.visibility != blank.visibility {
                 arguments.append("visibility: \(literal(companion.visibility))")
             }
-            if companion.outline != defaults.outline {
+            if companion.outline != blank.outline {
                 arguments.append("shape: \(shapeLiteral(companion))")
             }
-            if companion.backdrop != defaults.backdrop {
+            if companion.backdrop != blank.backdrop {
                 arguments.append("backdrop: \(backdropLiteral(companion))")
             }
-            if companion.hidesInSettings != defaults.hidesInSettings {
+            if companion.overridesStyle {
+                arguments.append("style: \(styleLiteral(companion.style(over: settings.companionDefaults)))")
+            }
+            if let size = companion.size {
+                arguments.append("size: \(literal(size))")
+            }
+            if let presence = companion.presence {
+                arguments.append("presence: \(literal(presence))")
+            }
+            if companion.hidesInSettings != blank.hidesInSettings {
                 arguments.append("hidesInSettings: \(companion.hidesInSettings)")
             }
             if let label = companion.accessibilityLabel {
                 arguments.append("accessibilityLabel: \(stringLiteral(label))")
             }
-            lines += call("configuration.addCompanion", arguments: arguments, trailer: " {")
-            lines.append("    \(placeholder(for: companion.kind))")
+            if let accent = companion.accent {
+                // A closure argument never fits on one line, so this call always breaks.
+                arguments.append(
+                    "theme: { appState in\n"
+                        + "        var theme = chromeTheme(appState)\n"
+                        + "        theme.accent = \(literal(accent))\n"
+                        + "        return theme\n"
+                        + "    }"
+                )
+            }
+            if accented, companion.accent != nil {
+                lines += ["configuration.addCompanion("] + argumentLines(arguments, indent: 4) + [") {"]
+            } else {
+                lines += call("configuration.addCompanion", arguments: arguments, trailer: " {")
+            }
+            lines.append("    \(name)()")
+            lines.append("}")
+        }
+        return lines.flatMap { $0.components(separatedBy: "\n") }
+    }
+
+    /// `configuration.companionSize`, `companionStyle`, and `companionPresence`, when they differ
+    /// from the framework's.
+    static func companionDefaultLines(_ defaults: PlaygroundSettings.CompanionDefaults) -> [String] {
+        let fallback = PlaygroundSettings.CompanionDefaults()
+        var lines: [String] = []
+        if defaults.size != fallback.size {
+            lines.append("configuration.companionSize = \(literal(defaults.size))")
+        }
+        if defaults.style != fallback.style {
+            lines.append("configuration.companionStyle = \(styleLiteral(defaults.style))")
+        }
+        if defaults.presence != fallback.presence {
+            lines.append("configuration.companionPresence = \(literal(defaults.presence))")
+        }
+        guard !lines.isEmpty else { return [] }
+        return ["// How every companion looks and appears, unless it says otherwise."] + lines
+    }
+
+    /// A view per companion, holding its items: glyph buttons, labels, and the framework's lock and
+    /// gear. Buttons take the companion's size from the environment through `.nookGlyph`, and
+    /// labels and accent fills take the companion's palette from `\.nookResolvedTheme`, as they do
+    /// in the playground.
+    static func companionViewLines(_ settings: PlaygroundSettings) -> [String] {
+        var lines: [String] = []
+        let exported = exportedCompanions(settings)
+        let names = companionViewNames(exported)
+        for (companion, name) in zip(exported, names) {
+            if !lines.isEmpty { lines.append("") }
+            let items = companion.items
+            let usesChromeActions = items.contains { item in
+                item.type == .button && [.keepOpen, .settings, .collapse].contains(item.action)
+            }
+            let usesTheme = items.contains { item in
+                item.type == .label || (item.type == .button && item.fill == .color && item.fillColor == nil)
+            }
+            lines.append("struct \(name): View {")
+            if usesChromeActions {
+                lines.append("    @Environment(\\.nookChromeActions) private var chromeActions")
+            }
+            if usesTheme {
+                lines.append("    @Environment(\\.nookResolvedTheme) private var theme")
+            }
+            if usesChromeActions || usesTheme {
+                lines.append("")
+            }
+            lines.append("    var body: some View {")
+            let size = (companion.size ?? settings.companionDefaults.size).nookSize
+            let hasButtons = items.contains { $0.type == .button }
+            if items.count == 1 {
+                lines += itemLines(items[0], indent: 8, containerStyled: false)
+            } else {
+                let stack = companion.resolvedLayout == .column ? "VStack" : "HStack"
+                lines.append("        \(stack)(spacing: \(number(Double(size.controlSpacing)))) {")
+                for item in items {
+                    lines += itemLines(item, indent: 12, containerStyled: hasButtons)
+                }
+                lines.append("        }")
+                if hasButtons {
+                    lines.append("        .buttonStyle(.nookGlyph)")
+                }
+            }
+            lines.append("    }")
             lines.append("}")
         }
         return lines
+    }
+
+    /// The companions the snippet writes: every one that holds something.
+    static func exportedCompanions(_ settings: PlaygroundSettings) -> [PlaygroundSettings.Companion] {
+        settings.companions.filter { !$0.items.isEmpty }
+    }
+
+    /// One item of a companion's content. `containerStyled` says whether the stack around it
+    /// already applies `.nookGlyph`, so a button with no changes of its own needs none.
+    static func itemLines(_ item: PlaygroundSettings.Item, indent: Int, containerStyled: Bool) -> [String] {
+        let padding = String(repeating: " ", count: indent)
+        switch item.type {
+            case .keepOpen:
+                return [padding + "NookKeepOpenButton()"]
+            case .settings:
+                return [padding + "NookSettingsButton()"]
+            case .label:
+                // The icon in its own color or the accent, the text in the palette's label color.
+                var lines = [padding + "HStack(spacing: 6) {"]
+                if let symbol = item.displaySymbol {
+                    lines.append(padding + "    Image(systemName: \(stringLiteral(symbol)))")
+                    lines.append(padding + "        .foregroundStyle(\(item.tint.map(literal) ?? "theme.accent"))")
+                }
+                if let title = item.title {
+                    lines.append(padding + "    Text(\(stringLiteral(title)))")
+                    lines.append(padding + "        .foregroundStyle(theme.primaryLabel)")
+                    lines.append(padding + "        .lineLimit(1)")
+                }
+                lines.append(padding + "}")
+                lines.append(padding + ".font(.system(size: 12, weight: .semibold))")
+                lines.append(padding + ".padding(.horizontal, 8)")
+                lines.append(padding + ".accessibilityElement(children: .combine)")
+                return lines
+            case .button:
+                let symbol = item.displaySymbol ?? item.action.defaultSymbol
+                let head = "Button(\(stringLiteral(item.displayTitle)), systemImage: \(stringLiteral(symbol)))"
+                var lines = [padding + head + " " + actionLiteral(item.action)]
+                let arguments = glyphStyleArguments(item)
+                guard !arguments.isEmpty || !containerStyled else { return lines }
+                let style = arguments.isEmpty ? ".nookGlyph" : ".nookGlyph(\(arguments.joined(separator: ", ")))"
+                let line = padding + "    .buttonStyle(\(style))"
+                if line.count <= maximumLineLength {
+                    lines.append(line)
+                } else {
+                    lines.append(padding + "    .buttonStyle(")
+                    lines.append(padding + "        .nookGlyph(")
+                    lines += argumentLines(arguments, indent: indent + 12)
+                    lines.append(padding + "        )")
+                    lines.append(padding + "    )")
+                }
+                return lines
+        }
+    }
+
+    /// What a button runs: the framework's chrome actions where the playground runs one, and a
+    /// comment where the host's own action goes.
+    static func actionLiteral(_ action: PlaygroundSettings.Item.Action) -> String {
+        switch action {
+            case .none: "{}"
+            case .status: "{}  // your action"
+            case .rimGlow: "{}  // your action, such as lighting the rim with .nookRimGlow(_:)"
+            case .keepOpen: "{ chromeActions.toggleKeepOpen() }"
+            case .settings: "{ chromeActions.toggleSettings() }"
+            case .collapse: "{ chromeActions.collapse() }"
+        }
+    }
+
+    /// The `.nookGlyph(...)` arguments for what `item` changes; empty for a plain glyph button.
+    static func glyphStyleArguments(_ item: PlaygroundSettings.Item) -> [String] {
+        var arguments: [String] = []
+        if item.size == .surface {
+            arguments.append("size: .surface")
+        }
+        if let tint = item.tint {
+            arguments.append("foreground: \(literal(tint))")
+        }
+        switch item.fill {
+            case .none:
+                break
+            case .subtle:
+                arguments.append("fill: .subtle")
+            case .color:
+                arguments.append("fill: .color(\(item.fillColor.map(literal) ?? "theme.accent"))")
+            case .chrome:
+                arguments.append("fill: .chromeBackdrop")
+        }
+        if let fade = item.fade, item.fill != .none, fade < 1 {
+            arguments.append("fade: \(fadeLiteral(fade))")
+        }
+        return arguments
+    }
+
+    /// A Swift type name for each companion's content view, unique within the snippet:
+    /// `sleep-timer` becomes `SleepTimerCompanion`.
+    static func companionViewNames(_ companions: [PlaygroundSettings.Companion]) -> [String] {
+        var used = Set<String>(["MyHomeView", "MyNookHome", "HeaderTitle", "HeaderButtons"])
+        return companions.map { companion in
+            let words = companion.id.split { !$0.isLetter && !$0.isNumber }
+            var base = words.map { $0.prefix(1).uppercased() + $0.dropFirst() }.joined()
+            if base.isEmpty || base.first?.isNumber == true || !base.unicodeScalars.allSatisfy(\.isASCII) {
+                base = "Item" + base.filter { $0.isASCII && ($0.isLetter || $0.isNumber) }
+            }
+            var name = base + "Companion"
+            var suffix = 2
+            while used.contains(name) {
+                name = "\(base)Companion\(suffix)"
+                suffix += 1
+            }
+            used.insert(name)
+            return name
+        }
     }
 
     static func effectLines(
@@ -480,13 +708,65 @@ public enum PlaygroundSwiftExporter {
         }
     }
 
-    static func placeholder(for kind: PlaygroundSettings.Companion.Kind) -> String {
-        switch kind {
-            case .actions: "ActionPill()  // your view: a row of icon buttons"
-            case .button: "RoundButton()  // your view: a single icon button"
-            case .controls: "ChromeControls()  // your view stacking NookKeepOpenButton() and NookSettingsButton()"
-            case .chip: "StatusChip()  // your view: a short label"
+    static func literal(_ size: PlaygroundSettings.Companion.Size) -> String {
+        switch size {
+            case .small: ".small"
+            case .regular: ".regular"
+            case .large: ".large"
         }
+    }
+
+    static func literal(_ presence: PlaygroundSettings.Companion.Presence) -> String {
+        switch presence {
+            case .fold: ".fold"
+            case .fade: ".fade"
+            case .slide: ".slide"
+            case .pop: ".pop"
+        }
+    }
+
+    static func literal(_ alignment: PlaygroundSettings.Companion.AnchorAlignment) -> String {
+        switch alignment {
+            case .start: ".start"
+            case .center: ".center"
+            case .end: ".end"
+        }
+    }
+
+    /// A companion style: a preset's name when it is one, or `.standard(...)` with what differs.
+    static func styleLiteral(_ style: NookStandardCompanionStyle) -> String {
+        switch style {
+            case .standard: return ".standard"
+            case .faded: return ".faded"
+            case .raised: return ".raised"
+            case .plain: return ".plain"
+            default: break
+        }
+        var arguments: [String] = []
+        if let fade = style.fade {
+            arguments.append("fade: \(fadeLiteral(fade.end))")
+        }
+        if style.stroke != nil {
+            arguments.append("stroke: .hairline")
+        }
+        if style.shadow != nil {
+            arguments.append("shadow: .soft")
+        }
+        switch style.hover {
+            case .highlight: arguments.append("hover: .highlight")
+            case .lift: arguments.append("hover: .lift")
+            case .glow: arguments.append("hover: .glow")
+            default: break
+        }
+        return ".standard(\(arguments.joined(separator: ", ")))"
+    }
+
+    /// A fade that runs from solid to `end`: `.standard`, `.toClear`, or `.init(end: 0.4)`.
+    static func fadeLiteral(_ end: Double) -> String {
+        let fade = NookStandardCompanionStyle.Fade(start: 1, end: end)
+        if fade == .standard { return ".standard" }
+        if fade == .toClear { return ".toClear" }
+        return ".init(end: \(number(end)))"
     }
 
     /// A Swift string literal for `text`, escaping everything a literal cannot hold as is.
