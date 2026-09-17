@@ -8,8 +8,9 @@
 import NookSurface
 import SwiftUI
 
-/// The chrome's own actions - what the top bar's keep-open lock and Settings gear do - for
-/// host views that place those controls somewhere else, such as a companion surface.
+/// The chrome's own actions - what the top bar's keep-open lock and Settings gear do, the
+/// Settings reset, and handing the keyboard to the nook and back - for host views that place
+/// those controls somewhere else, such as a companion surface or a Settings screen of their own.
 ///
 /// Read it from the environment in home, compact, or companion content:
 ///
@@ -39,14 +40,33 @@ public struct NookChromeActions: Sendable {
     /// Collapses the nook to its compact pill.
     public var collapse: @Sendable @MainActor () -> Void
 
+    /// Returns appearance, the global shortcut, and the display to the host's defaults and
+    /// forgets the person's choices - what Settings' "Reset All Settings" does. See
+    /// ``AppCoordinator/resetAllSettingsToDefaults()``.
+    public var resetSettings: @Sendable @MainActor () -> Void
+
+    /// Gives the nook the keyboard, so typing reaches its focused text input without a click -
+    /// for a field focused when it appears, say. See ``AppCoordinator/takeNookKeyboardFocus()``.
+    public var takeKeyboardFocus: @Sendable @MainActor () -> Void
+
+    /// Hands the keyboard back to the app in front. See
+    /// ``AppCoordinator/releaseNookKeyboardFocus()``.
+    public var releaseKeyboardFocus: @Sendable @MainActor () -> Void
+
     public init(
         toggleKeepOpen: @escaping @Sendable @MainActor () -> Void,
         toggleSettings: @escaping @Sendable @MainActor () -> Void,
-        collapse: @escaping @Sendable @MainActor () -> Void
+        collapse: @escaping @Sendable @MainActor () -> Void,
+        resetSettings: @escaping @Sendable @MainActor () -> Void = {},
+        takeKeyboardFocus: @escaping @Sendable @MainActor () -> Void = {},
+        releaseKeyboardFocus: @escaping @Sendable @MainActor () -> Void = {}
     ) {
         self.toggleKeepOpen = toggleKeepOpen
         self.toggleSettings = toggleSettings
         self.collapse = collapse
+        self.resetSettings = resetSettings
+        self.takeKeyboardFocus = takeKeyboardFocus
+        self.releaseKeyboardFocus = releaseKeyboardFocus
     }
 
     /// Actions that do nothing - the value outside a live chrome, such as in a preview.

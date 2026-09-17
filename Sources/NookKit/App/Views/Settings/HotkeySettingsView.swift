@@ -9,6 +9,63 @@ import AppKit
 import Carbon.HIToolbox
 import SwiftUI
 
+/// The global shortcut, "Stay expanded", and haptic feedback - the body of the built-in
+/// Settings screen's "Shortcut & nook" group, for a host that builds its own Settings screen.
+///
+/// Use it inside chrome content, which supplies the chrome's actions: "Stay expanded" runs
+/// ``NookChromeActions/toggleKeepOpen``, like the top bar's lock.
+///
+/// ```swift
+/// NookSettingsGroup("Shortcut & nook") { NookShortcutSettingsSection(appState: appState) }
+/// ```
+public struct NookShortcutSettingsSection: View {
+    @ObservedObject public var appState: AppState
+
+    @Environment(\.nookResolvedTheme) private var theme
+    @Environment(\.nookChromeMetrics) private var metrics
+    @Environment(\.nookChromeActions) private var actions
+
+    public init(appState: AppState) {
+        self.appState = appState
+    }
+
+    public var body: some View {
+        VStack(alignment: .leading, spacing: metrics.settingsGroupSpacing) {
+            SettingsShortcutRow(appState: appState)
+            if !appState.hotkeyRegistrationFailures.keys.filter({ $0 != NookHotkeyIDs.toggle }).isEmpty {
+                SettingsHotkeyFailureRow(appState: appState)
+            }
+            SettingActionLine(
+                icon: appState.keepNookOpen ? "pin.fill" : "pin",
+                title: "Stay expanded",
+                detail: appState.keepNookOpen
+                    ? "On — nook stays open after hover ends"
+                    : "Off — closes when the pointer leaves",
+                accent: theme.accent,
+                action: actions.toggleKeepOpen
+            )
+            SettingActionLine(
+                icon: appState.appearancePreferences.hapticFeedbackEnabled ? "hand.tap.fill" : "hand.tap",
+                title: "Haptic feedback",
+                detail: appState.appearancePreferences.hapticFeedbackEnabled
+                    ? "On — trackpad pulse on confirmation"
+                    : "Off — silent confirmation",
+                accent: theme.accent,
+                action: toggleHapticFeedback
+            )
+        }
+    }
+
+    /// Flip the haptic preference and fire one pulse on the way *on* so the user feels
+    /// what they just enabled. Off doesn't pulse - silence is its whole point.
+    private func toggleHapticFeedback() {
+        var prefs = appState.appearancePreferences
+        prefs.hapticFeedbackEnabled.toggle()
+        appState.replaceAppearancePreferences(prefs)
+        NookHaptics.confirm(enabled: prefs.hapticFeedbackEnabled)
+    }
+}
+
 /// Settings row for the global show/hide hotkey. Tap the shortcut to record a new one:
 /// the next modifier + key combination is captured, persisted via `AppState`, and
 /// re-registered live by `AppCoordinator`. Escape cancels.
@@ -19,6 +76,7 @@ struct SettingsShortcutRow: View {
     @Environment(\.nookChromeTypography) private var typography
     @Environment(\.nookChromeMetrics) private var metrics
     @Environment(\.nookHostBranding) private var branding
+    @Environment(\.nookChromeActions) private var actions
     @State private var isRecording = false
     @State private var eventMonitor: Any?
 
@@ -91,6 +149,9 @@ struct SettingsShortcutRow: View {
     private func startRecording() {
         isRecording = true
         appState.isRecordingHotkey = true
+        // The recorder listens for key presses, which reach the nook only while it has the
+        // keyboard - not the case when the person came from another app without clicking.
+        actions.takeKeyboardFocus()
 
         eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             // Escape cancels without changing the shortcut.

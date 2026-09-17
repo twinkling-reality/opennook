@@ -25,6 +25,29 @@ Another app may already own **⌥⌘;**. A failed registration is surfaced in
 Settings as a per-shortcut warning (`HotkeyRegistrationFailure`); rebind to a
 free combination there. (See [Your first nook](/start/first-nook/).)
 
+## Typing goes to another app
+
+The nook's panel never activates your app, so the app in front keeps the keyboard
+until the person clicks in the nook. A field focused from code while nothing was
+clicked - on appear, or after the global shortcut - needs the keyboard asked for:
+`\.nookChromeActions.takeKeyboardFocus()`, or opt the shortcut in with
+`chromeBehavior.keyboard.shortcutTakesKeyboardFocus`. (See
+[Typing in the nook](/guides/keyboard/).)
+
+## Copy and paste do nothing in a text field
+
+The shortcuts come from an Edit menu. OpenNook installs a hidden one at launch unless
+the app already has one or `chromeBehavior.keyboard.installsEditMenu` is off; a host
+that replaces `NSApp.mainMenu` later needs an Edit menu of its own. (See
+[Typing in the nook](/guides/keyboard/#the-edit-menu).)
+
+## A changed default does not reach existing users
+
+Only the appearance fields a person changed are stored, so a new
+`preferenceDefaults` value reaches everyone who never chose that field. A field
+they did choose keeps their choice until they reset. (See
+[Launch defaults](/guides/chrome-customization/#launch-defaults-preferencedefaults).)
+
 ## Text or icons render in the wrong color (white on white)
 
 The notch panel's SwiftUI `colorScheme` is unreliable, so adaptive colors like
@@ -35,9 +58,9 @@ explicit `Color.white` / `Color.black` at a fixed opacity. (See
 ## The Settings gear is missing
 
 `topBar.showsSettings = false` removes the gear, and `topBar.showsTopBar = false`
-removes the whole bar (gear included). Settings stays reachable from the
-menu-bar fallback unless `showsSettings` is off. (See
-[Settings chrome](/guides/settings-chrome/).)
+removes the whole bar (gear included). Unless `showsSettings` is off, Settings stays
+reachable from the menu-bar fallback and from a `NookSettingsButton` placed in a
+companion or your home view. (See [Settings chrome](/guides/settings-chrome/).)
 
 ## Content is hidden behind the notch
 

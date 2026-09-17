@@ -950,12 +950,33 @@ extension PlaygroundSettings {
         }
     }
 
-    /// `NookChromeBehavior.hoverBehavior`.
+    /// `NookChromeBehavior.hoverBehavior` and `NookChromeBehavior.glassShading`.
     public struct Behavior: Equatable, Sendable {
         public var hoverKeepsVisible = Behavior.base.contains(.keepVisible)
         public var hoverHaptics = Behavior.base.contains(.hapticFeedback)
+        public var glassShading = GlassShading(NookChromeBehavior.default.glassShading)
 
         public init() {}
+
+        /// `NookGlassShading`, by a name a preset can store.
+        public enum GlassShading: String, Codable, CaseIterable, Sendable {
+            case even
+            case notchFade
+
+            public init(_ shading: NookGlassShading) {
+                switch shading {
+                    case .even: self = .even
+                    case .notchFade: self = .notchFade
+                }
+            }
+
+            public var nookShading: NookGlassShading {
+                switch self {
+                    case .even: .even
+                    case .notchFade: .notchFade
+                }
+            }
+        }
 
         static let base = NookChromeBehavior.default.hoverBehavior
 
@@ -1341,5 +1362,6 @@ extension PlaygroundSettings.Behavior: Codable {
         let fallback = Self()
         hoverKeepsVisible = try container.value(.hoverKeepsVisible, or: fallback.hoverKeepsVisible)
         hoverHaptics = try container.value(.hoverHaptics, or: fallback.hoverHaptics)
+        glassShading = try container.value(.glassShading, or: fallback.glassShading)
     }
 }

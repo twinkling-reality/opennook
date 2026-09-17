@@ -8,25 +8,35 @@
 import AppKit
 import SwiftUI
 
-/// Picks which display the Nook chrome appears on. Lives in its own Settings group.
+/// Picks which display the nook appears on - the body of the built-in Settings screen's
+/// Display group, for a host that builds its own Settings screen. Writes through
+/// ``AppState/replaceDisplayPreference(_:)``, so the nook moves at once.
 ///
 /// Offers the two stable modes (built-in / main) plus one entry per attached display.
 /// The display list refreshes on connect/disconnect; a previously-chosen display that's
 /// since been unplugged stays selectable as a "(not connected)" row so the preference
 /// isn't silently lost - the resolver falls back to the built-in display until it returns.
-struct DisplaySettingsSection: View {
-    @ObservedObject var appState: AppState
+///
+/// ```swift
+/// NookSettingsGroup("Display") { NookDisplaySettingsSection(appState: appState) }
+/// ```
+public struct NookDisplaySettingsSection: View {
+    @ObservedObject public var appState: AppState
     @Environment(\.nookResolvedTheme) private var theme
     @Environment(\.nookChromeTypography) private var typography
     @Environment(\.nookChromeMetrics) private var metrics
 
     @State private var displays: [NookScreenLocator.DisplayInfo] = NookScreenLocator.connectedDisplays()
 
+    public init(appState: AppState) {
+        self.appState = appState
+    }
+
     private static let builtInTag = "builtIn"
     private static let mainTag = "main"
     private static let specificTagPrefix = "uuid:"
 
-    var body: some View {
+    public var body: some View {
         VStack(alignment: .leading, spacing: metrics.settingsFieldSpacing) {
             Picker("Display", selection: selectionBinding) {
                 Text("Built-in display").tag(Self.builtInTag)

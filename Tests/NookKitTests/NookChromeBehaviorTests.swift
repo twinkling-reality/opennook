@@ -8,6 +8,7 @@
 import NookSurface
 import SwiftUI
 import XCTest
+
 @testable import NookKit
 
 /// Host-global chrome behavior: hover side-effects, the cold-launch shimmer opt-out, and
@@ -135,5 +136,127 @@ final class NookChromeBehaviorTests: XCTestCase {
         await coordinator.drainLifecycleForTesting()
 
         XCTAssertEqual(surface.feedbackCount, 1)
+    }
+
+    // MARK: - Glass shading and companion backdrops
+
+    private func glassAppState() -> AppState {
+        let appState = AppState()
+        appState.appearancePreferences = NookAppearancePreferences(chromePalette: .dark, surfaceStyle: .liquidGlass)
+        return appState
+    }
+
+    /// The glass shading reaches the chrome, and companions get the even glass that suits them.
+    func testNotchFadeReachesTheChromeAndCompanions() {
+        let surface = FakeNookSurface()
+        let coordinator = makeCoordinator(
+            chromeBehavior: NookChromeBehavior(glassShading: .notchFade),
+            appState: glassAppState(),
+            surface: surface
+        )
+
+        coordinator.syncNotchBackdrop()
+
+        XCTAssertEqual(
+            surface.backdrop,
+            .liquidGlass(.init(tint: nil, highlightStrength: 0.6, shading: .notchFade(.black, strength: 1)))
+        )
+        XCTAssertNotNil(surface.companionBackdrop)
+        XCTAssertNotEqual(surface.companionBackdrop, surface.backdrop)
+    }
+
+    /// With the default even glass, companions inherit the chrome's backdrop as before.
+    func testEvenGlassLeavesCompanionsOnTheChromesBackdrop() {
+        let surface = FakeNookSurface()
+        let coordinator = makeCoordinator(chromeBehavior: .default, appState: glassAppState(), surface: surface)
+
+        coordinator.syncNotchBackdrop()
+
+        XCTAssertNil(surface.companionBackdrop)
+    }
+
+    /// A host that resolves the chrome's backdrop keeps companions on it, unless it resolves
+    /// theirs too.
+    func testHostResolversDecideTheCompanionBackdrop() {
+        let surface = FakeNookSurface()
+        let replacing = makeCoordinator(
+            chromeBehavior: NookChromeBehavior(backdrop: { _, _, _ in .solid(.red) }, glassShading: .notchFade),
+            appState: glassAppState(),
+            surface: surface
+        )
+        replacing.syncNotchBackdrop()
+        XCTAssertNil(surface.companionBackdrop)
+
+        let companionSurface = FakeNookSurface()
+        let both = makeCoordinator(
+            chromeBehavior: NookChromeBehavior(
+                backdrop: { _, _, _ in .solid(.red) },
+                companionBackdrop: { _, _, _ in .solid(.blue) }
+            ),
+            surface: companionSurface
+        )
+        both.syncNotchBackdrop()
+        XCTAssertEqual(companionSurface.backdrop, .solid(.red))
+        XCTAssertEqual(companionSurface.companionBackdrop, .solid(.blue))
+    }
+
+    // MARK: - Keyboard
+
+    /// Defaults: the shortcut does not take the keyboard, and the Edit menu is installed.
+    func testKeyboardDefaults() {
+        XCTAssertEqual(NookChromeBehavior.default.keyboard, .default)
+        XCTAssertFalse(NookKeyboardBehavior.default.shortcutTakesKeyboardFocus)
+        XCTAssertTrue(NookKeyboardBehavior.default.installsEditMenu)
+        XCTAssertEqual(NookChromeBehavior.default.glassShading, .even)
+        XCTAssertNil(NookChromeBehavior.default.companionBackdrop)
+    }
+
+    /// Opted in, a shortcut that opens the nook gives it the keyboard; any other open does not.
+    func testShortcutOpenTakesTheKeyboardOnlyWhenOptedIn() async {
+        let optedIn = FakeNookSurface()
+        let coordinator = makeCoordinator(
+            chromeBehavior: NookChromeBehavior(keyboard: NookKeyboardBehavior(shortcutTakesKeyboardFocus: true)),
+            surface: optedIn
+        )
+        coordinator.toggleNook()
+        await coordinator.drainLifecycleForTesting()
+        XCTAssertEqual(optedIn.keyboardFocusRequests, 0, "an open from elsewhere leaves the keyboard alone")
+
+        coordinator.toggleNook()
+        coordinator.toggleNook(fromShortcut: true)
+        await coordinator.drainLifecycleForTesting()
+        XCTAssertEqual(optedIn.state, .expanded)
+        XCTAssertTrue(optedIn.hasKeyboardFocus)
+        XCTAssertTrue(coordinator.nookHasKeyboardFocus)
+
+        coordinator.toggleNook(fromShortcut: true)
+        await coordinator.drainLifecycleForTesting()
+        XCTAssertEqual(optedIn.state, .compact)
+        XCTAssertFalse(optedIn.hasKeyboardFocus, "collapsing hands the keyboard back")
+
+        let optedOut = FakeNookSurface()
+        let defaultCoordinator = makeCoordinator(chromeBehavior: .default, surface: optedOut)
+        defaultCoordinator.toggleNook(fromShortcut: true)
+        await defaultCoordinator.drainLifecycleForTesting()
+        XCTAssertEqual(optedOut.state, .expanded)
+        XCTAssertEqual(optedOut.keyboardFocusRequests, 0)
+    }
+
+    /// The coordinator's keyboard calls, and the chrome actions views use, reach the surface.
+    func testKeyboardCallsReachTheSurface() async {
+        let surface = FakeNookSurface()
+        let coordinator = makeCoordinator(chromeBehavior: .default, surface: surface)
+        XCTAssertFalse(coordinator.takeNookKeyboardFocus(), "a hidden nook cannot take the keyboard")
+
+        coordinator.showNook()
+        await coordinator.drainLifecycleForTesting()
+        coordinator.chromeActions.takeKeyboardFocus()
+        XCTAssertTrue(surface.hasKeyboardFocus)
+        coordinator.chromeActions.releaseKeyboardFocus()
+        XCTAssertFalse(surface.hasKeyboardFocus)
+        XCTAssertTrue(coordinator.takeNookKeyboardFocus())
+        coordinator.releaseNookKeyboardFocus()
+        XCTAssertFalse(coordinator.nookHasKeyboardFocus)
+        XCTAssertNil(coordinator.nookWindow, "the fake surface has no window")
     }
 }

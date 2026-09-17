@@ -79,6 +79,22 @@ protocol NookSurfaceDriving: AnyObject {
     /// What the chrome paints behind compact and expanded content.
     var backdrop: NookBackdrop { get set }
 
+    /// What companions inheriting the chrome's backdrop paint, or `nil` for the chrome's own.
+    var companionBackdrop: NookBackdrop? { get set }
+
+    /// The panel the chrome is drawn in right now, or `nil` while hidden.
+    var window: NSWindow? { get }
+
+    /// `true` while the chrome's panel has the keyboard.
+    var hasKeyboardFocus: Bool { get }
+
+    /// Gives the chrome's panel the keyboard. Returns `false` while hidden.
+    @discardableResult
+    func takeKeyboardFocus() -> Bool
+
+    /// Hands the keyboard back to the app in front.
+    func releaseKeyboardFocus()
+
     /// Open/close/conversion animation curves.
     var transitionConfiguration: NookTransitionConfiguration { get set }
 

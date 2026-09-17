@@ -99,6 +99,6 @@ extension PlaygroundSettings {
 
     /// The chrome behavior these settings describe.
     public var chromeBehavior: NookChromeBehavior {
-        NookChromeBehavior(hoverBehavior: behavior.hoverBehavior)
+        NookChromeBehavior(hoverBehavior: behavior.hoverBehavior, glassShading: behavior.glassShading.nookShading)
     }
 }

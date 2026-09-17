@@ -73,6 +73,7 @@ export default defineConfig({
             { label: 'Settings chrome', slug: 'guides/settings-chrome' },
             { label: 'Chrome customization', slug: 'guides/chrome-customization' },
             { label: 'Companion surfaces', slug: 'guides/companion-surfaces' },
+            { label: 'Typing in the nook', slug: 'guides/keyboard' },
             { label: 'Rim glow and edge fade', slug: 'guides/panel-effects' },
             { label: 'Displays and presentation', slug: 'guides/displays' },
           ],

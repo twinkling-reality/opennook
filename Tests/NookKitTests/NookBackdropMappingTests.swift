@@ -233,4 +233,93 @@ final class NookBackdropMappingTests: XCTestCase {
         )
         XCTAssertEqual(backdrop, expected)
     }
+
+    // MARK: - Notch fade
+
+    private func notchFade(
+        palette: NookChromePalette = .dark,
+        style: NookSurfaceStyle = .liquidGlass,
+        strength: Double = 1,
+        reduceTransparency: Bool = false
+    ) -> NookBackdrop {
+        var prefs = preferences(palette: palette, style: style)
+        prefs.backdropStrength = strength
+        return NookBackdropMapping.notchBackdrop(
+            preferences: prefs,
+            effectiveColorScheme: .dark,
+            reduceTransparency: reduceTransparency,
+            glassShading: .notchFade
+        )
+    }
+
+    /// The notch fade is clear glass, black at the notch and clear at the bottom.
+    func testNotchFadeRunsFromTheNotchColorToClear() {
+        XCTAssertEqual(
+            notchFade(),
+            .liquidGlass(.init(tint: nil, highlightStrength: 0.6, shading: .notchFade(.black, strength: 1)))
+        )
+        let stops = NookBackdrop.LiquidGlass.Shading.notchFade(.black, strength: 1).gradient.stops
+        XCTAssertEqual(stops.first?.color, .black)
+        XCTAssertEqual(stops.first?.location, 0)
+        XCTAssertEqual(stops.last?.color, .black.opacity(0))
+        XCTAssertEqual(stops.last?.location, 1)
+    }
+
+    /// Glass strength scales the fade below the top edge, which always matches the notch.
+    func testNotchFadeFollowsGlassStrength() {
+        let shading = NookBackdrop.LiquidGlass.Shading.notchFade(.black, strength: 0.5)
+        XCTAssertEqual(
+            shading.gradient.stops.map(\.color),
+            [.black, .black.opacity(0.45), .black.opacity(0.2), .black.opacity(0)]
+        )
+        XCTAssertEqual(
+            notchFade(strength: 0.5),
+            .liquidGlass(.init(tint: nil, highlightStrength: 0.6, shading: .notchFade(.black, strength: 0.5)))
+        )
+    }
+
+    /// Light chrome fades from white, so dark text stays legible at the top.
+    func testNotchFadeIsWhiteForLightChrome() {
+        XCTAssertEqual(
+            notchFade(palette: .light),
+            .liquidGlass(.init(tint: nil, highlightStrength: 0.6, shading: .notchFade(.white, strength: 1)))
+        )
+    }
+
+    /// The shading changes Liquid Glass only: Solid, Translucent, and Reduce Transparency are
+    /// the same whatever it is.
+    func testNotchFadeLeavesOtherStylesAlone() {
+        for style in [NookSurfaceStyle.solid, .translucent] {
+            let even = NookBackdropMapping.notchBackdrop(
+                preferences: preferences(palette: .dark, style: style),
+                effectiveColorScheme: .dark,
+                reduceTransparency: false
+            )
+            XCTAssertEqual(notchFade(style: style), even)
+        }
+        XCTAssertEqual(notchFade(reduceTransparency: true), .solid(.black))
+    }
+
+    /// Companions get their own backdrop only under the notch fade: the same clear glass with an
+    /// even tint, never the tall gradient.
+    func testCompanionsGetAnEvenGlassOnlyUnderTheNotchFade() {
+        func companion(_ shading: NookGlassShading, style: NookSurfaceStyle = .liquidGlass, rt: Bool = false)
+            -> NookBackdrop?
+        {
+            NookBackdropMapping.companionBackdrop(
+                preferences: preferences(palette: .dark, style: style),
+                effectiveColorScheme: .dark,
+                reduceTransparency: rt,
+                glassShading: shading
+            )
+        }
+        XCTAssertNil(companion(.even))
+        XCTAssertNil(companion(.notchFade, style: .solid))
+        XCTAssertNil(companion(.notchFade, style: .translucent))
+        XCTAssertNil(companion(.notchFade, rt: true))
+        XCTAssertEqual(
+            companion(.notchFade),
+            .liquidGlass(.init(tint: nil, highlightStrength: 0.6, shading: .uniform(.black.opacity(0.3))))
+        )
+    }
 }

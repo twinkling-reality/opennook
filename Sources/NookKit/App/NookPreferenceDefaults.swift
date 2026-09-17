@@ -20,7 +20,13 @@ import Foundation
 /// `UserDefaults`, so revising a default in a later build still reaches users who never
 /// touched that setting.
 ///
-/// Because there is a single ``AppState`` per process, these are host-process-global - 
+/// Appearance is kept field by field: changing the palette persists the palette alone, so
+/// the surface style, keep-open lock, and every other field the user never changed keep
+/// following these defaults. Resetting settings (``AppCoordinator/resetAllSettingsToDefaults()``,
+/// or ``AppState/resetAppearancePreferences()`` and its siblings) forgets the user's choices
+/// and returns to these defaults, not the framework's.
+///
+/// Because there is a single ``AppState`` per process, these are host-process-global -
 /// set them on ``NookHostConfiguration/preferenceDefaults`` (multi-module) or, for the
 /// single-module path, on ``NookConfiguration/preferenceDefaults`` (forwarded to the
 /// synthesized host). The default value reproduces the framework exactly.
