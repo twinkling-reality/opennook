@@ -128,8 +128,9 @@ configuration.preferenceDefaults = NookPreferenceDefaults(
 )
 
 // Chrome behavior - opt into hover side-effects (keep-visible + haptics), shade Liquid Glass
-// black at the notch and clear below (pick Liquid Glass in Settings to see it), and let the
-// global shortcut hand the nook the keyboard so the note field takes typing at once.
+// black at the notch and clear below when the panel is open, solid notch black when it is
+// collapsed (pick Liquid Glass in Settings to see it), and let the global shortcut hand the
+// nook the keyboard so the note field takes typing at once.
 configuration.chromeBehavior = NookChromeBehavior(
     hoverBehavior: .all,
     glassShading: .notchFade,

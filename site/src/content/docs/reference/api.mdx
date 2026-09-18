@@ -45,11 +45,13 @@ The app chrome layered over `NookSurface`.
   [Settings chrome](/guides/settings-chrome/#building-your-own-settings-screen).
   Source: `Sources/NookKit/App/Views/Settings/`.
 - **Chrome behavior** - `NookChromeBehavior` with `NookGlassShading`
-  (`glassShading`), the companion backdrop resolver (`companionBackdrop`), and
-  `NookKeyboardBehavior` (`keyboard`); `NookBackdropMapping`. See
+  (`glassShading`), the backdrop resolvers (`backdrop`, `companionBackdrop`) and the
+  `NookBackdropContext` they receive, and `NookKeyboardBehavior` (`keyboard`);
+  `NookBackdropMapping`. See
   [Chrome customization](/guides/chrome-customization/#chrome-behavior-nookchromebehavior)
   and [Surface materials](/guides/surface-materials/#notch-fade). Source:
   `Sources/NookKit/App/NookChromeBehavior.swift`,
+  `Sources/NookKit/App/NookBackdropContext.swift`,
   `Sources/NookKit/App/NookBackdropMapping.swift`.
 - **Keyboard** - `AppCoordinator.takeNookKeyboardFocus()`,
   `releaseNookKeyboardFocus()`, `nookHasKeyboardFocus`, and `nookWindow`;
@@ -148,6 +150,8 @@ these through `NookKit` rather than directly; the host-facing knobs are:
   shape by content and styles; `Nook.companionBackdrop` - what companions inherit
   instead; `NookBackdrop.LiquidGlass.Shading.notchFade(_:strength:)` - the notch fade
   gradient.
+- `Nook.layoutForm` (`NookChromeForm`) - the layout `Nook.presentation` resolved to on
+  the chrome's current screen, notch-fused or floating.
 - `Nook.takeKeyboardFocus()`, `releaseKeyboardFocus()`, `hasKeyboardFocus`
   (`\.nookHasKeyboardFocus` in content), and `Nook.window` - the panel's keyboard
   focus and the panel itself. See

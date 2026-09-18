@@ -255,7 +255,7 @@ final class LiveConfigurationTests: XCTestCase {
             NookChromeBehavior(
                 hoverBehavior: .all,
                 showsLaunchShimmer: false,
-                backdrop: { _, _, _ in .solid(.red) }
+                backdrop: { _ in .solid(.red) }
             )
         )
 
@@ -280,8 +280,8 @@ final class LiveConfigurationTests: XCTestCase {
         let surface = FakeNookSurface()
         let coordinator = makeCoordinator([TunableModule(id: "A")], surface: surface, appState: appState)
         coordinator.replaceChromeBehavior(
-            NookChromeBehavior(backdrop: { preferences, _, _ in
-                preferences.chromePalette == .light ? .solid(.white) : .solid(.blue)
+            NookChromeBehavior(backdrop: { context in
+                context.preferences.chromePalette == .light ? .solid(.white) : .solid(.blue)
             })
         )
         appState.appearancePreferences.chromePalette = .dark

@@ -235,14 +235,18 @@ and runs on earlier systems. See
 [Surface materials](https://opennook.dev/guides/surface-materials/).
 
 **Chrome behavior.** Hover side-effects, the cold-launch shimmer, and the
-appearance->backdrop mapping:
+state->backdrop mapping. The resolver is re-run on every expand and collapse and
+receives a `NookBackdropContext`, so the collapsed pill and the expanded panel can
+be painted differently:
 
 ```swift
 configuration.chromeBehavior = NookChromeBehavior(
     hoverBehavior: .all,         // default []: opt into hover haptics / keep-visible
     showsLaunchShimmer: false,   // default true: launch silently
-    backdrop: { preferences, scheme, reduceTransparency in
-        .vibrancy(.init(material: .hudWindow, darkenOpacity: 0.3))
+    backdrop: { context in
+        context.isExpanded
+            ? .vibrancy(.init(material: .hudWindow, darkenOpacity: 0.3))
+            : .solid(.black)     // collapsed: read as the hardware notch
     }
 )
 ```

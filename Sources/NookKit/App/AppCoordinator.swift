@@ -929,6 +929,45 @@ public final class AppCoordinator: ObservableObject {
             .sink { [weak self] _ in self?.syncNotchBackdrop() }
             .store(in: &cancellables)
 
+        // The chrome is two surfaces, and they do not want the same backdrop: collapsed, a
+        // notch-fused panel is the notch's own height with most of its width behind the
+        // camera; expanded, it is a tall panel with room for a gradient. Re-resolve on every
+        // transition so a resolver - the framework's `.notchFade` included - can answer
+        // differently for each.
+        //
+        // Deliberately *not* `receive(on: RunLoop.main)`, unlike the sinks around it.
+        // `@Published` emits in `willSet`, so this runs inside the `withAnimation` that is
+        // setting the state: the new backdrop joins that transaction and cross-fades with the
+        // transition instead of landing a frame late, after the panel has already resized.
+        // The emitted value is what we resolve against - the surface's own `state` property
+        // still reads the outgoing one at this point.
+        //
+        // `.hidden` is filtered out rather than resolved: nothing is painted while hidden, and
+        // expand-from-compact routes through `.hidden` between the two visible states (see
+        // `Nook._expand`), so resolving it would repaint the backdrop mid-transition and flash
+        // whatever the collapsed state maps to across a panel that is on its way open.
+        surface.statePublisher
+            .filter { $0 != .hidden }
+            .removeDuplicates()
+            .sink { [weak self] state in
+                guard let self else { return }
+                self.resolveBackdrops(state: state, form: self.surface.layoutForm)
+            }
+            .store(in: &cancellables)
+
+        // The resolved layout is the other half of "which surface is this": `.auto` lands on
+        // the notch form or the floating one depending on the display, and a backdrop meant to
+        // read as the hardware notch is only right on the former. It changes when the window is
+        // rebuilt - a new screen, a new presentation - so re-resolve there too. Deferred to the
+        // next runloop turn because the publish happens in `willSet` *during* that rebuild;
+        // reading the surface back on this one would see the outgoing form.
+        surface.layoutFormPublisher
+            .dropFirst()
+            .removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.syncNotchBackdrop() }
+            .store(in: &cancellables)
+
         accessibilityObserver = ObserverToken(
             token: NotificationCenter.default.addObserver(
                 forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,
@@ -955,37 +994,63 @@ public final class AppCoordinator: ObservableObject {
         // Layout picker re-places the chrome immediately.
         surface.presentation = appState.appearancePreferences.presentation
 
-        let scheme = appState.appearancePreferences.effectiveColorScheme(systemScheme: currentResolvedSystemScheme())
-        let reduceTransparency = NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
         // Pin the window appearance first: the backdrop's visual-effect material resolves
         // against it, so a forced light/dark theme needs both to agree.
         surface.chromeAppearance = appState.appearancePreferences.chromeAppearanceOverride
-        // A host can override the appearance->backdrop mapping; the framework mapping is
+
+        resolveBackdrops(state: surface.state, form: surface.layoutForm)
+    }
+
+    /// Resolves the chrome's backdrop, and the one companions inherit, for the chrome the
+    /// surface is showing right now - and projects both onto it.
+    ///
+    /// Split out of ``syncNotchBackdrop()`` because it is called from two places with
+    /// different ideas of "right now": the appearance path reads the state off the surface,
+    /// while the state sink is running *inside* the transition that is changing it and passes
+    /// the incoming value instead. Nothing here touches ``NookSurfaceDriving/presentation``,
+    /// so a transition can re-resolve without any risk of rebuilding the window under itself.
+    private func resolveBackdrops(state: NookState, form: NookChromeForm) {
+        let scheme = appState.appearancePreferences.effectiveColorScheme(systemScheme: currentResolvedSystemScheme())
+        let reduceTransparency = NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
+        // A host can override the state->backdrop mapping; the framework mapping is
         // the default. See `NookChromeBehavior.backdrop`.
         let behavior = moduleHost.chromeBehavior
         let preferences = appState.appearancePreferences
+        let context = NookBackdropContext(
+            preferences: preferences,
+            colorScheme: scheme,
+            reduceTransparency: reduceTransparency,
+            state: state,
+            form: form
+        )
+        let backdrop: NookBackdrop
         if let resolve = behavior.backdrop {
-            surface.backdrop = resolve(preferences, scheme, reduceTransparency)
+            backdrop = resolve(context)
         } else {
-            surface.backdrop = NookBackdropMapping.notchBackdrop(
+            backdrop = NookBackdropMapping.notchBackdrop(
                 preferences: preferences,
                 effectiveColorScheme: scheme,
                 reduceTransparency: reduceTransparency,
-                glassShading: behavior.glassShading
+                glassShading: behavior.glassShading,
+                state: state
             )
+        }
+        if surface.backdrop != backdrop {
+            surface.backdrop = backdrop
         }
         // Companions inherit their own backdrop only when one is resolved: a host resolver, or
         // the framework's for a glass shading that does not suit a small pill. A host that
         // replaces the chrome's backdrop keeps companions on it unless it resolves theirs too.
         let companionBackdrop: NookBackdrop?
         if let resolve = behavior.companionBackdrop {
-            companionBackdrop = resolve(preferences, scheme, reduceTransparency)
+            companionBackdrop = resolve(context)
         } else if behavior.backdrop == nil {
             companionBackdrop = NookBackdropMapping.companionBackdrop(
                 preferences: preferences,
                 effectiveColorScheme: scheme,
                 reduceTransparency: reduceTransparency,
-                glassShading: behavior.glassShading
+                glassShading: behavior.glassShading,
+                state: state
             )
         } else {
             companionBackdrop = nil

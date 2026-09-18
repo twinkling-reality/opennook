@@ -22,16 +22,20 @@ import SwiftUI
 /// `NookApp.main`, which crosses to the main actor - like the configurations that carry
 /// it. Not `Equatable` because ``backdrop`` carries a closure.
 public struct NookChromeBehavior: Sendable {
-    /// Resolves the surface backdrop from the live appearance state. Returns the
+    /// Resolves the surface backdrop from the live chrome state. Returns the
     /// `NSVisualEffectView` material / darken / solid fill the chrome paints behind its
-    /// content. Receives the current ``NookAppearancePreferences``, the effective
-    /// `ColorScheme` (after the host's palette override + the system scheme), and whether
-    /// the system's Reduce Transparency is on.
+    /// content. Receives a ``NookBackdropContext``: the current ``NookAppearancePreferences``,
+    /// the effective `ColorScheme` (after the host's palette override + the system scheme),
+    /// whether the system's Reduce Transparency is on, and what the chrome is showing - its
+    /// `NookState` and its resolved `NookChromeForm`.
+    ///
+    /// It is re-run on every expand and collapse, so returning a different backdrop per state
+    /// is all it takes to paint the collapsed pill and the expanded panel differently.
     ///
     /// `@Sendable @MainActor`: invoked during the main-actor backdrop sync and carried by
     /// a `Sendable` `NookChromeBehavior`.
     public typealias BackdropResolver =
-        @Sendable @MainActor (NookAppearancePreferences, ColorScheme, Bool) -> NookBackdrop
+        @Sendable @MainActor (NookBackdropContext) -> NookBackdrop
 
     /// Side-effects to apply while the cursor is over the chrome. Defaults to `[]` (the
     /// framework default - neither hover-keep-visible nor hover haptics). Set to
@@ -44,28 +48,42 @@ public struct NookChromeBehavior: Sendable {
     /// into its compact launch state, it just skips the feedback flourish.
     public var showsLaunchShimmer: Bool
 
-    /// Overrides how appearance preferences map to the surface backdrop. `nil` (the
+    /// Overrides how the chrome state maps to the surface backdrop. `nil` (the
     /// default) uses the framework mapping (``NookBackdropMapping/notchBackdrop(preferences:effectiveColorScheme:reduceTransparency:)``):
     /// solid black/white for `.solid` or Reduce Transparency, otherwise a `.sidebar`
     /// vibrancy with a legibility darken pass. Supply a resolver to paint a brand-specific
-    /// material, darken, or solid color while still reacting to the live appearance state.
+    /// material, darken, or solid color while still reacting to the live appearance state -
+    /// and, through ``NookBackdropContext/state``, to paint the collapsed pill and the
+    /// expanded panel differently.
+    ///
+    /// ```swift
+    /// configuration.chromeBehavior.backdrop = { context in
+    ///     context.isExpanded ? .liquidGlass(.init(shading: .notchFade())) : .solid(.black)
+    /// }
+    /// ```
     public var backdrop: BackdropResolver?
 
     /// What companions inheriting the chrome's backdrop paint (`NookCompanionBackdrop.inherit`),
     /// resolved from the same live appearance state as ``backdrop``. `nil` (the default) uses
     /// the framework's choice: the chrome's own backdrop, except under
-    /// ``NookGlassShading/notchFade``, where companions get the same glass with a light even
-    /// tint instead of a squeezed copy of the tall fade. A resolver that returns `nil` gives
-    /// companions the chrome's backdrop.
+    /// ``NookGlassShading/notchFade``, where the expanded chrome's companions get the same
+    /// glass with a light even tint instead of a squeezed copy of the tall fade. A resolver
+    /// that returns `nil` gives companions the chrome's backdrop.
     public var companionBackdrop: CompanionBackdropResolver?
 
-    /// Resolves the backdrop companions inherit; `nil` means the chrome's own. See
+    /// Resolves the backdrop companions inherit; `nil` means the chrome's own. Receives the
+    /// same ``NookBackdropContext`` as ``BackdropResolver``, so companions beside the compact
+    /// pill can be painted differently from those under the expanded panel. See
     /// ``companionBackdrop``.
     public typealias CompanionBackdropResolver =
-        @Sendable @MainActor (NookAppearancePreferences, ColorScheme, Bool) -> NookBackdrop?
+        @Sendable @MainActor (NookBackdropContext) -> NookBackdrop?
 
     /// How the framework's Liquid Glass is shaded when the person picks Liquid Glass. Defaults
     /// to ``NookGlassShading/even``. Ignored when ``backdrop`` supplies a resolver of its own.
+    ///
+    /// ``NookGlassShading/notchFade`` is state-aware: the fade paints on the expanded panel,
+    /// and the collapsed pill - which is barely taller than the hardware notch - goes solid so
+    /// it reads as the notch itself.
     ///
     /// ```swift
     /// configuration.chromeBehavior.glassShading = .notchFade  // black at the notch, clear below
