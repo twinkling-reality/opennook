@@ -61,6 +61,7 @@ enum PlaygroundFixtures {
         settings.scrollEdgeFade.leading = false
         settings.scrollEdgeFade.trailing = false
         settings.behavior.hoverHaptics = true
+        settings.behavior.glassShading = .notchFade
 
         return PlaygroundPreset(
             appearance: NookAppearancePreferences(
@@ -161,6 +162,7 @@ enum PlaygroundFixtures {
         configuration.scrollEdgeFade = NookScrollEdgeFade(edges: .vertical)
 
         configuration.chromeBehavior.hoverBehavior = .hapticFeedback
+        configuration.chromeBehavior.glassShading = .notchFade
 
         NookApp.main(configuration)
 

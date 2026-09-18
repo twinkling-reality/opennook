@@ -28,6 +28,7 @@ final class FakeNookSurface: NookSurfaceDriving {
     private let hoveringSubject = CurrentValueSubject<Bool, Never>(false)
     private let dragSubject = CurrentValueSubject<Bool, Never>(false)
     private let layoutGraceSubject = CurrentValueSubject<Bool, Never>(false)
+    private let layoutFormSubject = CurrentValueSubject<NookChromeForm, Never>(.notch)
 
     var state: NookState { stateSubject.value }
     var statePublisher: AnyPublisher<NookState, Never> {
@@ -58,6 +59,16 @@ final class FakeNookSurface: NookSurfaceDriving {
         layoutGraceSubject.removeDuplicates().eraseToAnyPublisher()
     }
 
+    /// The layout the chrome resolved to. Settable so a test can drive the floating form
+    /// without a screen; the real surface recomputes it whenever it builds a window.
+    var layoutForm: NookChromeForm {
+        get { layoutFormSubject.value }
+        set { layoutFormSubject.send(newValue) }
+    }
+    var layoutFormPublisher: AnyPublisher<NookChromeForm, Never> {
+        layoutFormSubject.removeDuplicates().eraseToAnyPublisher()
+    }
+
     var onExpand: (@MainActor () -> Void)?
     var onCompact: (@MainActor () -> Void)?
     var onHide: (@MainActor () -> Void)?
@@ -67,6 +78,25 @@ final class FakeNookSurface: NookSurfaceDriving {
     var presentation: NookPresentation = .auto
     var chromeAppearance: NSAppearance?
     var backdrop: NookBackdrop = .solidBlack
+    var companionBackdrop: NookBackdrop?
+    var window: NSWindow? { nil }
+
+    /// Mirrors the real surface's keyboard focus: taken while visible, released on request or
+    /// when the surface leaves the expanded state.
+    private(set) var hasKeyboardFocus = false
+    private(set) var keyboardFocusRequests = 0
+
+    @discardableResult
+    func takeKeyboardFocus() -> Bool {
+        keyboardFocusRequests += 1
+        guard stateSubject.value != .hidden else { return false }
+        hasKeyboardFocus = true
+        return true
+    }
+
+    func releaseKeyboardFocus() {
+        hasKeyboardFocus = false
+    }
     var transitionConfiguration = NookTransitionConfiguration()
     var style = NookConfiguration.defaultStyle
     var hoverBehavior: NookHoverBehavior = []
@@ -94,6 +124,7 @@ final class FakeNookSurface: NookSurfaceDriving {
     /// mirroring the real surface, whose hooks fire on every distinct transition.
     private func transition(to newState: NookState) {
         guard newState != stateSubject.value else { return }
+        if newState != .expanded { hasKeyboardFocus = false }
         stateSubject.send(newState)
         transitions.append(newState)
         switch newState {

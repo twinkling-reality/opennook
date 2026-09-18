@@ -141,7 +141,7 @@ only - no forking. All but the playground are a single `main.swift`:
 swift run HelloNook     # register one view, go
 swift run ClockNook     # custom home view + a custom compact slot
 swift run ThemedNook    # a host-supplied theme + lifecycle hooks
-swift run ChromeNook    # the deeper chrome seams: launch defaults, labels, motion, brand mark, status
+swift run ChromeNook    # the deeper chrome seams: launch defaults, notch fade, typing, labels, brand mark, status
 swift run LayoutNook    # expanded width + nookContentInsets (avoid double horizontal padding)
 swift run ShelfNook     # a drop-files-on-the-notch shelf (NookComponents)
 swift run ActivityNook  # a priority live-activity queue (NookComponents)
@@ -235,14 +235,18 @@ and runs on earlier systems. See
 [Surface materials](https://opennook.dev/guides/surface-materials/).
 
 **Chrome behavior.** Hover side-effects, the cold-launch shimmer, and the
-appearance->backdrop mapping:
+state->backdrop mapping. The resolver is re-run on every expand and collapse and
+receives a `NookBackdropContext`, so the collapsed pill and the expanded panel can
+be painted differently:
 
 ```swift
 configuration.chromeBehavior = NookChromeBehavior(
     hoverBehavior: .all,         // default []: opt into hover haptics / keep-visible
     showsLaunchShimmer: false,   // default true: launch silently
-    backdrop: { preferences, scheme, reduceTransparency in
-        .vibrancy(.init(material: .hudWindow, darkenOpacity: 0.3))
+    backdrop: { context in
+        context.isExpanded
+            ? .vibrancy(.init(material: .hudWindow, darkenOpacity: 0.3))
+            : .solid(.black)     // collapsed: read as the hardware notch
     }
 )
 ```

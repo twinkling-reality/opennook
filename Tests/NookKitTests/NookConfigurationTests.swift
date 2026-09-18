@@ -5,10 +5,11 @@
 // you may not use this file except in compliance with the License.
 // A copy is included at /LICENSE in the repository root.
 
+import NookSurface
 import SwiftUI
 import XCTest
+
 @testable import NookKit
-import NookSurface
 
 // `@MainActor`: the configuration's content and theme closures are main-actor
 // isolated (they build SwiftUI views and resolve the chrome palette), so the tests
@@ -179,7 +180,9 @@ final class NookConfigurationTests: XCTestCase {
     /// chrome font design to `.default`, so the chrome matches the system out of the box.
     func testDefaultThemeAccentAndFontDesignMatchSystem() {
         let theme = NookResolvedTheme.resolve(
-            preferences: .default, effectiveColorScheme: .dark, reduceTransparency: false
+            preferences: .default,
+            effectiveColorScheme: .dark,
+            reduceTransparency: false
         )
         XCTAssertEqual(theme.accent, Color(nsColor: .controlAccentColor))
         XCTAssertEqual(theme.fontDesign, .default)
@@ -188,9 +191,15 @@ final class NookConfigurationTests: XCTestCase {
     /// A host palette can override the accent and font design; both round-trip intact.
     func testCustomAccentAndFontDesignArePreserved() {
         let theme = NookResolvedTheme(
-            primaryLabel: .white, secondaryLabel: .white, tertiaryLabel: .white,
-            quaternaryLabel: .white, subtleFill: .white, subtleStroke: .white,
-            headerInactiveIcon: .white, accent: .pink, fontDesign: .rounded
+            primaryLabel: .white,
+            secondaryLabel: .white,
+            tertiaryLabel: .white,
+            quaternaryLabel: .white,
+            subtleFill: .white,
+            subtleStroke: .white,
+            headerInactiveIcon: .white,
+            accent: .pink,
+            fontDesign: .rounded
         )
         XCTAssertEqual(theme.accent, .pink)
         XCTAssertEqual(theme.fontDesign, .rounded)
@@ -229,5 +238,20 @@ final class NookConfigurationTests: XCTestCase {
         configuration.setSettings { Text("Custom settings") }
         XCTAssertNotNil(configuration.settings)
         _ = configuration.settings?()
+    }
+}
+
+/// The built-in Settings screen's groups: all shown by default, and each one hideable.
+final class NookSettingsGroupsTests: XCTestCase {
+    func testEveryGroupIsShownByDefault() {
+        XCTAssertEqual(NookConfiguration().settingsGroups, .all)
+        XCTAssertEqual(NookSettingsGroups.all, [.appearance, .display, .shortcut, .data, .about])
+    }
+
+    func testAGroupCanBeLeftOut() {
+        var configuration = NookConfiguration()
+        configuration.settingsGroups.remove(.data)
+        XCTAssertFalse(configuration.settingsGroups.contains(.data))
+        XCTAssertTrue(configuration.settingsGroups.contains(.shortcut))
     }
 }

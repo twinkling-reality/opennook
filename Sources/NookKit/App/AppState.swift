@@ -55,7 +55,18 @@ public final class AppState: ObservableObject {
     /// Persisted appearance personalization (palette, surface style, presentation,
     /// haptics, keep-open). Assigning replaces the whole value - use
     /// ``replaceAppearancePreferences(_:)`` to also persist the change.
+    ///
+    /// Only the fields the person changed are persisted. Every other field is the host's launch
+    /// default (``preferenceDefaults``), so a default the host changes in a later build reaches
+    /// everyone who never chose that field.
     @Published public var appearancePreferences = NookAppearancePreferences.default
+
+    /// The host's launch defaults this state was created with: the values every preference takes
+    /// until the person changes it, and returns to on reset. See ``NookPreferenceDefaults``.
+    public let preferenceDefaults: NookPreferenceDefaults
+
+    /// The appearance fields the person changed, as persisted.
+    private var appearanceChoices = NookAppearanceChoices()
 
     /// The user-configured global show/hide shortcut. Persisted to `UserDefaults` only
     /// when written through ``replaceHotkey(_:)``.
@@ -163,20 +174,56 @@ public final class AppState: ObservableObject {
     /// ``NookPreferenceDefaults`` for the seed semantics - the seed is never written
     /// here, so a persisted user choice always wins.
     public init(preferenceDefaults: NookPreferenceDefaults) {
-        appearancePreferences = NookAppearanceStore.load(default: preferenceDefaults.appearance)
+        self.preferenceDefaults = preferenceDefaults
+        appearanceChoices = NookAppearanceStore.loadChoices(default: preferenceDefaults.appearance)
+        appearancePreferences = appearanceChoices.applied(to: preferenceDefaults.appearance)
         hotkey = NookHotkeyStore.load(default: preferenceDefaults.hotkey)
         displayPreference = NookDisplayStore.load(default: preferenceDefaults.display)
     }
 
-    /// Replaces ``appearancePreferences`` and writes the new value to `UserDefaults`. A
-    /// no-op when the value is unchanged. Prefer this over assigning the property
-    /// directly - direct assignment skips persistence.
+    /// Replaces ``appearancePreferences`` and persists the fields that changed. A no-op when the
+    /// value is unchanged. Prefer this over assigning the property directly - direct assignment
+    /// skips persistence.
+    ///
+    /// Each field that differs from the current value is remembered as the person's choice, even
+    /// when it equals the host's default. Fields that did not change are left as they were, so
+    /// ones the person never chose keep following ``preferenceDefaults``.
     public func replaceAppearancePreferences(_ preferences: NookAppearancePreferences) {
         guard preferences != appearancePreferences else {
             return
         }
+        appearanceChoices.record(from: appearancePreferences, to: preferences)
         appearancePreferences = preferences
-        NookAppearanceStore.save(preferences)
+        NookAppearanceStore.saveChoices(appearanceChoices)
+    }
+
+    /// Forgets every appearance choice, returning each field to the host's default in
+    /// ``preferenceDefaults``. From then on every field follows the defaults again.
+    public func resetAppearancePreferences() {
+        appearanceChoices = NookAppearanceChoices()
+        NookAppearanceStore.saveChoices(appearanceChoices)
+        let defaults = preferenceDefaults.appearance
+        if appearancePreferences != defaults {
+            appearancePreferences = defaults
+        }
+    }
+
+    /// Forgets the person's global shortcut, returning to the host's default in
+    /// ``preferenceDefaults``, which it then follows.
+    public func resetHotkey() {
+        NookHotkeyStore.clear()
+        if hotkey != preferenceDefaults.hotkey {
+            hotkey = preferenceDefaults.hotkey
+        }
+    }
+
+    /// Forgets the person's display choice, returning to the host's default in
+    /// ``preferenceDefaults``, which it then follows.
+    public func resetDisplayPreference() {
+        NookDisplayStore.clear()
+        if displayPreference != preferenceDefaults.display {
+            displayPreference = preferenceDefaults.display
+        }
     }
 
     /// Replaces ``hotkey`` and persists. The coordinator's hotkey-registration sink

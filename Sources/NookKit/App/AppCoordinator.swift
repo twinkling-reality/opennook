@@ -235,7 +235,10 @@ public final class AppCoordinator: ObservableObject {
             NookChromeActions(
                 toggleKeepOpen: { self.coordinator?.toggleKeepNookOpen() },
                 toggleSettings: { self.coordinator?.toggleSettingsFromChrome() },
-                collapse: { self.coordinator?.hideNook() }
+                collapse: { self.coordinator?.hideNook() },
+                resetSettings: { self.coordinator?.resetAllSettingsToDefaults() },
+                takeKeyboardFocus: { self.coordinator?.takeNookKeyboardFocus() },
+                releaseKeyboardFocus: { self.coordinator?.releaseNookKeyboardFocus() }
             )
         }
     }
@@ -320,7 +323,10 @@ public final class AppCoordinator: ObservableObject {
         NookChromeActions(
             toggleKeepOpen: { [weak self] in self?.toggleKeepNookOpen() },
             toggleSettings: { [weak self] in self?.toggleSettingsFromChrome() },
-            collapse: { [weak self] in self?.hideNook() }
+            collapse: { [weak self] in self?.hideNook() },
+            resetSettings: { [weak self] in self?.resetAllSettingsToDefaults() },
+            takeKeyboardFocus: { [weak self] in self?.takeNookKeyboardFocus() },
+            releaseKeyboardFocus: { [weak self] in self?.releaseNookKeyboardFocus() }
         )
     }
 
@@ -361,6 +367,9 @@ public final class AppCoordinator: ObservableObject {
         // coordinator without ever calling `NSApplication.shared.run()` traps on
         // `NSApp.setActivationPolicy`. The shared accessor materializes lazily.
         NSApplication.shared.setActivationPolicy(.accessory)
+        if moduleHost.chromeBehavior.keyboard.installsEditMenu {
+            NookEditMenu.installIfNeeded()
+        }
 
         syncNotchBackdrop()
         configureNotchAnimations()
@@ -796,7 +805,7 @@ public final class AppCoordinator: ObservableObject {
             modifiers: hotkey.carbonModifiers
         ) { [weak self] in
             Task { @MainActor in
-                self?.toggleNook()
+                self?.toggleNook(fromShortcut: true)
             }
         }
         // Record the CURRENT outcome on the durable failure channel: a failure stays
@@ -920,6 +929,45 @@ public final class AppCoordinator: ObservableObject {
             .sink { [weak self] _ in self?.syncNotchBackdrop() }
             .store(in: &cancellables)
 
+        // The chrome is two surfaces, and they do not want the same backdrop: collapsed, a
+        // notch-fused panel is the notch's own height with most of its width behind the
+        // camera; expanded, it is a tall panel with room for a gradient. Re-resolve on every
+        // transition so a resolver - the framework's `.notchFade` included - can answer
+        // differently for each.
+        //
+        // Deliberately *not* `receive(on: RunLoop.main)`, unlike the sinks around it.
+        // `@Published` emits in `willSet`, so this runs inside the `withAnimation` that is
+        // setting the state: the new backdrop joins that transaction and cross-fades with the
+        // transition instead of landing a frame late, after the panel has already resized.
+        // The emitted value is what we resolve against - the surface's own `state` property
+        // still reads the outgoing one at this point.
+        //
+        // `.hidden` is filtered out rather than resolved: nothing is painted while hidden, and
+        // expand-from-compact routes through `.hidden` between the two visible states (see
+        // `Nook._expand`), so resolving it would repaint the backdrop mid-transition and flash
+        // whatever the collapsed state maps to across a panel that is on its way open.
+        surface.statePublisher
+            .filter { $0 != .hidden }
+            .removeDuplicates()
+            .sink { [weak self] state in
+                guard let self else { return }
+                self.resolveBackdrops(state: state, form: self.surface.layoutForm)
+            }
+            .store(in: &cancellables)
+
+        // The resolved layout is the other half of "which surface is this": `.auto` lands on
+        // the notch form or the floating one depending on the display, and a backdrop meant to
+        // read as the hardware notch is only right on the former. It changes when the window is
+        // rebuilt - a new screen, a new presentation - so re-resolve there too. Deferred to the
+        // next runloop turn because the publish happens in `willSet` *during* that rebuild;
+        // reading the surface back on this one would see the outgoing form.
+        surface.layoutFormPublisher
+            .dropFirst()
+            .removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.syncNotchBackdrop() }
+            .store(in: &cancellables)
+
         accessibilityObserver = ObserverToken(
             token: NotificationCenter.default.addObserver(
                 forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,
@@ -946,21 +994,69 @@ public final class AppCoordinator: ObservableObject {
         // Layout picker re-places the chrome immediately.
         surface.presentation = appState.appearancePreferences.presentation
 
-        let scheme = appState.appearancePreferences.effectiveColorScheme(systemScheme: currentResolvedSystemScheme())
-        let reduceTransparency = NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
         // Pin the window appearance first: the backdrop's visual-effect material resolves
         // against it, so a forced light/dark theme needs both to agree.
         surface.chromeAppearance = appState.appearancePreferences.chromeAppearanceOverride
-        // A host can override the appearance->backdrop mapping; the framework mapping is
+
+        resolveBackdrops(state: surface.state, form: surface.layoutForm)
+    }
+
+    /// Resolves the chrome's backdrop, and the one companions inherit, for the chrome the
+    /// surface is showing right now - and projects both onto it.
+    ///
+    /// Split out of ``syncNotchBackdrop()`` because it is called from two places with
+    /// different ideas of "right now": the appearance path reads the state off the surface,
+    /// while the state sink is running *inside* the transition that is changing it and passes
+    /// the incoming value instead. Nothing here touches ``NookSurfaceDriving/presentation``,
+    /// so a transition can re-resolve without any risk of rebuilding the window under itself.
+    private func resolveBackdrops(state: NookState, form: NookChromeForm) {
+        let scheme = appState.appearancePreferences.effectiveColorScheme(systemScheme: currentResolvedSystemScheme())
+        let reduceTransparency = NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
+        // A host can override the state->backdrop mapping; the framework mapping is
         // the default. See `NookChromeBehavior.backdrop`.
-        if let resolve = moduleHost.chromeBehavior.backdrop {
-            surface.backdrop = resolve(appState.appearancePreferences, scheme, reduceTransparency)
+        let behavior = moduleHost.chromeBehavior
+        let preferences = appState.appearancePreferences
+        let context = NookBackdropContext(
+            preferences: preferences,
+            colorScheme: scheme,
+            reduceTransparency: reduceTransparency,
+            state: state,
+            form: form
+        )
+        let backdrop: NookBackdrop
+        if let resolve = behavior.backdrop {
+            backdrop = resolve(context)
         } else {
-            surface.backdrop = NookBackdropMapping.notchBackdrop(
-                preferences: appState.appearancePreferences,
+            backdrop = NookBackdropMapping.notchBackdrop(
+                preferences: preferences,
                 effectiveColorScheme: scheme,
-                reduceTransparency: reduceTransparency
+                reduceTransparency: reduceTransparency,
+                glassShading: behavior.glassShading,
+                state: state
             )
+        }
+        if surface.backdrop != backdrop {
+            surface.backdrop = backdrop
+        }
+        // Companions inherit their own backdrop only when one is resolved: a host resolver, or
+        // the framework's for a glass shading that does not suit a small pill. A host that
+        // replaces the chrome's backdrop keeps companions on it unless it resolves theirs too.
+        let companionBackdrop: NookBackdrop?
+        if let resolve = behavior.companionBackdrop {
+            companionBackdrop = resolve(context)
+        } else if behavior.backdrop == nil {
+            companionBackdrop = NookBackdropMapping.companionBackdrop(
+                preferences: preferences,
+                effectiveColorScheme: scheme,
+                reduceTransparency: reduceTransparency,
+                glassShading: behavior.glassShading,
+                state: state
+            )
+        } else {
+            companionBackdrop = nil
+        }
+        if surface.companionBackdrop != companionBackdrop {
+            surface.companionBackdrop = companionBackdrop
         }
     }
 
@@ -1004,6 +1100,13 @@ public final class AppCoordinator: ObservableObject {
     /// moment the transition reaches the head of the serial lifecycle chain. A
     /// hover-expanded nook collapses; a compact nook expands.
     public func toggleNook() {
+        toggleNook(fromShortcut: false)
+    }
+
+    /// ``toggleNook()``, knowing whether the global shortcut asked for it: an open from the
+    /// shortcut also gives the nook the keyboard when the host opted in with
+    /// ``NookKeyboardBehavior/shortcutTakesKeyboardFocus``.
+    func toggleNook(fromShortcut: Bool) {
         appState.resetTransientStatus()
         enqueueLifecycle { [weak self] in
             guard let self else { return }
@@ -1016,11 +1119,47 @@ public final class AppCoordinator: ObservableObject {
                 await self.surface.compact(on: nil)
             } else {
                 self.setUserInitiatedOpen(true)
-                self.surface.staysExpandedOnHoverExit = self.appState.keepNookOpen
+                self.projectStaysExpanded()
                 await self.surface.expand(on: nil)
+                if fromShortcut, self.moduleHost.chromeBehavior.keyboard.shortcutTakesKeyboardFocus,
+                    self.surface.state == .expanded
+                {
+                    self.surface.takeKeyboardFocus()
+                }
             }
         }
     }
+
+    // MARK: - Keyboard focus
+
+    /// `true` while the nook has the keyboard, so typing goes to its focused text input rather
+    /// than the app in front.
+    public var nookHasKeyboardFocus: Bool { surface.hasKeyboardFocus }
+
+    /// Gives the nook the keyboard without activating the app, so typing reaches its focused text
+    /// input - for a field focused when it appears, or a key handler in the nook. The app in front
+    /// stays in front. Returns `false` while the nook is hidden.
+    ///
+    /// A click anywhere in the nook already gives it the keyboard, and a click on a text input
+    /// always does. The nook hands the keyboard back by itself when it collapses or hides, and
+    /// its text inputs give up focus when the person clicks into another app. Views in the nook
+    /// can call ``NookChromeActions/takeKeyboardFocus`` instead.
+    @discardableResult
+    public func takeNookKeyboardFocus() -> Bool {
+        surface.takeKeyboardFocus()
+    }
+
+    /// Hands the keyboard back to the app in front and ends editing in the nook's focused text
+    /// input. Does nothing while the nook does not have the keyboard.
+    public func releaseNookKeyboardFocus() {
+        surface.releaseKeyboardFocus()
+    }
+
+    /// The nook's panel right now, or `nil` while the nook is hidden - for window-level work the
+    /// framework has no API for. Read it when you need it rather than keeping it: the nook builds
+    /// a new panel when it shows after being hidden and when it moves to another display. For
+    /// typing, use ``takeNookKeyboardFocus()``.
+    public var nookWindow: NSWindow? { surface.window }
 
     /// Expands the surface and marks the open as user-initiated, so a subsequent transient
     /// presenter is gated by ``isUserEngaged``.
@@ -1029,7 +1168,7 @@ public final class AppCoordinator: ObservableObject {
         enqueueLifecycle { [weak self] in
             guard let self else { return }
             self.setUserInitiatedOpen(true)
-            self.surface.staysExpandedOnHoverExit = self.appState.keepNookOpen
+            self.projectStaysExpanded()
             await self.surface.expand(on: nil)
         }
     }
@@ -1067,7 +1206,7 @@ public final class AppCoordinator: ObservableObject {
     /// so the choice survives across launches.
     public func toggleKeepNookOpen() {
         appState.keepNookOpen.toggle()
-        surface.staysExpandedOnHoverExit = appState.keepNookOpen
+        projectStaysExpanded()
     }
 
     /// Projects the boolean "ignore hover-exit auto-compact" override onto the surface.
@@ -1081,7 +1220,21 @@ public final class AppCoordinator: ObservableObject {
         if active {
             surface.staysExpandedOnHoverExit = true
         } else {
-            surface.staysExpandedOnHoverExit = appState.keepNookOpen
+            projectStaysExpanded()
+        }
+    }
+
+    /// Projects every reason to hold the nook open past a hover exit onto the surface: the
+    /// persisted keep-open lock, or an outstanding ``NookPresentationPinning`` pin. The one
+    /// writer besides a pin's arrival, so turning the lock off, resetting settings, or opening
+    /// the nook never drops a pin that is still held.
+    ///
+    /// When this turns the hold off after the pointer left during it, the surface collapses
+    /// then, as if the pointer had just left.
+    func projectStaysExpanded() {
+        let stays = appState.keepNookOpen || presentationPinning.isPinned
+        if surface.staysExpandedOnHoverExit != stays {
+            surface.staysExpandedOnHoverExit = stays
         }
     }
 
@@ -1101,20 +1254,18 @@ public final class AppCoordinator: ObservableObject {
 
     // MARK: - Reset
 
-    /// Restores appearance prefs, the global hotkey, and the display preference to their
-    /// defaults. Every reset routes through `AppState`'s guarded `replace...` path, so
-    /// persistence and observers fire exactly once per preference, in one pattern - no
-    /// direct `appearancePreferences` assignment plus manual `NookAppearanceStore.save`.
+    /// Returns appearance, the global hotkey, and the display preference to the host's launch
+    /// defaults (``AppState/preferenceDefaults``) and forgets the person's choices, so each one
+    /// follows the host's defaults again - including a default a later build changes. Every
+    /// reset routes through `AppState`, so persistence and observers fire once per preference.
     ///
-    /// `staysExpandedOnHoverExit` is then projected from the freshly reset preference
-    /// rather than a hardcoded `false`: the value comes from `appState.keepNookOpen`
-    /// (which reads `appearancePreferences.keepNookOpen`), so there is no duplicated
-    /// knowledge of what the default keep-open value is.
+    /// The hold on the surface is then projected from the reset lock (and any pin still held)
+    /// rather than a hardcoded `false`, and the backdrop is resolved again.
     public func resetAllSettingsToDefaults() {
-        appState.replaceAppearancePreferences(.default)
-        appState.replaceHotkey(.default)
-        appState.replaceDisplayPreference(.default)
-        surface.staysExpandedOnHoverExit = appState.keepNookOpen
+        appState.resetAppearancePreferences()
+        appState.resetHotkey()
+        appState.resetDisplayPreference()
+        projectStaysExpanded()
         syncNotchBackdrop()
     }
 }

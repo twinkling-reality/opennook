@@ -556,6 +556,14 @@ final class PlaygroundSwiftExporterTests: XCTestCase {
         XCTAssertEqual(Exporter.behaviorLines(behavior), ["configuration.chromeBehavior.hoverBehavior = .keepVisible"])
     }
 
+    func testGlassShadingExportsOnlyWhenChanged() {
+        var behavior = PlaygroundSettings.Behavior()
+        behavior.glassShading = .notchFade
+        XCTAssertEqual(Exporter.behaviorLines(behavior), ["configuration.chromeBehavior.glassShading = .notchFade"])
+        XCTAssertEqual(behavior.glassShading.nookShading, .notchFade)
+        XCTAssertEqual(PlaygroundSettings().chromeBehavior.glassShading, .even)
+    }
+
     // MARK: - Literals
 
     func testStringLiteralsEscapeWhatALiteralCannotHold() {

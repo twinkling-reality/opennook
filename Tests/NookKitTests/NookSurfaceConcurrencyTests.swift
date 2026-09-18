@@ -352,9 +352,180 @@ final class NookSurfaceConcurrencyTests: XCTestCase {
 
         await waitUntil { !nook.isLayoutGraceActive }
         XCTAssertFalse(nook.isLayoutGraceActive)
+        await waitUntil { compactCount >= 1 }
+        XCTAssertEqual(compactCount, 1, "the exit layout grace held back should collapse once the grace ends")
+        XCTAssertEqual(nook.state, .compact)
+    }
+
+    // MARK: - Hover exits a hold deferred
+
+    /// A nook expanded on the main display with compact content, fast transitions, and an
+    /// `onCompact` counter.
+    private func makeExpandedNook(on screen: NSScreen) async -> (Nook<Text, Text, EmptyView>, () -> Int) {
+        let nook = Nook(hoverBehavior: [], expanded: { Text("x") }, compactLeading: { Text("L") })
+        nook.transitionConfiguration.animationDuration = 0.05
+        await nook.expand(on: screen)
+        var compactCount = 0
+        nook.onCompact = { compactCount += 1 }
+        return (nook, { compactCount })
+    }
+
+    /// Regression: a pointer that left while a hold kept the nook open left it open for good,
+    /// until the pointer came back and left again. Releasing the hold now collapses it.
+    func testPointerThatLeftDuringAHoldCollapsesWhenTheHoldEnds() async throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("No main display attached") }
+        let (nook, compactCount) = await makeExpandedNook(on: screen)
+
+        nook.staysExpandedOnHoverExit = true
         nook.updateHoverState(true)
         nook.updateHoverState(false)
-        await waitUntil { compactCount >= 1 }
-        XCTAssertEqual(compactCount, 1, "after grace expires, hover-exit should compact")
+        await Task.yield()
+        XCTAssertEqual(compactCount(), 0, "the hold keeps the nook open while it lasts")
+        XCTAssertTrue(nook.hasDeferredHoverExit)
+
+        nook.staysExpandedOnHoverExit = false
+        await waitUntil { nook.state == .compact }
+        XCTAssertEqual(compactCount(), 1)
+        XCTAssertFalse(nook.hasDeferredHoverExit)
+        await nook.hide()
+    }
+
+    /// A nook the pointer never left - opened from the keyboard, say - stays open when a hold
+    /// ends, exactly as before.
+    func testHoldEndingWithoutAHoverExitKeepsTheNookOpen() async throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("No main display attached") }
+        let (nook, compactCount) = await makeExpandedNook(on: screen)
+
+        nook.staysExpandedOnHoverExit = true
+        nook.staysExpandedOnHoverExit = false
+        try await Task.sleep(for: .milliseconds(150))
+        XCTAssertEqual(nook.state, .expanded)
+        XCTAssertEqual(compactCount(), 0)
+        await nook.hide()
+    }
+
+    /// The pointer coming back before the hold ends cancels the collapse it owed.
+    func testPointerReturningBeforeTheHoldEndsCancelsTheOwedCollapse() async throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("No main display attached") }
+        let (nook, compactCount) = await makeExpandedNook(on: screen)
+
+        nook.staysExpandedOnHoverExit = true
+        nook.updateHoverState(true)
+        nook.updateHoverState(false)
+        nook.updateHoverState(true)
+        XCTAssertFalse(nook.hasDeferredHoverExit)
+
+        nook.staysExpandedOnHoverExit = false
+        try await Task.sleep(for: .milliseconds(150))
+        XCTAssertEqual(nook.state, .expanded, "the pointer is over the nook, so nothing collapses it")
+        XCTAssertEqual(compactCount(), 0)
+        await nook.hide()
+    }
+
+    /// With two holds at once, the owed collapse waits for the last one to end.
+    func testOwedCollapseWaitsForEveryHoldToEnd() async throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("No main display attached") }
+        let (nook, compactCount) = await makeExpandedNook(on: screen)
+        nook.transitionConfiguration.layoutGraceDuration = 30
+
+        nook.staysExpandedOnHoverExit = true
+        nook.beginLayoutGrace()
+        nook.updateHoverState(true)
+        nook.updateHoverState(false)
+
+        nook.staysExpandedOnHoverExit = false
+        try await Task.sleep(for: .milliseconds(150))
+        XCTAssertEqual(nook.state, .expanded, "layout grace still holds the nook open")
+        XCTAssertEqual(compactCount(), 0)
+
+        nook.endLayoutGrace()
+        await waitUntil { nook.state == .compact }
+        XCTAssertEqual(compactCount(), 1)
+        await nook.hide()
+    }
+
+    /// An owed collapse is forgotten when the nook collapses some other way first, so it cannot
+    /// fire later into a nook that was opened again.
+    func testCollapsingForgetsTheOwedCollapse() async throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("No main display attached") }
+        let (nook, compactCount) = await makeExpandedNook(on: screen)
+
+        nook.staysExpandedOnHoverExit = true
+        nook.updateHoverState(true)
+        nook.updateHoverState(false)
+        await nook.compact(on: screen)
+        XCTAssertFalse(nook.hasDeferredHoverExit)
+        await nook.expand(on: screen)
+
+        nook.staysExpandedOnHoverExit = false
+        try await Task.sleep(for: .milliseconds(150))
+        XCTAssertEqual(nook.state, .expanded)
+        XCTAssertEqual(compactCount(), 1, "only the explicit compact")
+        await nook.hide()
+    }
+
+    // MARK: - Keyboard focus
+
+    /// A click or a focus on an editable text input counts as typing, found from the input
+    /// itself or a view inside it; labels, read-only text, and plain views do not.
+    func testOnlyEditableTextInputsAcceptTyping() {
+        XCTAssertTrue(NookPanel.acceptsTyping(NSTextField()))
+        XCTAssertFalse(NookPanel.acceptsTyping(NSTextField(labelWithString: "Label")))
+
+        let editor = NSTextView()
+        XCTAssertTrue(NookPanel.acceptsTyping(editor))
+        editor.isEditable = false
+        XCTAssertFalse(NookPanel.acceptsTyping(editor), "read-only text is selectable, not typed into")
+
+        let field = NSTextField()
+        let inner = NSView()
+        field.addSubview(inner)
+        XCTAssertTrue(NookPanel.acceptsTyping(inner), "a click on a view inside a field is a click on the field")
+
+        XCTAssertFalse(NookPanel.acceptsTyping(NSView()))
+        XCTAssertFalse(NookPanel.acceptsTyping(nil))
+    }
+
+    /// A hidden chrome has no panel to give the keyboard to.
+    func testHiddenChromeCannotTakeTheKeyboard() {
+        let nook = makeNook()
+        XCTAssertFalse(nook.takeKeyboardFocus())
+        XCTAssertFalse(nook.hasKeyboardFocus)
+        XCTAssertNil(nook.window)
+        nook.releaseKeyboardFocus()  // nothing to release; must not crash
+    }
+
+    /// An expanded chrome's panel takes the keyboard, and collapsing hands it back.
+    func testExpandedChromeTakesTheKeyboardAndCollapsingReleasesIt() async throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("No main display attached") }
+        let nook = Nook(hoverBehavior: [], expanded: { Text("x") }, compactLeading: { Text("L") })
+        nook.transitionConfiguration.animationDuration = 0.05
+        await nook.expand(on: screen)
+        XCTAssertNotNil(nook.window)
+        XCTAssertEqual(nook.window?.accessibilityIdentifier(), "opennook.panel")
+
+        guard nook.takeKeyboardFocus() else {
+            await nook.hide()
+            throw XCTSkip("This test process cannot make a window key")
+        }
+        XCTAssertTrue(nook.hasKeyboardFocus)
+
+        await nook.compact(on: screen)
+        await waitUntil { !nook.hasKeyboardFocus }
+        XCTAssertFalse(nook.hasKeyboardFocus, "a collapsed chrome does not keep the keyboard")
+        await nook.hide()
+    }
+
+    /// Companions inherit the chrome's backdrop unless the chrome sets one for them.
+    func testCompanionsInheritTheirOwnBackdropWhenSet() {
+        let nook = makeNook()
+        nook.backdrop = .solid(.red)
+        XCTAssertEqual(nook.inheritedCompanionBackdrop, .solid(.red))
+        nook.companionBackdrop = .solid(.blue)
+        XCTAssertEqual(nook.inheritedCompanionBackdrop, .solid(.blue))
+        XCTAssertEqual(
+            NookCompanionBackdrop.inherit.resolved(inheriting: nook.inheritedCompanionBackdrop),
+            .solid(.blue)
+        )
     }
 }

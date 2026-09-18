@@ -42,10 +42,40 @@ public struct NookHostBranding: Sendable, Equatable {
     /// brandings are equal when their strings match.
     public var mark: NookBrandMark?
 
-    public init(hostName: String = "Nook", hostTagline: String? = nil, mark: NookBrandMark? = nil) {
+    /// The menu-bar status item's icon, when it should differ from ``mark``. `nil` (the default)
+    /// draws ``mark`` there, or the OpenNook mark when that is `nil` too. Like the mark, it is
+    /// drawn as a template image, so the menu bar tints it for light and dark menu bars. Not part
+    /// of `Equatable`.
+    ///
+    /// ```swift
+    /// configuration.branding.menuBarIcon = NookHostBranding.symbol("sparkles")
+    /// configuration.branding.menuBarIcon = { size, _ in
+    ///     AnyView(Image("MenuIcon", bundle: .module).resizable().frame(width: size, height: size))
+    /// }
+    /// ```
+    public var menuBarIcon: NookBrandMark?
+
+    public init(
+        hostName: String = "Nook",
+        hostTagline: String? = nil,
+        mark: NookBrandMark? = nil,
+        menuBarIcon: NookBrandMark? = nil
+    ) {
         self.hostName = hostName
         self.hostTagline = hostTagline
         self.mark = mark
+        self.menuBarIcon = menuBarIcon
+    }
+
+    /// A mark or menu-bar icon drawn from the SF Symbol `name`, sized to the requested size.
+    public static func symbol(_ name: String) -> NookBrandMark {
+        { size, color in
+            AnyView(
+                Image(systemName: name)
+                    .font(.system(size: size, weight: .medium))
+                    .foregroundStyle(color)
+            )
+        }
     }
 
     /// Equality ignores ``mark`` (closures aren't comparable): two brandings are equal
@@ -73,14 +103,14 @@ public struct NookHostBranding: Sendable, Equatable {
     import AppKit
 
     extension NookHostBranding {
-        /// Renders the brand mark into a template `NSImage` for the menu-bar status item -
-        /// the host's ``mark`` if set, otherwise the framework mark.
+        /// Renders the menu-bar status item's icon into a template `NSImage` - the host's
+        /// ``menuBarIcon`` if set, then its ``mark``, otherwise the framework mark.
         @MainActor
         public func menuBarTemplateImage(size: CGFloat = 14) -> NSImage? {
-            guard let mark else {
+            guard let icon = menuBarIcon ?? mark else {
                 return NookMarkView.makeTemplateImage(size: size)
             }
-            let renderer = ImageRenderer(content: mark(size, .primary))
+            let renderer = ImageRenderer(content: icon(size, .primary))
             renderer.scale = 2
             guard let image = renderer.nsImage else { return nil }
             image.isTemplate = true

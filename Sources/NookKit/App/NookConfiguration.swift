@@ -59,6 +59,11 @@ public struct NookConfiguration: Sendable {
     /// `nil` (the default) uses the framework Settings UI. Use ``setSettings(_:)`` to set
     /// it from a `@ViewBuilder`. Gated by ``NookTopBarConfiguration/showsSettings`` like
     /// the built-in screen; the host view reads ``AppState`` via `@EnvironmentObject`.
+    ///
+    /// The built-in screen's groups are public, so a host screen can keep any of them beside
+    /// its own: ``NookAppearanceSettingsSection``, ``NookDisplaySettingsSection``,
+    /// ``NookShortcutSettingsSection``, ``NookResetSettingsSection``, and
+    /// ``NookAboutSettingsSection``, each in a ``NookSettingsGroup``.
     public var settings: (@Sendable @MainActor () -> AnyView)? = nil
 
     /// Extra host sections appended to the framework's **built-in** Settings surface, rendered
@@ -66,6 +71,20 @@ public struct NookConfiguration: Sendable {
     /// leaves Settings unchanged. Ignored when ``settings`` fully replaces the built-in screen.
     /// Use ``addSettingsSection(id:title:content:)`` to append one from a `@ViewBuilder`.
     public var settingsSections: [NookSettingsSection] = []
+
+    /// The framework groups the **built-in** Settings screen shows. Defaults to
+    /// ``NookSettingsGroups/all``. Leave a group out to hide it while keeping the rest of the
+    /// screen:
+    ///
+    /// ```swift
+    /// configuration.settingsGroups = [.appearance, .shortcut, .about]  // no Display or Data
+    /// ```
+    ///
+    /// Ignored when ``settings`` replaces the built-in screen; a host screen shows the groups it
+    /// wants by placing ``NookAppearanceSettingsSection``, ``NookDisplaySettingsSection``,
+    /// ``NookShortcutSettingsSection``, ``NookResetSettingsSection``, and
+    /// ``NookAboutSettingsSection`` in ``NookSettingsGroup``s.
+    public var settingsGroups: NookSettingsGroups = .all
 
     /// Top-bar configuration - leading cluster (title/icon), and the two visibility
     /// flags for the top bar and the Settings UI. Grouped so the related knobs
@@ -399,9 +418,11 @@ public struct NookTopBarConfiguration: Sendable {
     /// keep-open lock, gear). Defaults to `true`. Set to `false` for a bare expanded
     /// surface - a pure glance/widget with no framework chrome.
     ///
-    /// With the top bar off the gear is gone, so Settings is unreachable from the
-    /// chrome regardless of ``showsSettings``; the keep-open lock is gone too (it
-    /// lives only in the top bar). Both remain reachable via the menu-bar fallback.
+    /// With the top bar off, its lock and gear go with it. Settings and keep-open stay
+    /// available: put ``NookKeepOpenButton`` and ``NookSettingsButton`` in a companion
+    /// surface or in home content (a companion showing the gear should pass
+    /// `hidesInSettings: false`), call ``NookChromeActions`` from your own controls, or use
+    /// the menu-bar item. ``showsSettings`` still decides whether Settings exists at all.
     public var showsTopBar: Bool
 
     /// Whether the gear and the reachable Settings screen are part of the chrome.

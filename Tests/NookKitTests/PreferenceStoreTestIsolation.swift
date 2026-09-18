@@ -25,6 +25,7 @@ enum PreferenceStoreTestIsolation {
     /// The keys the stores persist, so tests can assert nothing was written.
     static let storeKeys = [
         "opennook.appearance.v1",
+        "opennook.appearance.choices.v2",
         "opennook.hotkey.v1",
         "opennook.display.v1",
     ]

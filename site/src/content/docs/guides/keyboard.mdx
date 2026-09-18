@@ -1,0 +1,140 @@
+---
+title: Typing in the nook
+description: Text inputs, keyboard focus, and the editing shortcuts in the nook's non-activating panel.
+---
+
+The nook lives in a panel that never activates your app. The app the person was
+using stays in front, keeps its menu bar, and gets the keyboard back as soon as the
+person is done typing into the nook. OpenNook handles the parts of that a text input
+needs, so a `TextField` in home content or a companion works without extra code.
+
+## What happens by default
+
+- **A click gives the nook the keyboard.** A click anywhere in the nook makes typing
+  go to it, so keyboard shortcuts in your content work after a click. A click on a
+  text input always does, even after the person has been in another app.
+- **Another app takes it back.** When the person clicks into another app, the
+  keyboard goes with them and the nook's text inputs give up focus: `@FocusState`
+  turns `false`, and anything tied to it lets go.
+- **Collapsing hands it back.** When the nook collapses or hides, typing goes back
+  to the app in front, so keys never disappear into a collapsed nook.
+- **Editing shortcuts work.** Command-X, C, V, A, Z, and Shift-Command-Z come from
+  an app's Edit menu. A notch app shows no menu bar and often has no main menu, so
+  OpenNook installs a hidden Edit menu at launch when the app has none of its own.
+
+## Holding the nook open while a field has focus
+
+A person typing may move the pointer off the nook, which would collapse it. Hold it
+open while the field has focus:
+
+```swift
+struct ReplyField: View {
+    @State private var reply = ""
+    @FocusState private var isFocused: Bool
+
+    var body: some View {
+        TextField("Reply", text: $reply)
+            .focused($isFocused)
+            .nookKeepsExpanded(whileFocused: $isFocused)
+    }
+}
+```
+
+The hold lasts while the field has focus *and* the nook has the keyboard, and ends
+shortly after either goes - including when the person clicks into another app. If the
+pointer left the nook during the hold, the nook then closes.
+
+Focus alone is not enough because SwiftUI can focus a field when content first
+appears, before the person has clicked into the nook; typing then still goes to the
+app in front. `@Environment(\.nookHasKeyboardFocus)` tells the two apart, for
+example to show a caret or a hint only while typing would reach the field.
+
+## Focusing a field when it appears
+
+A field that appears because the person asked for it - a reply field a button
+reveals - should take typing straight away. Setting its `FocusState` from
+`onAppear`, `task`, or `defaultFocus` does not focus a field that has just appeared
+in the nook, and typing then goes nowhere. Use `nookFocusOnAppear(_:)`, which gives
+the nook the keyboard and focuses the field once it is in place:
+
+```swift
+struct ReplyField: View {
+    @State private var reply = ""
+    @FocusState private var isFocused: Bool
+
+    var body: some View {
+        TextField("Reply", text: $reply)
+            .focused($isFocused)
+            .nookFocusOnAppear($isFocused)
+            .nookKeepsExpanded(whileFocused: $isFocused)
+    }
+}
+```
+
+Don't put it on a field that shows whenever the nook opens: hovering the nook would
+then take the keyboard from the app the person is typing in.
+
+## Typing without a click
+
+To take the keyboard at any other time - a key handler that should work as soon as
+the nook opens, say - ask for it from a view with
+`\.nookChromeActions.takeKeyboardFocus()`.
+
+Outside chrome content, call `coordinator.takeNookKeyboardFocus()` (it returns
+`false` while the nook is hidden) and read `coordinator.nookHasKeyboardFocus`. Hand
+the keyboard back yourself - after sending a message, say - with
+`chromeActions.releaseKeyboardFocus()` or `coordinator.releaseNookKeyboardFocus()`,
+which also ends editing in the focused field.
+
+At the engine level, `Nook` has the same calls: `takeKeyboardFocus()`,
+`releaseKeyboardFocus()`, and the published `hasKeyboardFocus`.
+
+## The global shortcut
+
+By default the show/hide shortcut only shows the nook; typing still goes to the app
+in front until the person clicks. To type straight away, opt in:
+
+```swift
+configuration.chromeBehavior.keyboard.shortcutTakesKeyboardFocus = true
+```
+
+When the shortcut opens the nook, the nook then takes the keyboard, and its focused
+text input takes typing at once. SwiftUI focuses a text input in the nook by itself
+when the nook gets the keyboard, so a nook with one field needs nothing more; with
+several, set the one you want through its `FocusState`. Opening the nook any other
+way leaves the keyboard alone.
+
+## The Edit menu
+
+The hidden Edit menu (`NookEditMenu`) is added only when no item in the app's main
+menu already pastes, so a host with its own Edit menu keeps it. Its items have no
+target, so each shortcut goes to whichever text input has focus. To install your own
+menu instead, turn it off:
+
+```swift
+configuration.chromeBehavior.keyboard.installsEditMenu = false
+```
+
+## Reaching the panel
+
+For window-level work OpenNook has no API for, `coordinator.nookWindow` (or
+`Nook.window`) is the panel right now, `nil` while the nook is hidden. Read it when
+you need it rather than keeping it: the nook builds a new panel when it shows after
+being hidden and when it moves to another display. Its accessibility identifier is
+`opennook.panel`.
+
+## Pitfalls
+
+- **Don't activate the app to type.** `NSApp.activate` pulls your app to the front
+  and takes the menu bar from the person's app. Taking the keyboard focus is enough.
+  File pickers are the exception, and `NookFilePicker` already handles them; see
+  [File pickers from a module](/guides/multiple-modules/#file-pickers-from-a-module).
+- **Keys typed while the nook has the keyboard but no field has focus go nowhere.**
+  Focus a field when you take the keyboard, or hand it back.
+
+## See also
+
+- [Companion surfaces](/guides/companion-surfaces/#interaction) - text inputs and
+  holds in companions.
+- [Chrome customization](/guides/chrome-customization/#chrome-behavior-nookchromebehavior) -
+  where `chromeBehavior.keyboard` lives beside the other behavior knobs.

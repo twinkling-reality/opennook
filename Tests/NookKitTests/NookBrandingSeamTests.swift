@@ -7,6 +7,7 @@
 
 import SwiftUI
 import XCTest
+
 @testable import NookKit
 
 /// Seam D - unified identity: single-module branding, the brand-mark override, and the
@@ -49,9 +50,12 @@ final class NookBrandingSeamTests: XCTestCase {
     /// strings match, so existing `== .default` checks keep working with a mark set.
     func testBrandingEqualityIgnoresMark() {
         let plain = NookHostBranding(hostName: "X")
-        let withMark = NookHostBranding(hostName: "X", mark: { size, _ in
-            AnyView(Color.clear.frame(width: size, height: size))
-        })
+        let withMark = NookHostBranding(
+            hostName: "X",
+            mark: { size, _ in
+                AnyView(Color.clear.frame(width: size, height: size))
+            }
+        )
         XCTAssertEqual(plain, withMark)
         XCTAssertEqual(NookHostBranding(mark: { s, _ in AnyView(Color.clear.frame(width: s)) }), .default)
     }
@@ -81,5 +85,32 @@ final class NookBrandingSeamTests: XCTestCase {
             AnyView(Image(systemName: "bolt.fill").font(.system(size: size)).foregroundStyle(color))
         })
         XCTAssertNotNil(branding.menuBarTemplateImage(size: 14))
+    }
+
+    /// A menu-bar icon of its own is drawn in the menu bar in place of the mark, which keeps
+    /// marking the rest of the chrome.
+    func testMenuBarIconTakesPrecedenceOverTheMark() {
+        final class Calls: @unchecked Sendable { var mark = 0, icon = 0 }
+        let calls = Calls()
+        let branding = NookHostBranding(
+            mark: { size, _ in
+                calls.mark += 1
+                return AnyView(Color.clear.frame(width: size, height: size))
+            },
+            menuBarIcon: { size, color in
+                calls.icon += 1
+                return NookHostBranding.symbol("sparkles")(size, color)
+            }
+        )
+
+        let image = branding.menuBarTemplateImage(size: 14)
+        XCTAssertNotNil(image)
+        XCTAssertEqual(image?.isTemplate, true)
+        XCTAssertEqual(calls.icon, 1)
+        XCTAssertEqual(calls.mark, 0, "the mark is not drawn in the menu bar when an icon is set")
+
+        _ = branding.markView(size: 11, strokeWidth: 1.1, color: .black)
+        XCTAssertEqual(calls.mark, 1, "the chrome still uses the mark")
+        XCTAssertEqual(branding, NookHostBranding(), "equality ignores the icon")
     }
 }

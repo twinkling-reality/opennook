@@ -122,7 +122,8 @@ public enum NookCompanionShape: Hashable, Sendable {
 public enum NookCompanionBackdrop: Equatable, Sendable {
     /// The chrome's own ``Nook/backdrop`` - solid, vibrancy, or Liquid Glass - so the
     /// companion reads as part of the same surface and follows the user's appearance
-    /// settings. The default.
+    /// settings. When the chrome sets a ``Nook/companionBackdrop``, that is inherited instead.
+    /// The default.
     case inherit
 
     /// A backdrop of the companion's own, independent of the chrome's.

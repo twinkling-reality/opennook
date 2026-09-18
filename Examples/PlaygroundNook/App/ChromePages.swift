@@ -383,7 +383,7 @@ private struct EdgeToggle: View {
 
 // MARK: - Behavior
 
-/// `NookChromeBehavior.hoverBehavior`, applied with `replaceChromeBehavior(_:)`.
+/// `NookChromeBehavior.hoverBehavior` and `glassShading`, applied with `replaceChromeBehavior(_:)`.
 struct BehaviorPage: View {
     @ObservedObject var model: PlaygroundModel
 
@@ -391,8 +391,12 @@ struct BehaviorPage: View {
         PlaygroundPageView(page: .behavior) {
             SectionCard(
                 title: "Hover",
-                isModified: model.settings.behavior != .init(),
-                reset: { model.settings.behavior = .init() }
+                isModified: model.settings.behavior.hoverBehavior != PlaygroundSettings.Behavior().hoverBehavior,
+                reset: {
+                    let defaults = PlaygroundSettings.Behavior()
+                    model.settings.behavior.hoverKeepsVisible = defaults.hoverKeepsVisible
+                    model.settings.behavior.hoverHaptics = defaults.hoverHaptics
+                }
             ) {
                 SwitchRow(
                     title: "Stay open while hovered",
@@ -403,6 +407,20 @@ struct BehaviorPage: View {
                     title: "Hover haptics",
                     isOn: $model.settings.behavior.hoverHaptics,
                     help: "A tap on a Force Touch trackpad as the pointer enters and leaves the nook."
+                )
+            }
+
+            SectionCard(
+                title: "Glass",
+                isModified: model.settings.behavior.glassShading != PlaygroundSettings.Behavior().glassShading,
+                reset: { model.settings.behavior.glassShading = PlaygroundSettings.Behavior().glassShading }
+            ) {
+                SegmentedRow(
+                    title: "Shading",
+                    selection: $model.settings.behavior.glassShading,
+                    choices: [Choice(.even, "Even"), Choice(.notchFade, "Notch fade")],
+                    help: "How Liquid Glass is shaded. Notch fade is black at the notch and clears toward "
+                        + "the bottom; it shows when the Material is Glass."
                 )
             }
         }

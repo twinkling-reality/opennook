@@ -546,15 +546,22 @@ public enum PlaygroundSwiftExporter {
     }
 
     static func behaviorLines(_ behavior: PlaygroundSettings.Behavior) -> [String] {
-        guard behavior != PlaygroundSettings.Behavior() else { return [] }
-        let value =
-            switch (behavior.hoverKeepsVisible, behavior.hoverHaptics) {
-                case (true, true): ".all"
-                case (true, false): ".keepVisible"
-                case (false, true): ".hapticFeedback"
-                case (false, false): "[]"
-            }
-        return ["configuration.chromeBehavior.hoverBehavior = \(value)"]
+        let defaults = PlaygroundSettings.Behavior()
+        var lines: [String] = []
+        if behavior.hoverKeepsVisible != defaults.hoverKeepsVisible || behavior.hoverHaptics != defaults.hoverHaptics {
+            let value =
+                switch (behavior.hoverKeepsVisible, behavior.hoverHaptics) {
+                    case (true, true): ".all"
+                    case (true, false): ".keepVisible"
+                    case (false, true): ".hapticFeedback"
+                    case (false, false): "[]"
+                }
+            lines.append("configuration.chromeBehavior.hoverBehavior = \(value)")
+        }
+        if behavior.glassShading != defaults.glassShading {
+            lines.append("configuration.chromeBehavior.glassShading = .\(behavior.glassShading.rawValue)")
+        }
+        return lines
     }
 
     // MARK: - Literals

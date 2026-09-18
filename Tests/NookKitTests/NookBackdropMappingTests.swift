@@ -233,4 +233,197 @@ final class NookBackdropMappingTests: XCTestCase {
         )
         XCTAssertEqual(backdrop, expected)
     }
+
+    // MARK: - Notch fade
+
+    private func notchFade(
+        palette: NookChromePalette = .dark,
+        style: NookSurfaceStyle = .liquidGlass,
+        strength: Double = 1,
+        reduceTransparency: Bool = false,
+        state: NookState = .expanded
+    ) -> NookBackdrop {
+        var prefs = preferences(palette: palette, style: style)
+        prefs.backdropStrength = strength
+        return NookBackdropMapping.notchBackdrop(
+            preferences: prefs,
+            effectiveColorScheme: .dark,
+            reduceTransparency: reduceTransparency,
+            glassShading: .notchFade,
+            state: state
+        )
+    }
+
+    /// The notch fade is clear glass, black at the notch and clear at the bottom.
+    func testNotchFadeRunsFromTheNotchColorToClear() {
+        XCTAssertEqual(
+            notchFade(),
+            .liquidGlass(.init(tint: nil, highlightStrength: 0.6, shading: .notchFade(.black, strength: 1)))
+        )
+        let stops = NookBackdrop.LiquidGlass.Shading.notchFade(.black, strength: 1).gradient.stops
+        XCTAssertEqual(stops.first?.color, .black)
+        XCTAssertEqual(stops.first?.location, 0)
+        XCTAssertEqual(stops.last?.color, .black.opacity(0))
+        XCTAssertEqual(stops.last?.location, 1)
+    }
+
+    /// Glass strength scales the fade below the top edge, which always matches the notch.
+    func testNotchFadeFollowsGlassStrength() {
+        let shading = NookBackdrop.LiquidGlass.Shading.notchFade(.black, strength: 0.5)
+        XCTAssertEqual(
+            shading.gradient.stops.map(\.color),
+            [.black, .black.opacity(0.45), .black.opacity(0.2), .black.opacity(0)]
+        )
+        XCTAssertEqual(
+            notchFade(strength: 0.5),
+            .liquidGlass(.init(tint: nil, highlightStrength: 0.6, shading: .notchFade(.black, strength: 0.5)))
+        )
+    }
+
+    /// Light chrome fades from white, so dark text stays legible at the top.
+    func testNotchFadeIsWhiteForLightChrome() {
+        XCTAssertEqual(
+            notchFade(palette: .light),
+            .liquidGlass(.init(tint: nil, highlightStrength: 0.6, shading: .notchFade(.white, strength: 1)))
+        )
+    }
+
+    /// The shading changes Liquid Glass only: Solid, Translucent, and Reduce Transparency are
+    /// the same whatever it is.
+    func testNotchFadeLeavesOtherStylesAlone() {
+        for style in [NookSurfaceStyle.solid, .translucent] {
+            let even = NookBackdropMapping.notchBackdrop(
+                preferences: preferences(palette: .dark, style: style),
+                effectiveColorScheme: .dark,
+                reduceTransparency: false
+            )
+            XCTAssertEqual(notchFade(style: style), even)
+        }
+        XCTAssertEqual(notchFade(reduceTransparency: true), .solid(.black))
+    }
+
+    /// Collapsed, the fade has nowhere to run: the panel is the notch's own height and mostly
+    /// behind the camera, so all a gradient could shade is the two small wings either side. The
+    /// chrome goes flat notch color instead - the look the fade was after in the first place.
+    func testNotchFadeGoesSolidWhileCollapsed() {
+        XCTAssertEqual(notchFade(state: .compact), .solid(.black))
+        XCTAssertEqual(notchFade(palette: .light, state: .compact), .solid(.white))
+        XCTAssertNotEqual(notchFade(state: .compact), notchFade(state: .expanded))
+    }
+
+    /// Glass strength scales the fade, not the collapsed chrome: the notch is the notch at any
+    /// strength, so the collapsed color is flat and opaque whatever the slider says.
+    func testCollapsedNotchFadeIgnoresGlassStrength() {
+        XCTAssertEqual(notchFade(strength: 0.15, state: .compact), .solid(.black))
+        XCTAssertEqual(notchFade(strength: 0.5, state: .compact), .solid(.black))
+    }
+
+    /// The state is the notch fade's business alone. Every other combination - the default even
+    /// glass, and any style under either shading - maps to one backdrop for the whole chrome,
+    /// exactly as it did before the mapping could tell the states apart.
+    func testStateOnlyMovesTheNotchFade() {
+        for shading in NookGlassShading.allCases {
+            for style in NookSurfaceStyle.allCases {
+                for palette in [NookChromePalette.dark, .light, .followSystem] {
+                    for reduceTransparency in [false, true] {
+                        func map(_ state: NookState) -> NookBackdrop {
+                            NookBackdropMapping.notchBackdrop(
+                                preferences: preferences(palette: palette, style: style),
+                                effectiveColorScheme: .dark,
+                                reduceTransparency: reduceTransparency,
+                                glassShading: shading,
+                                state: state
+                            )
+                        }
+                        let label = "\(shading) \(style) \(palette) rt:\(reduceTransparency)"
+                        let movesWithState =
+                            shading == .notchFade && style == .liquidGlass && !reduceTransparency
+                        if movesWithState {
+                            XCTAssertNotEqual(map(.compact), map(.expanded), label)
+                        } else {
+                            XCTAssertEqual(map(.compact), map(.expanded), label)
+                        }
+                        XCTAssertEqual(
+                            map(.expanded),
+                            NookBackdropMapping.notchBackdrop(
+                                preferences: preferences(palette: palette, style: style),
+                                effectiveColorScheme: .dark,
+                                reduceTransparency: reduceTransparency,
+                                glassShading: shading
+                            ),
+                            "\(label): omitting the state means the expanded chrome"
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /// The default shading is frozen: with no `glassShading` at all, the mapping answers exactly
+    /// what it always has, in every state.
+    func testUnshadedHostsGetTodaysRenderingInEveryState() {
+        for style in NookSurfaceStyle.allCases {
+            for palette in [NookChromePalette.dark, .light, .followSystem] {
+                let prefs = preferences(palette: palette, style: style)
+                let today = NookBackdropMapping.notchBackdrop(
+                    preferences: prefs,
+                    effectiveColorScheme: .dark,
+                    reduceTransparency: false
+                )
+                for state in [NookState.compact, .expanded, .hidden] {
+                    XCTAssertEqual(
+                        NookBackdropMapping.notchBackdrop(
+                            preferences: prefs,
+                            effectiveColorScheme: .dark,
+                            reduceTransparency: false,
+                            glassShading: NookChromeBehavior.default.glassShading,
+                            state: state
+                        ),
+                        today,
+                        "\(style) \(palette) \(state)"
+                    )
+                }
+            }
+        }
+    }
+
+    /// Companions get their own backdrop only under the notch fade: the same clear glass with an
+    /// even tint, never the tall gradient.
+    func testCompanionsGetAnEvenGlassOnlyUnderTheNotchFade() {
+        func companion(_ shading: NookGlassShading, style: NookSurfaceStyle = .liquidGlass, rt: Bool = false)
+            -> NookBackdrop?
+        {
+            NookBackdropMapping.companionBackdrop(
+                preferences: preferences(palette: .dark, style: style),
+                effectiveColorScheme: .dark,
+                reduceTransparency: rt,
+                glassShading: shading
+            )
+        }
+        XCTAssertNil(companion(.even))
+        XCTAssertNil(companion(.notchFade, style: .solid))
+        XCTAssertNil(companion(.notchFade, style: .translucent))
+        XCTAssertNil(companion(.notchFade, rt: true))
+        XCTAssertEqual(
+            companion(.notchFade),
+            .liquidGlass(.init(tint: nil, highlightStrength: 0.6, shading: .uniform(.black.opacity(0.3))))
+        )
+    }
+
+    /// The companion override exists to keep a tall fade out of a small pill. Collapsed there is
+    /// no fade - the chrome is flat notch color - so companions go back to inheriting it and the
+    /// pill beside the chrome matches the chrome.
+    func testCollapsedCompanionsInheritTheChrome() {
+        func companion(_ state: NookState) -> NookBackdrop? {
+            NookBackdropMapping.companionBackdrop(
+                preferences: preferences(palette: .dark, style: .liquidGlass),
+                effectiveColorScheme: .dark,
+                reduceTransparency: false,
+                glassShading: .notchFade,
+                state: state
+            )
+        }
+        XCTAssertNil(companion(.compact))
+        XCTAssertNotNil(companion(.expanded))
+    }
 }

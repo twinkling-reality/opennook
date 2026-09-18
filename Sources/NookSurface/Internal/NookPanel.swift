@@ -53,6 +53,71 @@ final class NookPanel: NSPanel {
     override var canBecomeKey: Bool {
         true
     }
+
+    /// Told when the panel gains (`true`) or loses (`false`) the keyboard.
+    var onKeyStatusChange: ((Bool) -> Void)?
+
+    /// Guarantees a click on a text input gives the panel the keyboard before the click is
+    /// handled, whether or not the app is active and whatever the input's earlier focus state.
+    /// Any other click still makes the panel key the way AppKit always has, so keyboard
+    /// shortcuts in chrome content keep working after a click.
+    override func sendEvent(_ event: NSEvent) {
+        if !isKeyWindow, Self.isMouseDown(event.type), Self.acceptsTyping(hitView(for: event)) {
+            makeKey()
+        }
+        super.sendEvent(event)
+    }
+
+    override func becomeKey() {
+        super.becomeKey()
+        onKeyStatusChange?(true)
+    }
+
+    override func resignKey() {
+        super.resignKey()
+        onKeyStatusChange?(false)
+        // Once AppKit has settled who holds the keyboard now: if it left this app - the person
+        // clicked into another app - a text input here gives up focus, so nothing keeps
+        // treating it as focused (or holds the nook open for it) while typing goes elsewhere. A
+        // window of this app taking the keyboard, such as a popover, leaves the focus alone.
+        DispatchQueue.main.async { [weak self] in
+            guard let self, !self.isKeyWindow, NSApp.keyWindow == nil else { return }
+            self.endTextEditing()
+        }
+    }
+
+    /// Ends editing in a focused text input, if there is one.
+    func endTextEditing() {
+        guard let responder = firstResponder, Self.acceptsTyping(responder) else { return }
+        makeFirstResponder(nil)
+    }
+
+    private func hitView(for event: NSEvent) -> NSView? {
+        let root = contentView?.superview ?? contentView
+        return root?.hitTest(event.locationInWindow)
+    }
+
+    private static func isMouseDown(_ type: NSEvent.EventType) -> Bool {
+        type == .leftMouseDown || type == .rightMouseDown || type == .otherMouseDown
+    }
+
+    /// Whether `responder`, or a view it sits in, takes typed text: an editable text view or
+    /// field (a focused field's editor included), or any other text input client.
+    static func acceptsTyping(_ responder: NSResponder?) -> Bool {
+        var current = responder
+        var depth = 0
+        while let candidate = current, depth < 4 {
+            switch candidate {
+                case let text as NSText: return text.isEditable
+                case let field as NSTextField: return field.isEditable
+                case is NSTextInputClient: return true
+                default: break
+            }
+            current = (candidate as? NSView)?.superview
+            depth += 1
+        }
+        return false
+    }
 }
 
 /// Transparent overlay view that intercepts AppKit drag-and-drop events and forwards

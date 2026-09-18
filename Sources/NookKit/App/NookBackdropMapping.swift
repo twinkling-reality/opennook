@@ -16,10 +16,34 @@ import SwiftUI
 /// a Liquid Glass material tinted and scrimmed toward the resolved theme - each scaled
 /// by `backdropStrength`.
 public enum NookBackdropMapping {
+    /// The chrome's backdrop for `preferences`, with the framework's even Liquid Glass shading.
     public static func notchBackdrop(
         preferences: NookAppearancePreferences,
         effectiveColorScheme: ColorScheme,
         reduceTransparency: Bool
+    ) -> NookBackdrop {
+        notchBackdrop(
+            preferences: preferences,
+            effectiveColorScheme: effectiveColorScheme,
+            reduceTransparency: reduceTransparency,
+            glassShading: .even
+        )
+    }
+
+    /// The chrome's backdrop for `preferences`, shading Liquid Glass as `glassShading` says.
+    ///
+    /// `glassShading` only changes Liquid Glass. Solid, Translucent, and Reduce Transparency
+    /// give the same backdrop whatever it is.
+    ///
+    /// `state` matters to ``NookGlassShading/notchFade`` alone, and defaults to
+    /// `NookState.expanded` - the state the fade was always sized for - so a caller that
+    /// omits it gets exactly the backdrop this returned before the parameter existed.
+    public static func notchBackdrop(
+        preferences: NookAppearancePreferences,
+        effectiveColorScheme: ColorScheme,
+        reduceTransparency: Bool,
+        glassShading: NookGlassShading,
+        state: NookState = .expanded
     ) -> NookBackdrop {
         let isDark: Bool =
             switch preferences.chromePalette {
@@ -48,6 +72,25 @@ public enum NookBackdropMapping {
                         material: .sidebar,
                         blendingMode: .behindWindow,
                         darkenOpacity: baseDarken * strength
+                    )
+                )
+            case .liquidGlass where glassShading == .notchFade && state == .compact:
+                // Collapsed, the panel *is* the notch: on a 1728-wide built-in display it is the
+                // notch's own 32 points tall and roughly three quarters of its width sits behind
+                // the camera, so a gradient sized for the expanded panel only ever fades the two
+                // small wings either side. The look the fade is after - chrome indistinguishable
+                // from the hardware - is the flat notch color here, so paint that and let the
+                // fade start when there is a panel tall enough to show it.
+                return .solid(isDark ? .black : .white)
+            case .liquidGlass where glassShading == .notchFade:
+                // Clear glass, shaded from the notch's own color at the top to nothing at the
+                // bottom. The top matches the hardware notch; strength decides how dark the fade
+                // is below it. Light chrome fades from white, so dark text stays legible there.
+                return .liquidGlass(
+                    .init(
+                        tint: nil,
+                        highlightStrength: 0.6,
+                        shading: .notchFade(isDark ? .black : .white, strength: strength)
                     )
                 )
             case .liquidGlass:
@@ -101,4 +144,64 @@ public enum NookBackdropMapping {
                 return .solid(isDark ? .black : .white)
         }
     }
+}
+
+extension NookBackdropMapping {
+    /// The backdrop companions inheriting the chrome's should paint, or `nil` for the chrome's
+    /// own.
+    ///
+    /// `nil` except for Liquid Glass shaded ``NookGlassShading/notchFade`` on the expanded
+    /// chrome: a fade sized for the tall chrome would be squeezed into a small pill, black at
+    /// its top and clear at its bottom, so companions get the same clear glass with a light,
+    /// even tint for legibility, scaled by the same strength. Collapsed there is no fade to
+    /// squeeze - the chrome is the flat notch color - so companions go back to inheriting it
+    /// and the pill beside the chrome matches the chrome.
+    ///
+    /// `state` defaults to `NookState.expanded`, the state this was written for, so a caller
+    /// that omits it gets exactly what this returned before the parameter existed.
+    public static func companionBackdrop(
+        preferences: NookAppearancePreferences,
+        effectiveColorScheme: ColorScheme,
+        reduceTransparency: Bool,
+        glassShading: NookGlassShading,
+        state: NookState = .expanded
+    ) -> NookBackdrop? {
+        guard glassShading == .notchFade, preferences.surfaceStyle == .liquidGlass, !reduceTransparency else {
+            return nil
+        }
+        guard state != .compact else { return nil }
+        let isDark: Bool =
+            switch preferences.chromePalette {
+                case .followSystem: effectiveColorScheme == .dark
+                case .dark: true
+                case .light: false
+            }
+        let strength = min(max(preferences.backdropStrength, 0.15), 1)
+        return .liquidGlass(
+            .init(
+                tint: nil,
+                highlightStrength: 0.6,
+                shading: .uniform(isDark ? .black.opacity(0.3 * strength) : .white.opacity(0.4 * strength))
+            )
+        )
+    }
+}
+
+/// How the framework shades Liquid Glass, set on ``NookChromeBehavior/glassShading``.
+public enum NookGlassShading: Sendable, Equatable, CaseIterable {
+    /// Glass tinted toward the theme, with a light darken (or lighten) that eases toward the
+    /// bottom. The framework's look since Liquid Glass shipped.
+    case even
+
+    /// Black where the panel meets the hardware notch, fading to clear glass at the bottom so
+    /// the wallpaper shows through - white instead of black for light chrome. Glass strength
+    /// scales how dark the fade is below the top edge. Companions under the expanded chrome
+    /// inherit the same clear glass with a light even tint (see
+    /// ``NookBackdropMapping/companionBackdrop(preferences:effectiveColorScheme:reduceTransparency:glassShading:state:)``).
+    ///
+    /// The fade needs a panel to run down. Collapsed, the chrome is the notch's own height and
+    /// mostly behind the camera, so it is painted the flat notch color instead - solid black,
+    /// or white for light chrome - and reads as the hardware it sits in. The chrome re-resolves
+    /// its backdrop on every expand and collapse, so the two states swap as it moves.
+    case notchFade
 }

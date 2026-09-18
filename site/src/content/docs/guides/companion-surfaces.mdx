@@ -288,7 +288,9 @@ The content is not clipped to the shape, so a badge can overhang the edge.
 
 - `.inherit` (the default) - the chrome's current backdrop, so the companion
   follows the user's surface style (solid, translucent, or Liquid Glass) and
-  Reduce Transparency along with the panel;
+  Reduce Transparency along with the panel. When the chrome's backdrop is shaped
+  for the tall panel, such as the [notch fade](/guides/surface-materials/#notch-fade),
+  companions inherit an even version of it instead;
 - `.custom(NookBackdrop)` - a backdrop of its own, for example
   `.custom(.solid(.accentColor))`;
 - `.none` - nothing behind the content. The style still pads and sizes the
@@ -574,9 +576,14 @@ only the chrome itself does - so a compact-only companion cannot fold away under
 the pointer.
 
 **Clicks and focus.** Companions render in the nook's own non-activating panel.
-Clicking one is clicking the nook: the app is not activated, focus stays where the
-nook left it, and the global show/hide hotkey keeps toggling the nook. Clicks on the
+Clicking one is clicking the nook: the app is not activated, the app in front stays in
+front, and the global show/hide hotkey keeps toggling the nook. Clicks on the
 transparent space around a companion fall through to whatever is behind the panel.
+
+**Text inputs.** A text field in a companion works like one in home content: clicking
+it gives the nook the keyboard, the person's other app gets the keyboard back when the
+nook collapses, and the field gives up focus when the person clicks into another app.
+See [Typing in the nook](/guides/keyboard/).
 
 **Popovers and menus.** A popover, menu, or sheet opens in a window of its own, so
 the pointer leaves the panel while it is up. Hold the nook open for its duration
@@ -587,6 +594,9 @@ Button("Pick a time") { isPicking = true }
     .popover(isPresented: $isPicking) { TimePicker() }
     .nookKeepsExpanded(while: $isPicking)
 ```
+
+If the pointer left the nook while the hold was on, the nook closes as soon as the
+hold ends, as if the pointer had just left. A nook the pointer never left stays open.
 
 **File drops.** Files dropped anywhere on the panel go to `onFileDrop`, companions
 included. A basket-style companion can light up during a drag by reading

@@ -136,6 +136,26 @@ public enum NookBackdrop: Equatable, Sendable {
             public static func uniform(_ color: Color) -> Shading {
                 Shading(gradient: Gradient(colors: [color, color]))
             }
+
+            /// `color` in full where the chrome meets the hardware notch, thinning to nothing at
+            /// the bottom so the wallpaper shows through lower down - the look of notch apps
+            /// whose panel grows out of the notch. `strength` (clamped to 0...1) scales how dark
+            /// the fade is below the top edge; the top edge itself always matches the notch.
+            ///
+            /// ```swift
+            /// .liquidGlass(.init(shading: .notchFade()))
+            /// ```
+            public static func notchFade(_ color: Color = .black, strength: Double = 1) -> Shading {
+                let strength = min(max(strength, 0), 1)
+                return Shading(
+                    gradient: Gradient(stops: [
+                        .init(color: color, location: 0),
+                        .init(color: color.opacity(0.9 * strength), location: 0.22),
+                        .init(color: color.opacity(0.4 * strength), location: 0.58),
+                        .init(color: color.opacity(0), location: 1),
+                    ])
+                )
+            }
         }
     }
 
@@ -182,6 +202,9 @@ private struct NookChromeBackdropKey: EnvironmentKey {
 extension EnvironmentValues {
     /// What the chrome is painted with right now, inside compact, expanded, and companion
     /// content. `nil` anywhere else. Paint it with ``NookBackdropView``.
+    ///
+    /// Inside companion content it is the backdrop companions inherit, which is the chrome's
+    /// own unless the chrome sets a ``Nook/companionBackdrop``.
     public var nookChromeBackdrop: NookBackdrop? {
         get { self[NookChromeBackdropKey.self] }
         set { self[NookChromeBackdropKey.self] = newValue }

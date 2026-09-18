@@ -79,6 +79,42 @@ struct SettingsDataCommandRow: View {
     }
 }
 
+/// "Reset All Settings" - the built-in Settings screen's reset command, for a host that builds
+/// its own Settings screen. Runs ``NookChromeActions/resetSettings``: appearance, the global
+/// shortcut, and the display return to the host's defaults.
+///
+/// Use it inside chrome content, which supplies the chrome's actions.
+///
+/// ```swift
+/// NookSettingsGroup("Data") { NookResetSettingsSection() }
+/// ```
+public struct NookResetSettingsSection: View {
+    @Environment(\.nookChromeActions) private var actions
+
+    public init() {}
+
+    public var body: some View {
+        SettingsDataCommandRow(
+            title: "Reset All Settings",
+            subtitle: "Theme, surface, layout, display, hotkey, stay expanded",
+            icon: "arrow.counterclockwise",
+            style: .standard,
+            action: actions.resetSettings
+        )
+    }
+}
+
+/// The host's name, version, and tagline beside its brand mark - the body of the built-in
+/// Settings screen's About group, for a host that builds its own Settings screen. Reads
+/// ``NookHostBranding`` from the chrome.
+public struct NookAboutSettingsSection: View {
+    public init() {}
+
+    public var body: some View {
+        SettingsAboutCard()
+    }
+}
+
 /// About card surfaced in the About settings group: host name, version, and a one-line
 /// note about the host. Name and tagline come from `\.nookHostBranding` so downstream
 /// hosts read their own product name - the demo's `"Nook"` / stock tagline are the

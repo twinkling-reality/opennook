@@ -73,11 +73,32 @@ protocol NookSurfaceDriving: AnyObject {
     /// How the chrome presents itself - notch-fused, floating, or auto.
     var presentation: NookPresentation { get set }
 
+    /// The layout ``presentation`` resolved to on the chrome's current screen.
+    var layoutForm: NookChromeForm { get }
+    /// Emits on every `layoutForm` change.
+    var layoutFormPublisher: AnyPublisher<NookChromeForm, Never> { get }
+
     /// Pins the chrome window's `NSAppearance`. `nil` follows the system.
     var chromeAppearance: NSAppearance? { get set }
 
     /// What the chrome paints behind compact and expanded content.
     var backdrop: NookBackdrop { get set }
+
+    /// What companions inheriting the chrome's backdrop paint, or `nil` for the chrome's own.
+    var companionBackdrop: NookBackdrop? { get set }
+
+    /// The panel the chrome is drawn in right now, or `nil` while hidden.
+    var window: NSWindow? { get }
+
+    /// `true` while the chrome's panel has the keyboard.
+    var hasKeyboardFocus: Bool { get }
+
+    /// Gives the chrome's panel the keyboard. Returns `false` while hidden.
+    @discardableResult
+    func takeKeyboardFocus() -> Bool
+
+    /// Hands the keyboard back to the app in front.
+    func releaseKeyboardFocus()
 
     /// Open/close/conversion animation curves.
     var transitionConfiguration: NookTransitionConfiguration { get set }
@@ -141,5 +162,9 @@ extension Nook: NookSurfaceDriving {
 
     var isLayoutGraceActivePublisher: AnyPublisher<Bool, Never> {
         $isLayoutGraceActive.eraseToAnyPublisher()
+    }
+
+    var layoutFormPublisher: AnyPublisher<NookChromeForm, Never> {
+        $layoutForm.eraseToAnyPublisher()
     }
 }
