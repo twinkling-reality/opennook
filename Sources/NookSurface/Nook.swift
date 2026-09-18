@@ -133,7 +133,12 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// Layout resolved for the current window's screen - `.notch` or `.floating`.
     /// Recomputed every time the panel window is built (see `initializeWindow`); drives
     /// `NookView`'s shape and positioning.
-    @Published private(set) var layoutForm: NookChromeForm = .notch
+    ///
+    /// Readable (and `@Published`) so a host can paint for the layout the chrome actually
+    /// landed on rather than the ``presentation`` it asked for: `.auto` resolves to either
+    /// form depending on the screen, and a backdrop that reads as the hardware notch is only
+    /// right under ``NookChromeForm/notch``.
+    @Published public private(set) var layoutForm: NookChromeForm = .notch
     @Published public private(set) var isHovering: Bool = false {
         didSet {
             if isHovering { hasDeferredHoverExit = false }

@@ -73,6 +73,11 @@ protocol NookSurfaceDriving: AnyObject {
     /// How the chrome presents itself - notch-fused, floating, or auto.
     var presentation: NookPresentation { get set }
 
+    /// The layout ``presentation`` resolved to on the chrome's current screen.
+    var layoutForm: NookChromeForm { get }
+    /// Emits on every `layoutForm` change.
+    var layoutFormPublisher: AnyPublisher<NookChromeForm, Never> { get }
+
     /// Pins the chrome window's `NSAppearance`. `nil` follows the system.
     var chromeAppearance: NSAppearance? { get set }
 
@@ -157,5 +162,9 @@ extension Nook: NookSurfaceDriving {
 
     var isLayoutGraceActivePublisher: AnyPublisher<Bool, Never> {
         $isLayoutGraceActive.eraseToAnyPublisher()
+    }
+
+    var layoutFormPublisher: AnyPublisher<NookChromeForm, Never> {
+        $layoutForm.eraseToAnyPublisher()
     }
 }

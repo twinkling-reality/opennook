@@ -99,13 +99,29 @@ configuration.chromeBehavior.glassShading = .notchFade
 The shading changes Liquid Glass only. Solid, Translucent, and Reduce Transparency
 look the same either way.
 
+### Collapsed, the fade goes solid
+
+The fade needs a panel to run down. Collapsed, a notch-fused chrome is the hardware
+notch's own height - 32 points on a 1728-wide built-in display - and roughly three
+quarters of its width sits behind the camera, so a gradient sized for the expanded
+panel shades nothing but the two small wings either side of it.
+
+So `.notchFade` paints the collapsed chrome the flat notch color instead - solid
+black, or white for light chrome - which is the look the fade was after in the first
+place: chrome indistinguishable from the hardware it sits in. The fade starts when
+there is a panel tall enough to show it. The chrome re-resolves its backdrop on every
+expand and collapse, so the two swap as it moves; nothing is re-resolved on a hide,
+so no repaint lands under a panel that is fading out.
+
 A fade sized for the tall chrome would look wrong squeezed into a small companion
 pill - black at its top, clear at its bottom. So under `.notchFade`, companions that
-inherit the chrome's backdrop get the same clear glass with a light, even tint
-instead, scaled by the same strength. To decide that yourself, set
-`chromeBehavior.companionBackdrop`, a resolver like `backdrop` that returns what
-companions inherit (`nil` for the chrome's own). Companion content reads the same
-value as `\.nookChromeBackdrop`. At the engine level this is `Nook.companionBackdrop`.
+inherit the *expanded* chrome's backdrop get the same clear glass with a light, even
+tint instead, scaled by the same strength. Collapsed there is no fade to squeeze, so
+they go back to inheriting the chrome and the pill beside it matches it. To decide
+that yourself, set `chromeBehavior.companionBackdrop`, a resolver like `backdrop`
+that returns what companions inherit (`nil` for the chrome's own). Companion content
+reads the same value as `\.nookChromeBackdrop`. At the engine level this is
+`Nook.companionBackdrop`.
 
 The gradient itself is public too, for a host resolver or a raw `Nook`:
 
@@ -196,11 +212,24 @@ Settings style, is where the deeper customization lives:
 
 ```swift
 configuration.chromeBehavior = NookChromeBehavior(
-    backdrop: { preferences, scheme, reduceTransparency in
+    backdrop: { context in
         .liquidGlass(.init(tint: .blue, tintStrength: 0.22))
     }
 )
 ```
+
+The resolver is re-run on every expand and collapse and is told which chrome it is
+answering for, so a host can shape the collapsed pill and the expanded panel
+separately rather than shading one gradient to suit both:
+
+```swift
+configuration.chromeBehavior.backdrop = { context in
+    context.isExpanded ? .liquidGlass(.init(shading: .notchFade())) : .solid(.black)
+}
+```
+
+See [Backdrop resolver](/guides/chrome-customization/#backdrop-resolver) for the
+whole `NookBackdropContext`.
 
 ## See also
 
@@ -209,4 +238,4 @@ configuration.chromeBehavior = NookChromeBehavior(
 - `Sources/NookSurface/NookBackdrop.swift` - the `NookBackdrop` and `LiquidGlass`
   types, the source of truth for the knobs.
 - `Sources/NookKit/App/NookBackdropMapping.swift` - how a style, color scheme,
-  and Reduce Transparency map to a backdrop.
+  Reduce Transparency, and the chrome's state map to a backdrop.

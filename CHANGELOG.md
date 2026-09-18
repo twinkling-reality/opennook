@@ -135,9 +135,35 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `AppState.preferenceDefaults` reads the host's launch defaults back, and
   `resetAppearancePreferences()`, `resetHotkey()`, and `resetDisplayPreference()`
   return one preference to them.
+- Per-state chrome backdrops. The chrome re-resolves what it paints every time it
+  expands and collapses, so the collapsed pill and the expanded panel no longer have
+  to share one backdrop. `NookChromeBehavior.backdrop` and `companionBackdrop` now
+  receive a `NookBackdropContext` carrying the chrome's `NookState` and its resolved
+  `NookChromeForm` beside the appearance state they already got, and
+  `NookBackdropMapping.notchBackdrop(...)` / `companionBackdrop(...)` take an optional
+  `state:`. A hide re-resolves nothing, so no repaint lands under a panel that is
+  fading out.
+- `Nook.layoutForm` (`NookChromeForm`, previously internal) is readable and published:
+  the layout `presentation` resolved to on the current screen, since `.auto` lands on
+  the notch form or the floating one depending on the display.
 
 ### Changed
 
+- `NookGlassShading.notchFade` paints the collapsed chrome solid - the flat notch
+  color, black or white for light chrome - and fades only the expanded panel.
+  Collapsed, a notch-fused panel is the hardware notch's own height with roughly three
+  quarters of its width behind the camera, so the fade had nothing to shade there but
+  the two small wings either side of it; solid is the look it was after. Companions
+  inheriting the chrome follow: they take their own even glass under the expanded fade
+  as before, and the chrome's own backdrop while it is collapsed. `.even` (the default)
+  is unchanged in every state, so a host that sets no shading renders exactly as before.
+- **Breaking:** `NookChromeBehavior.BackdropResolver` and `CompanionBackdropResolver`
+  take a single `NookBackdropContext` instead of three arguments. A resolver reads its
+  old parameters off the context - `{ preferences, scheme, rt in ... }` becomes
+  `{ context in ... }` with `context.preferences`, `context.colorScheme`, and
+  `context.reduceTransparency` - and gains `context.state` and `context.form`. Hosts
+  that only set `glassShading` are unaffected, and future additions are new properties
+  rather than another signature change.
 - Appearance preferences are stored field by field. Changing one field persists only
   that field, so every field the person never changed keeps following the host's
   `preferenceDefaults`, including a default a later build changes. Before, changing

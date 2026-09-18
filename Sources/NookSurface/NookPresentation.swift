@@ -36,9 +36,14 @@ public enum NookPresentation: String, Codable, Sendable, CaseIterable, Equatable
 }
 
 /// The resolved layout the surface actually renders - the concrete outcome of a
-/// ``NookPresentation`` against a specific screen. Internal: callers express intent
-/// through ``NookPresentation``; the surface picks the form.
-enum NookChromeForm: Equatable {
+/// ``NookPresentation`` against a specific screen.
+///
+/// Callers still express *intent* through ``NookPresentation``; the surface picks the form
+/// and publishes it as ``Nook/layoutForm``. It is readable because the answer changes what a
+/// host wants painted - a chrome fused to the hardware notch and a panel floating below the
+/// menu bar are not the same surface - and a backdrop resolver receives it alongside the
+/// chrome's state.
+public enum NookChromeForm: Equatable, Sendable {
     /// Eared shape fused to the menu-bar notch.
     case notch
     /// Free-floating rounded panel below the menu bar.

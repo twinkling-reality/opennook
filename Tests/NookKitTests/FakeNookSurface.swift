@@ -28,6 +28,7 @@ final class FakeNookSurface: NookSurfaceDriving {
     private let hoveringSubject = CurrentValueSubject<Bool, Never>(false)
     private let dragSubject = CurrentValueSubject<Bool, Never>(false)
     private let layoutGraceSubject = CurrentValueSubject<Bool, Never>(false)
+    private let layoutFormSubject = CurrentValueSubject<NookChromeForm, Never>(.notch)
 
     var state: NookState { stateSubject.value }
     var statePublisher: AnyPublisher<NookState, Never> {
@@ -56,6 +57,16 @@ final class FakeNookSurface: NookSurfaceDriving {
     }
     var isLayoutGraceActivePublisher: AnyPublisher<Bool, Never> {
         layoutGraceSubject.removeDuplicates().eraseToAnyPublisher()
+    }
+
+    /// The layout the chrome resolved to. Settable so a test can drive the floating form
+    /// without a screen; the real surface recomputes it whenever it builds a window.
+    var layoutForm: NookChromeForm {
+        get { layoutFormSubject.value }
+        set { layoutFormSubject.send(newValue) }
+    }
+    var layoutFormPublisher: AnyPublisher<NookChromeForm, Never> {
+        layoutFormSubject.removeDuplicates().eraseToAnyPublisher()
     }
 
     var onExpand: (@MainActor () -> Void)?
