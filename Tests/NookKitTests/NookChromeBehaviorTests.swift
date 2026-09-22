@@ -22,17 +22,22 @@ final class NookChromeBehaviorTests: XCTestCase {
     private func makeCoordinator(
         chromeBehavior: NookChromeBehavior,
         appState: AppState = AppState(),
+        reduceTransparency: Bool = false,
         surface: any NookSurfaceDriving
     ) -> AppCoordinator {
         var host = NookHostConfiguration()
         host.chromeBehavior = chromeBehavior
         host.register(NookModuleDescriptor(id: "A", displayName: "A")) { NookConfiguration() }
         host.defaultModule = "A"
-        return AppCoordinator(
+        let coordinator = AppCoordinator(
             appState: appState,
             moduleHost: ModuleHost(registry: host.makeRegistry()),
             surface: surface
         )
+        // Pinned rather than read off the machine: a headless CI runner reports Reduce
+        // Transparency on, which would collapse every glass expectation here to solid.
+        coordinator.reduceTransparencyProvider = { reduceTransparency }
+        return coordinator
     }
 
     /// Defaults reproduce the framework: no hover side-effects, the shimmer plays, and no
@@ -237,6 +242,29 @@ final class NookChromeBehaviorTests: XCTestCase {
         XCTAssertNil(surface.companionBackdrop)
     }
 
+    /// Reduce Transparency wins over the fade: the chrome is the solid notch color in every
+    /// state, and with no glass to shade companions stay on it.
+    func testReduceTransparencyKeepsTheNotchFadeSolid() async {
+        let surface = FakeNookSurface()
+        let coordinator = makeCoordinator(
+            chromeBehavior: NookChromeBehavior(glassShading: .notchFade),
+            appState: glassAppState(),
+            reduceTransparency: true,
+            surface: surface
+        )
+
+        coordinator.start()
+        await coordinator.drainLifecycleForTesting()
+        XCTAssertEqual(surface.backdrop, .solid(.black), "compact")
+        XCTAssertNil(surface.companionBackdrop, "compact companions")
+
+        coordinator.toggleNook()
+        await coordinator.drainLifecycleForTesting()
+        XCTAssertEqual(surface.state, .expanded)
+        XCTAssertEqual(surface.backdrop, .solid(.black), "expanded")
+        XCTAssertNil(surface.companionBackdrop, "expanded companions")
+    }
+
     /// Nothing repaints on the way out. A hide fades the panel away, and re-resolving across it
     /// would flash the collapsed backdrop over a panel that is still on screen - so the chrome
     /// keeps whatever it was painted with until it is visible again.
@@ -321,25 +349,33 @@ final class NookChromeBehaviorTests: XCTestCase {
     /// must not move it - for any surface style.
     func testDefaultShadingPaintsTheSameBackdropInEveryState() async {
         for style in NookSurfaceStyle.allCases {
-            let appState = AppState()
-            appState.appearancePreferences = NookAppearancePreferences(chromePalette: .dark, surfaceStyle: style)
-            let surface = FakeNookSurface()
-            let coordinator = makeCoordinator(chromeBehavior: .default, appState: appState, surface: surface)
-            let expected = NookBackdropMapping.notchBackdrop(
-                preferences: appState.appearancePreferences,
-                effectiveColorScheme: .dark,
-                reduceTransparency: false
-            )
+            for reduceTransparency in [false, true] {
+                let appState = AppState()
+                appState.appearancePreferences = NookAppearancePreferences(chromePalette: .dark, surfaceStyle: style)
+                let surface = FakeNookSurface()
+                let coordinator = makeCoordinator(
+                    chromeBehavior: .default,
+                    appState: appState,
+                    reduceTransparency: reduceTransparency,
+                    surface: surface
+                )
+                let expected = NookBackdropMapping.notchBackdrop(
+                    preferences: appState.appearancePreferences,
+                    effectiveColorScheme: .dark,
+                    reduceTransparency: reduceTransparency
+                )
+                let label = "\(style), reduceTransparency \(reduceTransparency)"
 
-            coordinator.start()
-            await coordinator.drainLifecycleForTesting()
-            XCTAssertEqual(surface.backdrop, expected, "\(style) compact")
-            XCTAssertNil(surface.companionBackdrop, "\(style) compact companions")
+                coordinator.start()
+                await coordinator.drainLifecycleForTesting()
+                XCTAssertEqual(surface.backdrop, expected, "\(label) compact")
+                XCTAssertNil(surface.companionBackdrop, "\(label) compact companions")
 
-            coordinator.toggleNook()
-            await coordinator.drainLifecycleForTesting()
-            XCTAssertEqual(surface.backdrop, expected, "\(style) expanded")
-            XCTAssertNil(surface.companionBackdrop, "\(style) expanded companions")
+                coordinator.toggleNook()
+                await coordinator.drainLifecycleForTesting()
+                XCTAssertEqual(surface.backdrop, expected, "\(label) expanded")
+                XCTAssertNil(surface.companionBackdrop, "\(label) expanded companions")
+            }
         }
     }
 
