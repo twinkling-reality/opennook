@@ -64,6 +64,13 @@ live from the running app; see [`docs/images/`](docs/images/README.md) for how t
   <br><sub><b>File shelf.</b> Files dropped on the notch, from the optional <code>NookComponents</code>. <code>swift run ShowcaseNook --scene shelf</code></sub>
 </p>
 
+<p align="center">
+  <img src="docs/images/nook-playground.gif" width="840" alt="PlaygroundNook: the controls window below the expanded nook, with the material changing and the nook following it live">
+  <br><sub><b>Playground.</b> Change the running nook from a controls window,
+  then copy the result as Swift or a JSON preset.
+  <code>swift run PlaygroundNook</code></sub>
+</p>
+
 ## What's inside
 
 - **`NookSurface`** - the notch window itself: shape geometry, hover behavior,

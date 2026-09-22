@@ -94,11 +94,13 @@ final class PlaygroundModel: ObservableObject {
             Task { @MainActor [weak self] in
                 try? await Task.sleep(for: .milliseconds(500))
                 guard let self else { return }
+                // Keep-open only stops the nook collapsing on its own: it does not open
+                // one that is closed, so a launch that asks for it still has to show the
+                // nook, or the app sits on the pill with the preference set.
                 if LaunchOptions.keepsNookOpen {
                     self.setKeepsNookExpanded(true)
-                } else {
-                    self.coordinator?.showNook()
                 }
+                self.coordinator?.showNook()
             }
         }
     }
