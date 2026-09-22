@@ -1,33 +1,62 @@
 ---
+// The OpenNook mark: a notch cut from a pair of wings. Traced from
+// src/assets/brand/opennook-logo-source.png; public/nook-mark.svg is the same
+// drawing as a file. The gradient ids are per instance so two marks on one
+// page don't share defs. Light theme swaps in the deeper stops from the
+// first version of the logo: the pale ones barely separate from the page.
 interface Props {
   class?: string;
-  width?: number;
   height?: number;
 }
 
-const { class: className, width = 16, height = 16 } = Astro.props;
+const { class: className, height = 14 } = Astro.props;
+const width = Math.round((height * 1056) / 189);
+const id = `on-mark-${Math.random().toString(36).slice(2, 8)}`;
+const shape =
+  'M124 539H419A40 40 0 0 1 459 579V628A41 41 0 0 0 500 669H752A41 41 0 0 0 793 628V579A40 40 0 0 1 833 539H1128C1146 539 1154 549 1140 561L1010 679Q975 712 935 712H317Q277 712 242 679L112 561C98 549 106 539 124 539Z';
 ---
 
 <svg
   class:list={['nook-mark', className]}
   width={width}
   height={height}
-  viewBox="0 0 24 24"
+  viewBox="98 531 1056 189"
   fill="none"
   aria-hidden="true"
 >
-  <path
-    d="M5 10.5c0-3 3.1-6 7-6s7 3 7 6"
-    stroke="currentColor"
-    stroke-width="1.75"
-    stroke-linecap="round"
-  />
-  <circle cx="12" cy="16" r="2" fill="currentColor" />
+  <defs>
+    <linearGradient id={`${id}-hue`} x1="106" y1="0" x2="1147" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" style="stop-color: var(--on-mark-1, #d6ecfd)" />
+      <stop offset="0.33" style="stop-color: var(--on-mark-2, #cbd6fb)" />
+      <stop offset="0.62" style="stop-color: var(--on-mark-3, #d1cdfc)" />
+      <stop offset="1" style="stop-color: var(--on-mark-4, #e3c9fb)" />
+    </linearGradient>
+    <radialGradient
+      id={`${id}-glow`}
+      cx="626"
+      cy="716"
+      r="1"
+      gradientUnits="userSpaceOnUse"
+      gradientTransform="translate(626 716) scale(360 140) translate(-626 -716)"
+    >
+      <stop offset="0" stop-color="#eef2fd" stop-opacity="0.9" />
+      <stop offset="1" stop-color="#eef2fd" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+  <path d={shape} fill={`url(#${id}-hue)`} />
+  <path d={shape} fill={`url(#${id}-glow)`} />
 </svg>
 
 <style>
   .nook-mark {
     flex: 0 0 auto;
     display: block;
+  }
+
+  :global([data-theme='light']) .nook-mark {
+    --on-mark-1: #8fd3fd;
+    --on-mark-2: #8590fd;
+    --on-mark-3: #a99efc;
+    --on-mark-4: #d9a8fb;
   }
 </style>

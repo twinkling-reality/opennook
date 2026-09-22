@@ -77,17 +77,35 @@ final class PlaygroundModel: ObservableObject {
         // The configuration was built from the saved settings at launch; the chrome behavior
         // is host-wide, so it is applied separately.
         coordinator.replaceChromeBehavior(settings.chromeBehavior)
-        showControls(activating: false)
+        if !LaunchOptions.hidesControls {
+            showControls(activating: false)
+        }
+        if let sampleID = LaunchOptions.sampleID {
+            if let sample = PlaygroundPreset.samples.first(where: { $0.id == sampleID }) {
+                apply(sample.preset)
+            }
+        }
         if let path = LaunchOptions.presetPath {
             importPreset(from: URL(fileURLWithPath: path))
         }
-        if LaunchOptions.expandsNook {
-            coordinator.showNook()
+        if LaunchOptions.keepsNookOpen || LaunchOptions.expandsNook {
+            // The sample/preset apply reloads configuration on the next main-actor
+            // turn. Open after that so the expanded chrome is the look we just set.
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .milliseconds(500))
+                guard let self else { return }
+                if LaunchOptions.keepsNookOpen {
+                    self.setKeepsNookExpanded(true)
+                } else {
+                    self.coordinator?.showNook()
+                }
+            }
         }
     }
 
-    /// `--preset <path>` opens a preset at launch and `--expand` opens the nook, so a preset can
-    /// be previewed with one command.
+    /// `--preset <path>` opens a JSON preset, `--sample <id>` opens a built-in sample
+    /// (`defaults`, `media`, `glass`, `glance`, `call`), `--expand` opens the nook,
+    /// `--keep-open` holds it expanded, and `--hide-controls` skips the controls window.
     private enum LaunchOptions {
         static var presetPath: String? {
             let arguments = ProcessInfo.processInfo.arguments
@@ -97,8 +115,24 @@ final class PlaygroundModel: ObservableObject {
             return arguments[index + 1]
         }
 
+        static var sampleID: String? {
+            let arguments = ProcessInfo.processInfo.arguments
+            guard let index = arguments.firstIndex(of: "--sample"), arguments.indices.contains(index + 1) else {
+                return nil
+            }
+            return arguments[index + 1]
+        }
+
         static var expandsNook: Bool {
             ProcessInfo.processInfo.arguments.contains("--expand")
+        }
+
+        static var keepsNookOpen: Bool {
+            ProcessInfo.processInfo.arguments.contains("--keep-open")
+        }
+
+        static var hidesControls: Bool {
+            ProcessInfo.processInfo.arguments.contains("--hide-controls")
         }
     }
 

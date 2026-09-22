@@ -72,8 +72,15 @@
         btn.addEventListener('click', () => {
           if (!(btn instanceof HTMLButtonElement)) return;
           const next = parseTheme(btn.dataset.themeValue);
-          onThemeChange(next);
           setActiveButton(this, next);
+          // Cross-fade the page rather than snapping every surface at once.
+          // The duration is --mo-base (custom.css), so reduced motion is honoured.
+          const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+          if (!reduce && typeof document.startViewTransition === 'function') {
+            document.startViewTransition(() => onThemeChange(next));
+          } else {
+            onThemeChange(next);
+          }
         });
       });
     }
@@ -89,8 +96,8 @@
     gap: 1px;
     padding: 1px;
     border: 1px solid var(--on-control-border);
-    border-radius: var(--on-radius-md);
-    background: transparent;
+    border-radius: 999px;
+    background: var(--on-control-bg);
   }
 
   .theme-toggle__btn {
@@ -101,13 +108,13 @@
     height: 1.75rem;
     padding: 0;
     border: 0;
-    border-radius: calc(var(--on-radius-md) - 2px);
+    border-radius: 999px;
     background: transparent;
     color: var(--on-ink-muted);
     cursor: pointer;
     transition:
-      color 160ms var(--on-ease-out),
-      background-color 160ms var(--on-ease-out);
+      color var(--mo-fast) var(--mo-ease),
+      background-color var(--mo-fast) var(--mo-ease);
   }
 
   .theme-toggle__btn:hover {
@@ -116,6 +123,6 @@
 
   .theme-toggle__btn.is-active {
     color: var(--sl-color-text-accent);
-    background: var(--sl-color-accent-low);
+    background: var(--on-accent-wash-strong);
   }
 </style>

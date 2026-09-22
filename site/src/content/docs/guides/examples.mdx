@@ -1,10 +1,10 @@
 ---
 title: Examples
-description: An index of the eleven example apps under Examples/, each linked to the guide that covers it
+description: An index of the twelve example apps under Examples/, each linked to the guide that covers it
 ---
 
 Every example under `Examples/` is a host that builds on OpenNook's public API
-only - no forking, no patched framework. All but the playground fit in a single
+only - no forking, no patched framework. All but the playground and the showcase fit in a single
 `main.swift`. Each one is its own SPM target, so you run it straight from the repo
 with `swift run <Name>` and press the show/hide hotkey (the default is the
 option-command-semicolon combination) to expand the nook.
@@ -73,6 +73,22 @@ Drop-in surfaces from the `NookComponents` add-on. Each imports
   compact pill - a `SystemVolumeObserver` tracks the output level and
   `NookVolumeIndicator` renders it beside the notch. See
   [Volume glyph](/guides/volume-glyph/).
+
+## Showcase
+
+Several seams put together the way a shipping notch app would.
+
+- **ShowcaseNook** - `swift run ShowcaseNook --scene <id>`. Finished-looking
+  scenes, one per launch: a player with cover art drawn in code and its queue
+  (`player`), a month beside today's schedule (`agenda`), a focus countdown on a
+  tick dial (`timer`), a release build step by step that posts an activity when
+  it finishes (`progress`), the file shelf holding sample files (`shelf`), a
+  volume HUD over `SystemVolumeObserver` (`hud`), and a collapsed pill carrying
+  a song and a timer (`compact`). `--expand` or `--expand-after <seconds>` opens
+  the nook and `--keep-open` holds it. See
+  [Companion surfaces](/guides/companion-surfaces/),
+  [Activity queue](/guides/activity-queue/), and
+  [File shelf](/guides/file-shelf/).
 
 ## Hosting
 

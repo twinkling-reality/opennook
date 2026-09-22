@@ -124,9 +124,10 @@ const mdHref = `/${id}.md`;
 
   .on-title-row h1 {
     margin-top: 0;
-    font-size: var(--sl-text-h1);
-    line-height: var(--sl-line-height-headings);
-    font-weight: 600;
+    font-size: clamp(2.1rem, 3.6vw, 2.75rem);
+    line-height: 1.08;
+    font-weight: 300;
+    letter-spacing: -0.04em;
   }
 
   .on-copypage {
@@ -143,7 +144,7 @@ const mdHref = `/${id}.md`;
     border-radius: var(--on-radius-md);
     background: transparent;
     overflow: hidden;
-    transition: border-color 160ms var(--on-ease-out);
+    transition: border-color var(--mo-fast) var(--mo-ease);
   }
 
   .on-copypage-split:hover {
@@ -162,7 +163,7 @@ const mdHref = `/${id}.md`;
     font-size: 13px;
     font-weight: 500;
     cursor: pointer;
-    transition: background-color 160ms var(--on-ease-out), color 160ms var(--on-ease-out);
+    transition: background-color var(--mo-fast) var(--mo-ease), color var(--mo-fast) var(--mo-ease);
   }
 
   .on-copypage-main {
@@ -188,7 +189,7 @@ const mdHref = `/${id}.md`;
   }
 
   .on-ic-caret {
-    transition: transform 200ms var(--on-ease-out);
+    transition: transform var(--mo-base) var(--mo-settle);
   }
 
   .on-copypage-caret[aria-expanded='true'] .on-ic-caret {
@@ -228,7 +229,7 @@ const mdHref = `/${id}.md`;
     text-align: start;
     text-decoration: none;
     cursor: pointer;
-    transition: background-color 140ms var(--on-ease-out);
+    transition: background-color var(--mo-fast) var(--mo-ease);
   }
 
   .on-copypage-item:hover {
@@ -251,7 +252,7 @@ const mdHref = `/${id}.md`;
 
   .on-mi-title {
     font-size: 13.5px;
-    font-weight: 600;
+    font-weight: 500;
     color: var(--sl-color-text-accent);
   }
 

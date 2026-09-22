@@ -8,27 +8,41 @@ const repoRoot = path.resolve(__dirname, '../..');
 const publicDir = path.join(repoRoot, 'site/public');
 const appIconDir = path.join(repoRoot, 'App/Assets.xcassets/AppIcon.appiconset');
 
-const markSvg = fs.readFileSync(path.join(publicDir, 'nook-mark.svg'));
+// The mark's inner drawing (defs and paths), lifted from public/nook-mark.svg so
+// every generated asset uses the same trace of the logo.
+const markSvg = fs.readFileSync(path.join(publicDir, 'nook-mark.svg'), 'utf8');
+const markViewBox = markSvg.match(/viewBox="([^"]+)"/)[1];
+const markInner = markSvg.replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
+const markAspect = 1056 / 189;
+
+const placeMark = (x, y, width) =>
+  `<svg x="${x}" y="${y}" width="${width}" height="${width / markAspect}" viewBox="${markViewBox}">${markInner}</svg>`;
 
 const ogSvg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" fill="none">
-  <rect width="1200" height="630" fill="#f5f1e8"/>
-  <g transform="translate(540 195) scale(6)" fill="none">
-    <path d="M5 10.5c0-3 3.1-6 7-6s7 3 7 6" stroke="#141414" stroke-width="1.75" stroke-linecap="round"/>
-    <circle cx="12" cy="16" r="2" fill="#141414"/>
-  </g>
-  <text x="600" y="420" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="56" font-weight="600" fill="#141414" letter-spacing="-1.5">OpenNook</text>
-  <text x="600" y="470" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="400" fill="#5a5a5a">Notch apps for macOS</text>
+  <rect width="1200" height="630" fill="#f7f9fb"/>
+  ${placeMark(360, 190, 480)}
+  <text x="600" y="420" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="56" font-weight="600" fill="#131a21" letter-spacing="-1.5">OpenNook</text>
+  <text x="600" y="470" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="400" fill="#56616d">Notch apps for macOS</text>
 </svg>
 `;
 
+// Icons sit the mark on a light tile. At icon sizes the logo's pale gradient
+// all but vanishes against it, so they use the deeper stops from the first
+// version of the logo, the same hues at more strength.
+const deepStops = [
+  ['#d6ecfd', '#8fd3fd'],
+  ['#cbd6fb', '#8590fd'],
+  ['#d1cdfc', '#a99efc'],
+  ['#e3c9fb', '#d9a8fb'],
+];
+const deepInner = deepStops.reduce((inner, [pale, deep]) => inner.replace(pale, deep), markInner);
+
 const appIconSvg = (size) => `
 <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" fill="none">
-  <rect width="${size}" height="${size}" rx="${size * 0.22}" fill="#141414"/>
-  <g transform="translate(${size * 0.125} ${size * 0.125}) scale(${size / 32})" fill="none">
-    <path d="M5 10.5c0-3 3.1-6 7-6s7 3 7 6" stroke="#f0eee6" stroke-width="1.75" stroke-linecap="round"/>
-    <circle cx="12" cy="16" r="2" fill="#f0eee6"/>
-  </g>
+  <rect width="${size}" height="${size}" rx="${size * 0.22}" fill="#f7f9fb"/>
+  <rect x="${size / 64}" y="${size / 64}" width="${size - size / 32}" height="${size - size / 32}" rx="${size * 0.22 - size / 64}" stroke="#131a21" stroke-opacity="0.1" stroke-width="${size / 32}"/>
+  <svg x="${size * 0.08}" y="${size / 2 - (size * 0.84) / markAspect / 2}" width="${size * 0.84}" height="${(size * 0.84) / markAspect}" viewBox="${markViewBox}">${deepInner}</svg>
 </svg>
 `;
 

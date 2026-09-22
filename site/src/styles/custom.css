@@ -1,5 +1,6 @@
-/* OpenNook docs theme - cream paper, calm ink, Geist typography.
-   Maps shared tokens onto Starlight variables and styles the chrome. */
+/* OpenNook docs theme - the landing's cool paper and ink, Geist typography,
+   dark nooks for code. Maps shared tokens onto Starlight variables and styles
+   the chrome. Every duration and curve comes from motion.css (--mo-*). */
 
 @import './tokens.css';
 
@@ -11,51 +12,30 @@
   --sl-color-bg-sidebar: var(--on-page-bg);
   --sl-color-bg-inline-code: var(--on-inline-code-bg);
   --sl-color-hairline: var(--on-hairline);
-  --sl-color-hairline-light: rgba(10, 10, 10, 0.05);
-  --sl-color-hairline-shade: rgba(10, 10, 10, 0.06);
+  --sl-color-hairline-light: rgba(19, 26, 33, 0.05);
+  --sl-color-hairline-shade: rgba(19, 26, 33, 0.06);
   --sl-color-backdrop-overlay: var(--on-backdrop);
 
-  --sl-color-text: #1a1a1a;
+  --sl-color-text: var(--on-text);
   --sl-color-text-accent: var(--on-ink);
   --sl-color-text-invert: var(--on-page-bg);
   --sl-color-white: var(--on-ink);
   --sl-color-black: var(--on-page-bg);
-  --sl-color-gray-1: #1f1f1f;
-  --sl-color-gray-2: #3a3a3a;
-  --sl-color-gray-3: #5a5a5a;
-  --sl-color-gray-4: #767676;
-  --sl-color-gray-5: rgba(10, 10, 10, 0.14);
-  --sl-color-gray-6: rgba(10, 10, 10, 0.08);
-  --sl-color-gray-7: #e8e4d9;
+  --sl-color-gray-1: #1c242d;
+  --sl-color-gray-2: #36404b;
+  --sl-color-gray-3: #56616d;
+  --sl-color-gray-4: #646e7a;
+  --sl-color-gray-5: rgba(19, 26, 33, 0.14);
+  --sl-color-gray-6: rgba(19, 26, 33, 0.07);
+  --sl-color-gray-7: #eef2f6;
 
   --sl-color-accent: var(--on-ink);
-  --sl-color-accent-low: rgba(10, 10, 10, 0.05);
+  --sl-color-accent-low: var(--on-accent-wash);
   --sl-color-accent-high: var(--on-ink);
 
-  --sl-hue-blue: 220;
-  --sl-color-blue-low: var(--on-aside-bg);
-  --sl-color-blue: var(--on-aside-border);
-  --sl-color-blue-high: var(--on-aside-text);
-  --sl-hue-purple: 220;
-  --sl-color-purple-low: var(--on-aside-bg);
-  --sl-color-purple: var(--on-aside-border);
-  --sl-color-purple-high: var(--on-aside-text);
-  --sl-hue-orange: 220;
-  --sl-color-orange-low: var(--on-aside-bg);
-  --sl-color-orange: var(--on-aside-border);
-  --sl-color-orange-high: var(--on-aside-text);
-  --sl-hue-red: 220;
-  --sl-color-red-low: var(--on-aside-bg);
-  --sl-color-red: var(--on-aside-border);
-  --sl-color-red-high: var(--on-aside-text);
-  --sl-hue-green: 220;
-  --sl-color-green-low: var(--on-aside-bg);
-  --sl-color-green: var(--on-aside-border);
-  --sl-color-green-high: var(--on-aside-text);
-
-  --sl-shadow-sm: 0 1px 0 rgba(10, 10, 10, 0.04);
-  --sl-shadow-md: 0 1px 0 rgba(10, 10, 10, 0.05);
-  --sl-shadow-lg: 0 8px 24px rgba(10, 10, 10, 0.08);
+  --sl-shadow-sm: 0 1px 0 rgba(16, 28, 45, 0.04);
+  --sl-shadow-md: 0 1px 0 rgba(16, 28, 45, 0.05);
+  --sl-shadow-lg: 0 18px 40px -18px rgba(16, 28, 45, 0.32);
 }
 
 /* ---- Starlight token remap: dark ---- */
@@ -65,30 +45,58 @@
   --sl-color-bg-sidebar: var(--on-page-bg);
   --sl-color-bg-inline-code: var(--on-inline-code-bg);
   --sl-color-hairline: var(--on-hairline);
-  --sl-color-hairline-light: rgba(240, 238, 230, 0.05);
-  --sl-color-hairline-shade: rgba(240, 238, 230, 0.06);
+  --sl-color-hairline-light: rgba(238, 242, 246, 0.05);
+  --sl-color-hairline-shade: rgba(238, 242, 246, 0.06);
   --sl-color-backdrop-overlay: var(--on-backdrop);
 
-  --sl-color-text: #d8d5cb;
+  --sl-color-text: var(--on-text);
   --sl-color-text-accent: var(--on-ink);
   --sl-color-text-invert: var(--on-page-bg);
   --sl-color-white: var(--on-ink);
   --sl-color-black: var(--on-page-bg-nav);
-  --sl-color-gray-1: #ece9df;
-  --sl-color-gray-2: #c8c4b8;
-  --sl-color-gray-3: #9a968c;
-  --sl-color-gray-4: #7a776e;
-  --sl-color-gray-5: rgba(240, 238, 230, 0.14);
-  --sl-color-gray-6: rgba(240, 238, 230, 0.08);
-  --sl-color-gray-7: #1a1a1a;
+  --sl-color-gray-1: #e3e8ee;
+  --sl-color-gray-2: #b9c2cc;
+  --sl-color-gray-3: #8d97a3;
+  --sl-color-gray-4: #76808c;
+  --sl-color-gray-5: rgba(238, 242, 246, 0.14);
+  --sl-color-gray-6: rgba(238, 242, 246, 0.07);
+  --sl-color-gray-7: #151b23;
 
   --sl-color-accent: var(--on-ink);
-  --sl-color-accent-low: rgba(240, 238, 230, 0.06);
+  --sl-color-accent-low: var(--on-accent-wash);
   --sl-color-accent-high: #ffffff;
 
   --sl-shadow-sm: 0 1px 0 rgba(0, 0, 0, 0.2);
   --sl-shadow-md: 0 1px 0 rgba(0, 0, 0, 0.24);
-  --sl-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.42);
+  --sl-shadow-lg: 0 20px 44px -16px rgba(0, 0, 0, 0.6);
+
+  --mo-focus: rgba(127, 178, 234, 0.9);
+}
+
+/* Shared across both Starlight remaps */
+:root,
+[data-theme='light'],
+[data-theme='dark'] {
+  --sl-hue-blue: 212;
+  --sl-color-blue-low: var(--on-aside-bg);
+  --sl-color-blue: var(--on-aside-border);
+  --sl-color-blue-high: var(--on-aside-text);
+  --sl-hue-purple: 212;
+  --sl-color-purple-low: var(--on-aside-bg);
+  --sl-color-purple: var(--on-aside-border);
+  --sl-color-purple-high: var(--on-aside-text);
+  --sl-hue-orange: 212;
+  --sl-color-orange-low: var(--on-aside-bg);
+  --sl-color-orange: var(--on-aside-border);
+  --sl-color-orange-high: var(--on-aside-text);
+  --sl-hue-red: 212;
+  --sl-color-red-low: var(--on-aside-bg);
+  --sl-color-red: var(--on-aside-border);
+  --sl-color-red-high: var(--on-aside-text);
+  --sl-hue-green: 212;
+  --sl-color-green-low: var(--on-aside-bg);
+  --sl-color-green: var(--on-aside-border);
+  --sl-color-green-high: var(--on-aside-text);
 }
 
 :root {
@@ -111,9 +119,9 @@
 }
 
 html[data-scrolled] {
-  --on-header-bg: color-mix(in srgb, var(--on-page-bg) 86%, transparent);
+  --on-header-bg: color-mix(in srgb, var(--on-page-bg) 82%, transparent);
   --on-header-border: var(--on-hairline);
-  --on-header-shadow: 0 1px 0 color-mix(in srgb, var(--on-ink) 4%, transparent);
+  --on-header-shadow: 0 1px 0 color-mix(in srgb, var(--on-ink) 3%, transparent);
   --on-header-blur: 14px;
 }
 
@@ -124,7 +132,14 @@ html[data-scrolled] {
   }
 }
 
-/* ---- Page atmosphere ---- */
+::selection {
+  background: var(--on-selection);
+}
+
+/* ---- Page atmosphere ----
+   The landing's field, turned right down: a fine dot grain and two faint
+   colour masses at the top of the page only, masked so they fade out well
+   before the text column gets busy. It scrolls away with the page. */
 html {
   background: var(--sl-color-bg);
 }
@@ -132,21 +147,25 @@ html {
 body {
   font-feature-settings: 'ss01', 'ss03';
   -webkit-font-smoothing: antialiased;
-  background-image:
-    radial-gradient(at 20% 0%, var(--on-page-glow-a) 0, transparent 55%),
-    radial-gradient(at 80% 100%, var(--on-page-glow-b) 0, transparent 60%);
+  -moz-osx-font-smoothing: grayscale;
+  background-color: transparent;
 }
 
-.page::before {
+body::before {
   content: '';
-  position: fixed;
-  inset: 0;
+  position: absolute;
+  inset: 0 0 auto;
   z-index: -1;
+  height: 30rem;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 80% 55% at 18% 0%, var(--on-page-ambient-a) 0, transparent 70%),
-    radial-gradient(ellipse 70% 50% at 82% 8%, var(--on-page-ambient-b) 0, transparent 65%),
-    radial-gradient(ellipse 90% 60% at 50% 0%, var(--on-page-ambient-c) 0, transparent 72%);
+    radial-gradient(var(--on-grain) 0.7px, transparent 0.8px),
+    radial-gradient(60% 90% at 16% 0%, var(--on-field-a) 0%, transparent 70%),
+    radial-gradient(55% 80% at 86% 0%, var(--on-field-b) 0%, transparent 70%),
+    linear-gradient(180deg, var(--on-field-wash) 0%, transparent 100%);
+  background-size: 9px 9px, auto, auto, auto;
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, 0.55) 45%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, 0.55) 45%, transparent 100%);
 }
 
 /* ---- Header (scroll-aware shell from PageFrame) ---- */
@@ -157,39 +176,49 @@ body {
   -webkit-backdrop-filter: blur(var(--on-header-blur)) saturate(130%);
   backdrop-filter: blur(var(--on-header-blur)) saturate(130%);
   transition:
-    background-color 220ms var(--on-ease-out),
-    border-color 220ms var(--on-ease-out),
-    box-shadow 220ms var(--on-ease-out),
-    backdrop-filter 220ms var(--on-ease-out);
+    background-color var(--mo-base) var(--mo-ease),
+    border-color var(--mo-base) var(--mo-ease),
+    box-shadow var(--mo-base) var(--mo-ease),
+    backdrop-filter var(--mo-base) var(--mo-ease);
 }
 
+/* A small notch hangs from the top edge, the same silhouette as the landing
+   nav (square above, rounded below). It widens a touch once the header turns
+   to glass, the way a nook opens. */
 .page > header.header::before {
   content: '';
   position: absolute;
   top: 0;
   left: 50%;
-  transform: translateX(-50%);
-  width: clamp(40px, 6vw, 56px);
-  height: 2px;
-  border-radius: 0 0 4px 4px;
+  width: clamp(52px, 6vw, 76px);
+  height: 5px;
+  border-radius: 0 0 6px 6px;
   background: var(--on-surface-deep);
-  opacity: 0.35;
   pointer-events: none;
-  transition: opacity 220ms var(--on-ease-out);
+  transform: translateX(-50%) scaleX(1);
+  transition: transform var(--mo-slow) var(--mo-settle);
+}
+
+[data-theme='dark'] .page > header.header::before {
+  box-shadow: 0 0 0 1px var(--on-hairline-strong);
 }
 
 html[data-scrolled] .page > header.header::before {
-  opacity: 0;
+  transform: translateX(-50%) scaleX(1.25);
 }
 
 .social-icons a {
+  border-radius: 999px;
   color: var(--sl-color-text-accent);
-  opacity: 0.72;
-  transition: opacity 160ms var(--on-ease-out);
+  opacity: 0.62;
+  transition:
+    opacity var(--mo-fast) var(--mo-ease),
+    background-color var(--mo-fast) var(--mo-ease);
 }
 
 .social-icons a:hover {
   opacity: 1;
+  background-color: var(--on-accent-wash);
 }
 
 /* ---- Column alignment ---- */
@@ -222,8 +251,17 @@ html[data-scrolled] .page > header.header::before {
   color: var(--sl-color-text-accent);
 }
 
-.content-panel:first-of-type .sl-container > :global(* + *) {
-  margin-top: 0;
+/* Content arrives with a short rise on page load. backwards fill leaves no
+   transform behind once it ends, so nothing gains a containing block. */
+.main-pane main {
+  animation: on-content-in var(--mo-slow) var(--mo-ease) backwards;
+}
+
+@keyframes on-content-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
 }
 
 starlight-theme-select select,
@@ -253,21 +291,29 @@ button[data-open-modal] {
 @media (min-width: 50rem) {
   button[data-open-modal] {
     border: 1px solid var(--on-control-border);
-    border-radius: var(--on-radius-md);
-    background: transparent;
+    border-radius: 999px;
+    background: var(--on-control-bg);
     color: var(--sl-color-gray-3);
     width: 100%;
     max-width: var(--sl-content-width);
     height: 2.25rem;
+    padding-inline: 0.9rem 0.45rem;
     font-size: 13px;
+    transition:
+      border-color var(--mo-fast) var(--mo-ease),
+      color var(--mo-fast) var(--mo-ease),
+      box-shadow var(--mo-base) var(--mo-ease);
   }
 
   button[data-open-modal]:hover {
     border-color: var(--on-control-border-hover);
     color: var(--sl-color-text-accent);
+    box-shadow: var(--mo-shadow-rest);
   }
 
   button[data-open-modal] > kbd {
+    border-radius: 999px;
+    padding-inline: 0.5rem;
     background: var(--sl-color-gray-6);
     color: var(--sl-color-gray-3);
   }
@@ -304,6 +350,7 @@ site-search dialog::backdrop {
 #starlight__search .pagefind-ui__result-title:not(:where(.pagefind-ui__result-nested *)),
 #starlight__search .pagefind-ui__result-nested {
   background-color: var(--sl-color-black);
+  transition: background-color var(--mo-fast) var(--mo-ease);
 }
 
 #starlight__search
@@ -327,6 +374,7 @@ site-search dialog::backdrop {
 
 #starlight__search mark {
   color: var(--sl-color-text-accent);
+  background: var(--on-selection);
 }
 
 /* ---- Sidebar (same surface as page - no panel chrome) ---- */
@@ -346,31 +394,36 @@ site-search dialog::backdrop {
 .sidebar-content .large,
 .sidebar-content summary .large {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--on-ink-muted);
 }
 
+/* Links: a soft wash fades in on hover; the current page keeps a stronger
+   wash and a heavier weight. */
 .sidebar-content ul li a {
   font-size: 13.5px;
   letter-spacing: -0.005em;
   border-radius: var(--on-radius-md);
   color: var(--sl-color-gray-2);
+  transition:
+    color var(--mo-fast) var(--mo-ease),
+    background-color var(--mo-fast) var(--mo-ease);
 }
 
 .sidebar-content ul li a:hover,
 .sidebar-content ul li a:focus {
   color: var(--sl-color-text-accent);
-  background: var(--sl-color-accent-low);
+  background-color: var(--on-accent-wash);
 }
 
 .sidebar-pane a[aria-current='page'],
 .sidebar-pane a[aria-current='page']:hover,
 .sidebar-pane a[aria-current='page']:focus {
-  font-weight: 600;
+  font-weight: 500;
   color: var(--sl-color-text-accent);
-  background-color: var(--sl-color-accent-low);
+  background-color: var(--on-accent-wash-strong);
 }
 
 .sidebar-content ul ul li {
@@ -383,6 +436,7 @@ site-search dialog::backdrop {
 
 .sidebar-content .caret {
   color: var(--on-ink-faint);
+  transition: transform var(--mo-base) var(--mo-settle);
 }
 
 /* ---- Layout chrome removal ---- */
@@ -399,74 +453,214 @@ site-search dialog::backdrop {
 }
 
 /* ---- Right TOC ---- */
-.right-sidebar-panel :global(h2) {
+starlight-toc h2 {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--on-ink-muted);
 }
 
-.right-sidebar-panel :global(a) {
+/* Navigation rows, not prose: no text selection, so a click or drag never
+   paints selection boxes behind the words. */
+:is(starlight-toc, mobile-starlight-toc) :is(a, summary) {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+starlight-toc a {
   font-size: 13px;
   line-height: 1.45;
   color: var(--sl-color-gray-3);
-  padding-block: 0.15rem;
-  border-inline-start: 2px solid transparent;
-  padding-inline-start: 0.55rem;
-  margin-inline-start: -0.55rem;
-  transition: color 160ms var(--on-ease-out), border-color 160ms var(--on-ease-out);
+  border-radius: var(--on-radius-md);
+  transition:
+    color var(--mo-fast) var(--mo-ease),
+    background-color var(--mo-fast) var(--mo-ease);
 }
 
-.right-sidebar-panel :global(a:hover) {
+starlight-toc a:hover {
   color: var(--sl-color-text-accent);
+  background-color: var(--on-accent-wash);
 }
 
-.right-sidebar-panel :global(a[aria-current='true']) {
+starlight-toc a[aria-current='true'] {
   color: var(--sl-color-text-accent);
-  border-inline-start-color: var(--sl-color-text-accent);
   font-weight: 500;
 }
 
-/* ---- Mobile TOC ---- */
+/* ---- Mobile TOC ----
+   The bar carries no band of its own. Once the page scrolls, a glass layer
+   matching the header runs down behind it and fades out through a mask, so
+   content passing underneath dissolves instead of being sliced by an edge.
+   The layer is a fixed height, so it never grows with the open dropdown. */
 mobile-starlight-toc nav {
-  border-top: 1px solid var(--on-header-border);
-  background: var(--on-header-bg);
-  -webkit-backdrop-filter: blur(var(--on-header-blur)) saturate(130%);
-  backdrop-filter: blur(var(--on-header-blur)) saturate(130%);
-  transition:
-    background-color 220ms var(--on-ease-out),
-    border-color 220ms var(--on-ease-out),
-    backdrop-filter 220ms var(--on-ease-out);
+  --toc-fade: 1.25rem;
+  border-top: none;
+  background: none;
+}
+
+mobile-starlight-toc nav::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: -1;
+  height: calc(var(--sl-mobile-toc-height) + var(--toc-fade));
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--on-page-bg) 90%, transparent) 0%,
+    color-mix(in srgb, var(--on-page-bg) 82%, transparent) 60%,
+    transparent 100%
+  );
+  -webkit-backdrop-filter: blur(14px) saturate(130%);
+  backdrop-filter: blur(14px) saturate(130%);
+  -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 55%, transparent 100%);
+  opacity: 0;
+  transition: opacity var(--mo-base) var(--mo-ease);
+}
+
+html[data-scrolled] mobile-starlight-toc nav::before {
+  opacity: 1;
+}
+
+/* Header and bar read as one piece of glass while the bar is showing. */
+@media (max-width: 71.99rem) {
+  html[data-scrolled]:has(mobile-starlight-toc) .page > header.header {
+    border-bottom-color: transparent;
+    box-shadow: none;
+  }
 }
 
 mobile-starlight-toc summary {
+  border-bottom: none;
   font-size: 13px;
   color: var(--on-ink-muted);
+  outline: none;
 }
 
+/* Two shapes, one control: a pill for the label (painted by ::before, inset
+   away from the chevron) and a separate circle for the chevron itself. */
 mobile-starlight-toc .toggle {
-  border: 1px solid var(--on-control-border);
-  border-radius: var(--on-radius-md);
-  background: transparent;
+  --shape-h: 2rem;
+  --shape-gap: 6px;
+  position: relative;
+  isolation: isolate;
+  gap: calc(0.75rem + var(--shape-gap));
+  height: var(--shape-h);
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  padding-inline-start: 0.875rem;
+  background: none;
   color: var(--sl-color-text-accent);
   font-weight: 500;
 }
 
-mobile-starlight-toc details[open] .toggle,
-mobile-starlight-toc details .toggle:hover {
+mobile-starlight-toc .toggle::before,
+mobile-starlight-toc .caret {
+  background-color: color-mix(in srgb, var(--on-ink) 5%, transparent);
+  box-shadow: inset 0 0 0 1px var(--on-hairline);
+  transition:
+    background-color var(--mo-fast) var(--mo-ease),
+    box-shadow var(--mo-fast) var(--mo-ease);
+}
+
+mobile-starlight-toc .toggle::before {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline: 0 calc(var(--shape-h) + var(--shape-gap));
+  z-index: -1;
+  border-radius: 999px;
+}
+
+mobile-starlight-toc .caret {
+  box-sizing: border-box;
+  flex-shrink: 0;
+  width: var(--shape-h);
+  height: var(--shape-h);
+  padding: 0.5rem;
+  border-radius: 50%;
+  color: var(--sl-color-gray-2);
+  transition:
+    background-color var(--mo-fast) var(--mo-ease),
+    box-shadow var(--mo-fast) var(--mo-ease),
+    color var(--mo-fast) var(--mo-ease),
+    transform var(--mo-base) var(--mo-settle);
+}
+
+mobile-starlight-toc summary:hover .toggle::before,
+mobile-starlight-toc summary:hover .caret,
+mobile-starlight-toc details[open] .toggle::before,
+mobile-starlight-toc details[open] .caret {
+  background-color: var(--on-accent-wash-strong);
+  box-shadow: inset 0 0 0 1px transparent;
+}
+
+mobile-starlight-toc summary:hover .caret,
+mobile-starlight-toc details[open] .caret {
   color: var(--sl-color-text-accent);
-  border-color: var(--on-control-border-hover);
+}
+
+mobile-starlight-toc summary:focus-visible .toggle::before,
+mobile-starlight-toc summary:focus-visible .caret {
+  box-shadow: 0 0 0 2px var(--mo-focus);
 }
 
 mobile-starlight-toc .display-current {
   color: var(--sl-color-text-accent);
+  background: none;
 }
 
+/* The dropdown floats as a rounded card inset from the viewport edges. */
 mobile-starlight-toc .dropdown {
-  border-color: var(--sl-color-hairline);
-  background: var(--sl-color-bg);
-  box-shadow: var(--sl-shadow-lg);
+  margin: 0.375rem 0.75rem 0;
+  border: 1px solid var(--sl-color-hairline);
+  border-radius: var(--on-radius-lg);
+  padding: 0.375rem;
+  background: var(--on-page-bg);
+  box-shadow: var(--mo-shadow-hover);
+}
+
+mobile-starlight-toc .isMobile a {
+  --pad-inline: 0.75rem;
+  align-items: center;
+  border-top: none;
+  border-radius: var(--on-radius-md);
+  padding-block: 0.5rem;
+  font-size: 13.5px;
+  color: var(--sl-color-gray-2);
+  transition:
+    color var(--mo-fast) var(--mo-ease),
+    background-color var(--mo-fast) var(--mo-ease);
+}
+
+mobile-starlight-toc .isMobile a:hover,
+mobile-starlight-toc .isMobile a:focus-visible {
+  color: var(--sl-color-text-accent);
+  background-color: var(--on-accent-wash);
+}
+
+mobile-starlight-toc .isMobile a:focus-visible {
+  outline: 2px solid var(--mo-focus);
+  outline-offset: -2px;
+}
+
+mobile-starlight-toc .isMobile a[aria-current='true'],
+mobile-starlight-toc .isMobile a[aria-current='true']:hover,
+mobile-starlight-toc .isMobile a[aria-current='true']:focus {
+  color: var(--sl-color-text-accent);
+  font-weight: 500;
+}
+
+mobile-starlight-toc .isMobile a[aria-current='true']:hover {
+  background-color: var(--on-accent-wash);
+}
+
+mobile-starlight-toc .isMobile a[aria-current='true']::after {
+  height: 1rem;
+  background-color: var(--sl-color-text-accent);
 }
 
 /* ---- Content typography ---- */
@@ -484,20 +678,26 @@ mobile-starlight-toc .dropdown {
 }
 
 .sl-markdown-content h1 {
-  font-weight: 600;
-  font-size: clamp(1.9rem, 3vw, 2.4rem);
+  font-weight: 300;
+  font-size: clamp(2rem, 3.4vw, 2.6rem);
+  letter-spacing: -0.035em;
   margin-block-end: 0.4em;
 }
 
 .sl-markdown-content h2 {
-  font-weight: 600;
+  font-weight: 400;
+  letter-spacing: -0.03em;
   margin-block-start: 2.6em;
   margin-block-end: 0.6em;
 }
 
 .sl-markdown-content h3 {
-  font-weight: 600;
+  font-weight: 500;
   margin-block-start: 1.8em;
+}
+
+.sl-markdown-content h4 {
+  font-weight: 500;
 }
 
 .sl-markdown-content {
@@ -516,8 +716,8 @@ mobile-starlight-toc .dropdown {
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
-  text-decoration-color: var(--sl-color-hairline);
-  transition: text-decoration-color 160ms var(--on-ease-out);
+  text-decoration-color: var(--on-hairline-strong);
+  transition: text-decoration-color var(--mo-fast) var(--mo-ease);
 }
 
 .sl-markdown-content a:not(.not-content a):hover {
@@ -527,6 +727,7 @@ mobile-starlight-toc .dropdown {
 .sl-markdown-content :not(pre) > code {
   background: var(--sl-color-bg-inline-code);
   border: 1px solid var(--sl-color-hairline);
+  color: var(--sl-color-text-accent);
   padding: 0.12em 0.4em;
   border-radius: var(--on-radius-sm);
   font-size: 0.92em;
@@ -541,20 +742,24 @@ mobile-starlight-toc .dropdown {
 .sl-markdown-content blockquote {
   margin-inline: 0;
   padding-inline-start: 1rem;
-  border-inline-start: 2px solid var(--sl-color-hairline);
+  border-inline-start: 2px solid var(--on-hairline-strong);
   color: var(--on-ink-muted);
 }
 
-/* ---- Code blocks (little nooks) ---- */
-.expressive-code,
-.expressive-code .frame {
-  --ec-brdRad: var(--on-radius-lg);
-  --ec-brdCol: var(--on-hairline);
-  --ec-frm-edBg: var(--on-surface);
-  --ec-frm-edTabBarBg: var(--on-surface-deep);
-  --ec-frm-edTabBarBrdCol: var(--on-hairline);
-  --ec-frm-edActTabBg: var(--on-surface);
-  --ec-frm-edActTabFg: var(--on-surface-text);
+/* ---- Code blocks (little nooks) ----
+   Colours, borders and the syntax theme are configured once in
+   astro.config.mjs (expressiveCode) against the --on-code-* tokens; there is
+   deliberately nothing to fight here, with one exception below. */
+
+/* Expressive Code keeps the first line clear of the copy button with
+   2rem + the full inline code padding (48px). The button only sits
+   --ec-uiPadInl / 2 in from the edge, so 8px of that is slack, and it was
+   enough to push a one-line block that fits (the install snippet, 719px of
+   718) into a scrollbar. Reserve the button's width, its inset and a hair of
+   gap instead: text still never runs under the button, and lines that are
+   really too long still scroll. Unlayered, so it wins over EC's layered rule. */
+.expressive-code :nth-child(1 of .ec-line) .code {
+  padding-inline-end: calc(2rem + var(--ec-uiPadInl) / 2 + 0.25rem);
 }
 
 /* ---- Admonitions ---- */
@@ -575,7 +780,7 @@ mobile-starlight-toc .dropdown {
 
 .starlight-aside__title {
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: -0.01em;
   color: var(--on-aside-text);
 }
@@ -586,75 +791,109 @@ mobile-starlight-toc .dropdown {
   text-underline-offset: 2px;
 }
 
-/* ---- Pagination ---- */
+/* ---- Pagination ----
+   Each link is two shapes that move together: a circle holding the arrow and
+   a pill holding the words. The link itself paints nothing, so it stays one
+   click target without reading as a card. */
+.pagination-links {
+  gap: 0.75rem 1.5rem;
+}
+
 .pagination-links a {
-  display: flex;
-  align-items: center;
-  gap: 0.85rem;
-  border: 1px solid var(--on-control-border);
-  border-radius: var(--on-radius-lg);
-  background: transparent;
+  --shape-h: 3.25rem;
+  gap: 6px;
+  width: auto;
+  max-width: 100%;
+  min-width: 0;
+  border: none;
+  border-radius: calc(var(--shape-h) / 2);
+  padding: 0;
+  background: none;
   box-shadow: none;
   color: var(--on-ink-muted);
-  padding: 0.95rem 1.1rem;
+  justify-self: start;
+}
+
+.pagination-links a[rel='next'] {
+  justify-self: end;
+}
+
+.pagination-links a:focus-visible {
+  outline: 2px solid var(--mo-focus);
+  outline-offset: 3px;
+}
+
+.pagination-links a > span,
+.pagination-links a svg {
+  background-color: color-mix(in srgb, var(--on-ink) 5%, transparent);
+  box-shadow: inset 0 0 0 1px var(--on-hairline);
   transition:
-    border-color 160ms var(--on-ease-out),
-    background-color 160ms var(--on-ease-out);
+    background-color var(--mo-fast) var(--mo-ease),
+    box-shadow var(--mo-base) var(--mo-ease),
+    color var(--mo-fast) var(--mo-ease),
+    transform var(--mo-base) var(--mo-settle);
 }
 
-.pagination-links a:hover {
-  border-color: var(--on-control-border-hover);
-  background: color-mix(in srgb, var(--on-ink) 3%, transparent);
-}
-
-/* Direction eyebrow ("Previous" / "Next") - small, tracked, muted for contrast */
+/* The pill. The direction eyebrow is small, tracked and muted. */
 .pagination-links a > span {
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.07em;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: var(--shape-h);
+  border-radius: calc(var(--shape-h) / 2);
+  padding: 0.5rem 1.25rem;
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   line-height: 1.4;
-  color: var(--on-ink-faint);
+  color: var(--on-ink-muted);
 }
 
-/* Page title - the emphasis */
 .pagination-links .link-title {
   display: block;
-  margin-top: 0.2rem;
-  font-size: 1.25rem;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
+  margin-top: 0.1rem;
+  font-size: 0.95rem;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
   text-transform: none;
   color: var(--sl-color-text-accent);
 }
 
-/* Arrow gets its own squircle that highlights (inverts) on hover */
+/* The circle. */
 .pagination-links a svg {
   box-sizing: border-box;
   flex-shrink: 0;
-  width: 2.25rem;
-  height: 2.25rem;
-  padding: 0.5rem;
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--on-ink) 7%, transparent);
+  width: var(--shape-h);
+  height: var(--shape-h);
+  padding: 1rem;
+  border-radius: 50%;
   color: var(--sl-color-gray-2);
-  transition:
-    background-color 180ms var(--on-ease-out),
-    color 180ms var(--on-ease-out),
-    transform 220ms var(--on-ease-out);
+}
+
+.pagination-links a svg > * {
+  transition: transform var(--mo-base) var(--mo-settle);
+}
+
+.pagination-links a:hover > span,
+.pagination-links a:hover svg {
+  background-color: var(--on-accent-wash-strong);
+  box-shadow: inset 0 0 0 1px transparent;
 }
 
 .pagination-links a:hover svg {
-  background: var(--sl-color-text-accent);
-  color: var(--sl-color-bg);
+  color: var(--sl-color-text-accent);
+  box-shadow:
+    inset 0 0 0 1px transparent,
+    var(--mo-shadow-rest);
+  transform: translateY(var(--mo-lift));
 }
 
-.pagination-links a[rel='prev']:hover svg {
+.pagination-links a[rel='prev']:hover svg > * {
   transform: translateX(-2px);
 }
 
-.pagination-links a[rel='next']:hover svg {
+.pagination-links a[rel='next']:hover svg > * {
   transform: translateX(2px);
 }
 
@@ -670,12 +909,26 @@ footer {
 }
 
 /* ---- Mobile menu ---- */
+/* The same soft circle as the pagination and "On this page" icons. */
 starlight-menu-button button {
-  border: 1px solid var(--on-control-border);
-  border-radius: var(--on-radius-md);
+  border: 0;
+  border-radius: 999px;
+  background-color: color-mix(in srgb, var(--on-ink) 5%, transparent);
+  box-shadow: inset 0 0 0 1px var(--on-hairline);
   color: var(--sl-color-text-accent);
+  transition: background-color var(--mo-fast) var(--mo-ease);
 }
 
-starlight-menu-button button:hover {
-  border-color: var(--on-control-border-hover);
+starlight-menu-button button:hover,
+starlight-menu-button[aria-expanded='true'] button {
+  background-color: color-mix(in srgb, var(--on-ink) 9%, transparent);
+}
+
+/* ---- Theme switch ----
+   ThemeToggle wraps the change in a view transition when the browser has
+   one; the whole page cross-fades instead of every surface snapping. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--mo-base);
+  animation-timing-function: var(--mo-ease);
 }

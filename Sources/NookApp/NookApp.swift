@@ -128,7 +128,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         guard moduleHost.showsMenuBarExtra else { return }
 
         let hostName = moduleHost.branding.hostName
-        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        // Variable length so the wide framework mark isn't squeezed into a square button.
+        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         item.button?.image =
             moduleHost.branding.menuBarTemplateImage(size: 14)
             ?? NSImage(systemSymbolName: "text.bubble", accessibilityDescription: hostName)

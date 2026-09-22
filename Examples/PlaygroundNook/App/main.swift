@@ -19,8 +19,8 @@
 // model and the Swift and JSON exporters live in the `PlaygroundNookCore` target, which
 // `PlaygroundNookTests` covers.
 //
-// Run with `swift run PlaygroundNook`. Add `--preset <file.json>` to open a preset at launch, and
-// `--expand` to open the nook as soon as it starts.
+// Run with `swift run PlaygroundNook`. `--preset <file.json>` or `--sample <id>` opens a look
+// at launch; `--expand` and `--keep-open` open the nook; `--hide-controls` skips the window.
 
 import NookApp
 

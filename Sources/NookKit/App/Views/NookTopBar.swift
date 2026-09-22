@@ -224,7 +224,6 @@ struct NookTopBar: View {
                         strokeWidth: metrics.brandMarkStrokeWidth,
                         color: resolvedTheme.secondaryLabel.opacity(metrics.brandMarkOpacity)
                     )
-                    .frame(width: metrics.brandMarkSize, height: metrics.brandMarkSize)
                 }
                 Text(title)
                     .font(typography.topBarLabel)
@@ -257,7 +256,6 @@ struct NookTopBar: View {
                             strokeWidth: metrics.brandMarkStrokeWidth,
                             color: color
                         )
-                        .frame(width: metrics.brandMarkSize, height: metrics.brandMarkSize)
                     }
                 }
                 .accessibilityLabel(title)
@@ -342,7 +340,6 @@ private struct ModuleSwitcherMenu: View {
                 strokeWidth: metrics.brandMarkStrokeWidth,
                 color: theme.secondaryLabel.opacity(metrics.brandMarkOpacity)
             )
-            .frame(width: metrics.brandMarkSize, height: metrics.brandMarkSize)
         }
     }
 }

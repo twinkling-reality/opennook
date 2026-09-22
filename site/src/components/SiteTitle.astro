@@ -5,7 +5,7 @@ const siteTitle = 'OpenNook';
 ---
 
 <a href="/" class="site-title sl-flex">
-  <NookMark class="site-title__mark" width={16} height={16} />
+  <NookMark class="site-title__mark" height={13} />
   <span translate="no">{siteTitle}</span>
 </a>
 
@@ -14,18 +14,16 @@ const siteTitle = 'OpenNook';
     align-items: center;
     gap: 0.55rem;
     font-size: 0.9375rem;
-    font-weight: 600;
+    font-weight: 500;
     letter-spacing: -0.02em;
     color: var(--sl-color-text-accent);
     text-decoration: none;
     white-space: nowrap;
+    transition: opacity var(--mo-fast) var(--mo-ease);
   }
 
   .site-title:hover {
     opacity: 0.82;
   }
 
-  .site-title__mark {
-    opacity: 0.88;
-  }
 </style>
