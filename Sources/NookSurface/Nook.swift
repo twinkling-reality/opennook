@@ -590,6 +590,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     func runTransition(_ body: @escaping @MainActor (_ generation: Int) async -> Void) -> Task<Void, Never> {
         transitionGeneration &+= 1
         let generation = transitionGeneration
+        smokeTrace("claim gen \(generation) state=\(state)")
         transitionTask?.cancel()
         let task = Task { @MainActor [weak self] in
             await body(generation)
@@ -603,6 +604,12 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// `true` while `generation` is still the most recent transition - i.e. no newer
     /// `expand`/`compact`/`hide` has been claimed since.
     func isCurrent(_ generation: Int) -> Bool { transitionGeneration == generation }
+
+    /// TEMPORARY: traces transitions while OPENNOOK_SMOKE_TEST=1, to find a CI only hang.
+    func smokeTrace(_ message: @autoclosure () -> String) {
+        guard ProcessInfo.processInfo.environment["OPENNOOK_SMOKE_TEST"] == "1" else { return }
+        FileHandle.standardError.write(Data("[trace] \(message())\n".utf8))
+    }
 
     /// Claim a fresh transition generation **synchronously** and cancel any in-flight
     /// transition, without spawning a replacement.
@@ -827,6 +834,7 @@ extension Nook {
         if state == .expanded, windowController?.window?.screen == screen { return }
 
         let needsNewWindow = state == .hidden || windowController?.window?.screen != screen
+        smokeTrace("expand gen \(generation) state=\(state) newWindow=\(needsNewWindow) skipHide=\(skipHide)")
 
         if needsNewWindow {
             initializeWindow(screen: screen, orderFront: false)
@@ -845,7 +853,13 @@ extension Nook {
                 withAnimation(effectiveClosingAnimation) { state = .hidden }
                 try? await Task.sleep(for: intermediateHideDuration)
                 // A newer transition may have superseded us across the sleep.
-                guard isCurrent(generation), !Task.isCancelled, state == .hidden else { return }
+                guard isCurrent(generation), !Task.isCancelled, state == .hidden else {
+                    smokeTrace(
+                        "expand gen \(generation) bailed after hide: current=\(transitionGeneration) "
+                            + "cancelled=\(Task.isCancelled) state=\(state)"
+                    )
+                    return
+                }
             }
             withAnimation(effectiveConversionAnimation) { state = .expanded }
             try? await Task.sleep(for: conversionSettleDuration)
