@@ -47,6 +47,13 @@ public final class AppCoordinator: ObservableObject {
     }
     var accessibilityObserver: ObserverToken?
 
+    /// Reads the system's Reduce Transparency setting when resolving backdrops. Always the
+    /// live setting in an app; a seam for tests, which cannot depend on the machine they run
+    /// on (a headless CI runner reports it on, collapsing every translucent style to solid).
+    var reduceTransparencyProvider: () -> Bool = {
+        NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
+    }
+
     /// Arbitrates the surface between competing transient presenters - the activity
     /// queues and ambient indicators of every loaded module. Lazy because it captures
     /// `surface`; layered over ``enqueueLifecycle`` so it serializes nothing itself.
@@ -1011,7 +1018,7 @@ public final class AppCoordinator: ObservableObject {
     /// so a transition can re-resolve without any risk of rebuilding the window under itself.
     private func resolveBackdrops(state: NookState, form: NookChromeForm) {
         let scheme = appState.appearancePreferences.effectiveColorScheme(systemScheme: currentResolvedSystemScheme())
-        let reduceTransparency = NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
+        let reduceTransparency = reduceTransparencyProvider()
         // A host can override the state->backdrop mapping; the framework mapping is
         // the default. See `NookChromeBehavior.backdrop`.
         let behavior = moduleHost.chromeBehavior

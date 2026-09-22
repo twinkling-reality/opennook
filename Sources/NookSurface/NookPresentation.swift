@@ -28,9 +28,9 @@ public enum NookPresentation: String, Codable, Sendable, CaseIterable, Equatable
     /// floating layout there?
     public func isFloating(screenHasNotch: Bool) -> Bool {
         switch self {
-        case .auto: return !screenHasNotch
-        case .notch: return false
-        case .floating: return true
+            case .auto: return !screenHasNotch
+            case .notch: return false
+            case .floating: return true
         }
     }
 }
