@@ -19,7 +19,7 @@ import AppKit
 // transitions are idempotent.
 //
 // Lives in its own file so `Nook.swift` stays focused on lifecycle/transition
-// concerns. The stored `dragSession` property is still declared on `Nook` itself - 
+// concerns. The stored `dragSession` property is still declared on `Nook` itself -
 // only the surrounding state machine and the destination-callback conformance
 // extract here.
 
@@ -31,7 +31,7 @@ extension Nook {
     /// guarantee a state machine can lean on: `draggingExited` can arrive *before*
     /// `draggingEnded` for one session, a slow or rejected `onFileDrop` can let a fresh
     /// `draggingEntered` interleave, and `draggingUpdated` fires repeatedly. Rather than
-    /// scatter `stateBeforeDrag`/`isDragInFlight` mutations across those entry points - 
+    /// scatter `stateBeforeDrag`/`isDragInFlight` mutations across those entry points -
     /// correct only by luck of ordering - the whole session lives in this one enum with
     /// idempotent transitions.
     enum DragSession: Equatable {
@@ -63,7 +63,7 @@ extension Nook: NookDragDestination {
 
         if stateBeforeEntry == .compact || stateBeforeEntry == .hidden {
             if let screen = windowController?.window?.screen ?? resolvedScreen {
-                runTransition { [weak self] generation in
+                runTransition(toward: .expanded) { [weak self] generation in
                     await self?._expand(on: screen, skipHide: true, generation: generation)
                 }
             }
@@ -93,7 +93,7 @@ extension Nook: NookDragDestination {
     /// Calling this when already `.idle` is a no-op, which is what makes the destination
     /// robust against AppKit's duplicate and out-of-order exit/end/drop callbacks.
     private func endDragSession(restorePriorState: Bool) {
-        guard case let .active(stateBeforeEntry) = dragSession else { return }
+        guard case .active(let stateBeforeEntry) = dragSession else { return }
         dragSession = .idle
         if restorePriorState {
             restoreStateAfterDrag(stateBeforeEntry)
@@ -104,17 +104,17 @@ extension Nook: NookDragDestination {
     /// drop. Shared by ``nookPanelDraggingExited()`` and ``nookPanelPerformDrop(_:)``.
     private func restoreStateAfterDrag(_ prior: NookState) {
         switch prior {
-        case .compact:
-            guard let screen = windowController?.window?.screen ?? resolvedScreen else { return }
-            runTransition { [weak self] generation in
-                await self?._compact(on: screen, skipHide: true, generation: generation)
-            }
-        case .hidden:
-            runTransition { [weak self] generation in
-                await self?._hide(generation: generation)
-            }
-        case .expanded:
-            break
+            case .compact:
+                guard let screen = windowController?.window?.screen ?? resolvedScreen else { return }
+                runTransition(toward: .compact) { [weak self] generation in
+                    await self?._compact(on: screen, skipHide: true, generation: generation)
+                }
+            case .hidden:
+                runTransition(toward: .hidden) { [weak self] generation in
+                    await self?._hide(generation: generation)
+                }
+            case .expanded:
+                break
         }
     }
 }
