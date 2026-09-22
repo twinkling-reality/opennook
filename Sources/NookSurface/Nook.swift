@@ -330,19 +330,31 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     private var feedbackClearTask: Task<Void, Never>?
 
     /// The in-flight transition - expand, compact, *or hide* - or `nil` when idle.
-    /// ``runTransition(_:)`` cancels this before spawning a replacement, so a superseded
+    /// ``runTransition(toward:_:)`` cancels this before spawning a replacement, so a superseded
     /// transition's `Task.sleep` throws promptly instead of running to term. The hide
     /// teardown now runs as one of these tracked tasks (it used to live in a separate,
     /// untracked `closePanelTask` outside the generation system - see ``_hide(generation:)``).
     private var transitionTask: Task<Void, Never>?
 
-    /// Monotonic transition token. ``runTransition(_:)`` bumps it **synchronously** at
+    /// Monotonic transition token. ``runTransition(toward:_:)`` bumps it **synchronously** at
     /// each entry point - hover, drag, public `expand`/`compact` - so the token reflects
     /// call order, not the order tasks happen to start running. A transition re-checks
     /// it via ``isCurrent(_:)`` at its top and after every suspension, and bails if a
     /// newer one has superseded it. This makes rapid hover-in/hover-out resolve cleanly
     /// to "the last call wins," even when the unstructured tasks start out of order.
     private var transitionGeneration = 0
+
+    /// The state the in-flight transition is driving toward, or `nil` when none is.
+    /// Claimed synchronously alongside the generation and cleared when the transition
+    /// finishes, so it always describes the *current* generation's destination.
+    ///
+    /// The surface needs this because ``state`` alone cannot tell a settled surface
+    /// from one passing through the transient `.hidden` a compact <-> expanded
+    /// conversion dwells at: both read `.hidden`. Anything that interrupts a
+    /// transition (the screen-parameter observer, a window rebuild) consults the
+    /// target so it can re-drive the surface there instead of stranding it mid-flight
+    /// - see ``redriveInterruptedTransition(toward:)``.
+    private var transitionTarget: NookState?
 
     /// Auto-releases after expanded content resizes. Refreshed on each geometry change
     /// so rapid layout churn extends the grace window.
@@ -504,8 +516,13 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
                     // No window worth keeping while hidden. Supersede any in-flight
                     // transition first so a mid-flight `_expand`/`_compact`/`_hide`
                     // can't keep operating on the window we're about to tear down.
-                    self.supersedeInFlightTransition()
+                    let interrupted = self.supersedeInFlightTransition()
                     self.deinitializeWindow()
+                    // `.hidden` here does not mean "settled": a conversion dwells at
+                    // `.hidden` mid-flight. Re-drive to whatever that transition was
+                    // aiming for (on the then-current screen, rebuilding the window we
+                    // just dropped), rather than stranding the surface invisible.
+                    self.redriveInterruptedTransition(toward: interrupted)
                     return
                 }
                 guard let screen = self.resolvedScreen else { return }
@@ -535,7 +552,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
         }
 
         guard let screen = windowController?.window?.screen ?? resolvedScreen else { return }
-        runTransition { [weak self] generation in
+        runTransition(toward: hovering ? .expanded : .compact) { [weak self] generation in
             guard let self else { return }
             if hovering {
                 await self._expand(on: screen, skipHide: true, generation: generation)
@@ -554,7 +571,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
         guard state == .expanded, !isHovering, !isDragInFlight,
             let screen = windowController?.window?.screen ?? resolvedScreen
         else { return }
-        runTransition { [weak self] generation in
+        runTransition(toward: .compact) { [weak self] generation in
             await self?._compact(on: screen, skipHide: true, generation: generation)
         }
     }
@@ -586,16 +603,27 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// In particular a hover- or drag-driven `expand` cancels an in-flight hide's
     /// teardown before it can deinit the window out from under the freshly-expanded
     /// surface.
+    ///
+    /// `target` is the state `body` drives the surface to. It is recorded alongside the
+    /// generation so an interrupting window swap can re-drive the surface there rather
+    /// than leave it wherever the superseded transition happened to stop - see
+    /// ``redriveInterruptedTransition(toward:)``.
     @discardableResult
-    func runTransition(_ body: @escaping @MainActor (_ generation: Int) async -> Void) -> Task<Void, Never> {
+    func runTransition(
+        toward target: NookState,
+        _ body: @escaping @MainActor (_ generation: Int) async -> Void
+    ) -> Task<Void, Never> {
         transitionGeneration &+= 1
         let generation = transitionGeneration
-        smokeTrace("claim gen \(generation) state=\(state)")
         transitionTask?.cancel()
+        transitionTarget = target
         let task = Task { @MainActor [weak self] in
             await body(generation)
             // Only clear the handle if no newer transition has replaced it.
-            if let self, self.transitionGeneration == generation { self.transitionTask = nil }
+            if let self, self.transitionGeneration == generation {
+                self.transitionTask = nil
+                self.transitionTarget = nil
+            }
         }
         transitionTask = task
         return task
@@ -605,14 +633,9 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// `expand`/`compact`/`hide` has been claimed since.
     func isCurrent(_ generation: Int) -> Bool { transitionGeneration == generation }
 
-    /// TEMPORARY: traces transitions while OPENNOOK_SMOKE_TEST=1, to find a CI only hang.
-    func smokeTrace(_ message: @autoclosure () -> String) {
-        guard ProcessInfo.processInfo.environment["OPENNOOK_SMOKE_TEST"] == "1" else { return }
-        FileHandle.standardError.write(Data("[trace] \(message())\n".utf8))
-    }
-
     /// Claim a fresh transition generation **synchronously** and cancel any in-flight
-    /// transition, without spawning a replacement.
+    /// transition, without spawning a replacement. Returns the state that transition was
+    /// driving toward, or `nil` when none was in flight.
     ///
     /// Used by the synchronous window-swap paths (`presentation.didSet`, the
     /// screen-parameter observer) which rebuild or drop the window outside of
@@ -620,17 +643,63 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// mid-flight `_expand`/`_compact`/`_hide` re-checks `isCurrent` after each
     /// suspension and bails the instant the window is rebuilt under it, rather than
     /// animating (or deinit'ing) a window that has already been swapped.
-    func supersedeInFlightTransition() {
+    ///
+    /// Bailing is only half the job, though: the interrupted transition stops wherever
+    /// it was, which may be the transient `.hidden` a conversion passes through. Callers
+    /// hand the returned target to ``redriveInterruptedTransition(toward:)`` so the
+    /// surface still arrives where it was asked to go.
+    @discardableResult
+    func supersedeInFlightTransition() -> NookState? {
         transitionGeneration &+= 1
         transitionTask?.cancel()
         transitionTask = nil
+        let interrupted = transitionTarget
+        transitionTarget = nil
+        return interrupted
+    }
+
+    /// Restart a transition a synchronous window swap superseded, so the surface lands on
+    /// the state it was asked for instead of stranding where the supersession caught it.
+    ///
+    /// The stranding this exists to prevent: a compact -> expanded conversion sets
+    /// `state = .hidden` for ``intermediateHideDuration`` before animating in the
+    /// expanded chrome. A screen-parameter change landing in that window used to tear the
+    /// panel down and return, leaving a surface that reads `.hidden` with no transition in
+    /// flight and no window - invisible until the host happened to ask again.
+    ///
+    /// A `nil` target means nothing was in flight. A target the surface already sits at
+    /// means the transition had effectively arrived, so there is nothing left to drive -
+    /// this is also what keeps a genuine ``hide()`` at `.hidden`: its target *is* hidden,
+    /// unlike the transient hide inside a conversion.
+    func redriveInterruptedTransition(toward target: NookState?) {
+        guard let target, state != target else { return }
+
+        switch target {
+            case .hidden:
+                runTransition(toward: .hidden) { [weak self] generation in
+                    await self?._hide(generation: generation)
+                }
+            case .expanded, .compact:
+                // Re-place on the *then-current* screen rather than the one the
+                // interrupted transition targeted: the swap is usually a display change,
+                // so that screen may be gone or rearranged.
+                guard let screen = resolvedScreen else { return }
+                let skipHide = transitionConfiguration.skipIntermediateHides
+                runTransition(toward: target) { [weak self] generation in
+                    if target == .expanded {
+                        await self?._expand(on: screen, skipHide: skipHide, generation: generation)
+                    } else {
+                        await self?._compact(on: screen, skipHide: skipHide, generation: generation)
+                    }
+                }
+        }
     }
 
     /// Rebuild a currently-visible window in place (new screen, new presentation) so the
     /// new layout takes effect immediately. Supersedes any in-flight transition first so
     /// it can't keep mutating the window being swapped - see ``supersedeInFlightTransition()``.
     func rebuildVisibleWindow(on screen: NSScreen) {
-        supersedeInFlightTransition()
+        let interrupted = supersedeInFlightTransition()
         // The old panel hands the keyboard back as it closes; an expanded chrome that had it
         // takes it again in the new panel, so a display change does not cut off typing.
         let hadKeyboardFocus = hasKeyboardFocus && state == .expanded
@@ -639,6 +708,10 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
         if hadKeyboardFocus {
             takeKeyboardFocus()
         }
+        // The rebuilt window shows whatever state the supersession froze - which is not
+        // necessarily the one the caller asked for. Finish the interrupted transition on
+        // the new window.
+        redriveInterruptedTransition(toward: interrupted)
     }
 }
 
@@ -650,7 +723,7 @@ extension Nook {
     public func expand(on screen: NSScreen? = nil) async {
         guard let target = screen ?? resolvedScreen else { return }
         let skipHide = transitionConfiguration.skipIntermediateHides
-        await runTransition { [weak self] generation in
+        await runTransition(toward: .expanded) { [weak self] generation in
             await self?._expand(on: target, skipHide: skipHide, generation: generation)
         }.value
     }
@@ -660,7 +733,7 @@ extension Nook {
     public func compact(on screen: NSScreen? = nil) async {
         guard let target = screen ?? resolvedScreen else { return }
         let skipHide = transitionConfiguration.skipIntermediateHides
-        await runTransition { [weak self] generation in
+        await runTransition(toward: .compact) { [weak self] generation in
             await self?._compact(on: target, skipHide: skipHide, generation: generation)
         }.value
     }
@@ -670,7 +743,7 @@ extension Nook {
     /// the generation system: a newer transition reliably supersedes an in-flight hide,
     /// cancelling its task before its `fadeOutWindow`/`deinitializeWindow` can run.
     public func hide() async {
-        await runTransition { [weak self] generation in
+        await runTransition(toward: .hidden) { [weak self] generation in
             await self?._hide(generation: generation)
         }.value
     }
@@ -808,7 +881,7 @@ extension Nook {
     /// conversion animation finish - so an awaited `expand()` returns once the chrome
     /// has visibly arrived, not after an unrelated fixed delay.
     ///
-    /// `generation` is the token claimed synchronously by ``runTransition(_:)``. The
+    /// `generation` is the token claimed synchronously by ``runTransition(toward:_:)``. The
     /// method bails the instant a newer transition supersedes it: at its top (covering
     /// a task that was queued but overtaken before it ran) and after each suspension.
     func _expand(on screen: NSScreen, skipHide: Bool, generation: Int) async {
@@ -834,7 +907,6 @@ extension Nook {
         if state == .expanded, windowController?.window?.screen == screen { return }
 
         let needsNewWindow = state == .hidden || windowController?.window?.screen != screen
-        smokeTrace("expand gen \(generation) state=\(state) newWindow=\(needsNewWindow) skipHide=\(skipHide)")
 
         if needsNewWindow {
             initializeWindow(screen: screen, orderFront: false)
@@ -853,13 +925,7 @@ extension Nook {
                 withAnimation(effectiveClosingAnimation) { state = .hidden }
                 try? await Task.sleep(for: intermediateHideDuration)
                 // A newer transition may have superseded us across the sleep.
-                guard isCurrent(generation), !Task.isCancelled, state == .hidden else {
-                    smokeTrace(
-                        "expand gen \(generation) bailed after hide: current=\(transitionGeneration) "
-                            + "cancelled=\(Task.isCancelled) state=\(state)"
-                    )
-                    return
-                }
+                guard isCurrent(generation), !Task.isCancelled, state == .hidden else { return }
             }
             withAnimation(effectiveConversionAnimation) { state = .expanded }
             try? await Task.sleep(for: conversionSettleDuration)
@@ -907,7 +973,7 @@ extension Nook {
     }
 
     /// Hide the chrome and tear the window down. Runs as a tracked transition under
-    /// ``runTransition(_:)`` - `generation` is the token it claimed synchronously.
+    /// ``runTransition(toward:_:)`` - `generation` is the token it claimed synchronously.
     ///
     /// Because the hide now lives fully inside the generation system, every step
     /// re-checks ``isCurrent(_:)`` after each suspension point: a newer transition

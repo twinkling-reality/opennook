@@ -157,7 +157,7 @@ final class NookSurfaceConcurrencyTests: XCTestCase {
         // A hide-like transition captures its generation, then yields so a newer
         // transition can be claimed while it is "in flight".
         var hideStillCurrentAfterSupersede: Bool?
-        let hideTask = nook.runTransition { generation in
+        let hideTask = nook.runTransition(toward: .hidden) { generation in
             // Cooperatively yield: lets the second `runTransition` below claim a
             // newer generation, mimicking an expand racing this hide's teardown.
             await Task.yield()
@@ -165,7 +165,7 @@ final class NookSurfaceConcurrencyTests: XCTestCase {
         }
 
         var expandGenerationIsCurrent: Bool?
-        let expandTask = nook.runTransition { generation in
+        let expandTask = nook.runTransition(toward: .expanded) { generation in
             expandGenerationIsCurrent = nook.isCurrent(generation)
         }
 
@@ -186,7 +186,7 @@ final class NookSurfaceConcurrencyTests: XCTestCase {
         let nook = makeNook()
         var stillCurrentAfterSwap: Bool?
 
-        let task = nook.runTransition { generation in
+        let task = nook.runTransition(toward: .expanded) { generation in
             await Task.yield()
             stillCurrentAfterSwap = nook.isCurrent(generation)
         }
@@ -195,6 +195,95 @@ final class NookSurfaceConcurrencyTests: XCTestCase {
         await task.value
 
         XCTAssertEqual(stillCurrentAfterSwap, false)
+    }
+
+    // MARK: - BUG 3: a display change mid-transition must not strand the surface
+
+    /// Posts the notification the surface's screen-parameter observer listens for. The
+    /// observer receives on `RunLoop.main`, so callers poll for the effect rather than
+    /// assuming synchronous delivery.
+    private func postScreenParameterChange() {
+        NotificationCenter.default.post(
+            name: NSApplication.didChangeScreenParametersNotification,
+            object: NSApp
+        )
+    }
+
+    /// A nook whose conversions dwell long enough at the transient `.hidden` for a test to
+    /// land a notification inside that window. `hoverBehavior: []` keeps a pointer parked
+    /// over the notch out of the transitions; compact content keeps `compact` from
+    /// collapsing to a full hide.
+    private func makeSlowNook() -> Nook<Text, Text, EmptyView> {
+        let nook = Nook(hoverBehavior: [], expanded: { Text("x") }, compactLeading: { Text("L") })
+        nook.transitionConfiguration.animationDuration = 0.5
+        return nook
+    }
+
+    /// A compact -> expanded conversion parks at `.hidden` for `intermediateHideDuration`
+    /// before animating the expanded chrome in. The screen-parameter observer used to read
+    /// that `.hidden` as "settled, nothing to keep", cancel the in-flight conversion and
+    /// tear the window down without starting a replacement - leaving an invisible surface
+    /// until the host happened to ask again. (This is the ShowcaseNook launch hang: CI's
+    /// virtual display fires the notification right through the conversion.)
+    func testScreenChangeDuringConversionStillReachesExpanded() async throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("No main display attached") }
+
+        let nook = makeSlowNook()
+        await nook.compact(on: screen)
+        XCTAssertEqual(nook.state, .compact)
+
+        let expanding = Task { await nook.expand(on: screen) }
+        await waitUntil { nook.state == .hidden }
+        postScreenParameterChange()
+        await expanding.value
+
+        await waitUntil { nook.state == .expanded }
+        XCTAssertEqual(nook.state, .expanded, "a display change mid-conversion must not strand the surface hidden")
+        XCTAssertTrue(nook.hasLiveWindow, "the re-driven expand rebuilds the window the observer dropped")
+
+        await nook.hide()
+    }
+
+    /// The mirrored case: the expanded -> compact conversion passes through the same
+    /// transient `.hidden`, so it strands the same way.
+    func testScreenChangeDuringConversionStillReachesCompact() async throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("No main display attached") }
+
+        let nook = makeSlowNook()
+        await nook.expand(on: screen)
+        XCTAssertEqual(nook.state, .expanded)
+
+        let compacting = Task { await nook.compact(on: screen) }
+        await waitUntil { nook.state == .hidden }
+        postScreenParameterChange()
+        await compacting.value
+
+        await waitUntil { nook.state == .compact }
+        XCTAssertEqual(nook.state, .compact, "a display change mid-conversion must not strand the surface hidden")
+        XCTAssertTrue(nook.hasLiveWindow)
+
+        await nook.hide()
+    }
+
+    /// The other side of the same coin: a *requested* hide is driving toward `.hidden`, so
+    /// the same interruption must leave it hidden with its window gone rather than re-drive
+    /// it back on screen.
+    func testScreenChangeDuringHideStillEndsHidden() async throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("No main display attached") }
+
+        let nook = makeSlowNook()
+        await nook.expand(on: screen)
+        XCTAssertEqual(nook.state, .expanded)
+
+        let hiding = Task { await nook.hide() }
+        await waitUntil { nook.state == .hidden }
+        postScreenParameterChange()
+        await hiding.value
+
+        // Long enough for a wrongly re-driven open (and its settle) to have shown itself.
+        try? await Task.sleep(for: .milliseconds(400))
+        XCTAssertEqual(nook.state, .hidden, "a real hide's target is hidden - nothing to re-drive")
+        XCTAssertFalse(nook.hasLiveWindow, "the hidden surface keeps no window")
     }
 
     /// An awaited `hide()` always resolves - it now routes through `runTransition` like
