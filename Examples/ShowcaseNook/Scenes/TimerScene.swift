@@ -114,64 +114,89 @@ private struct TickDial: View {
 
     private let tickCount = 60
 
+    // Split into three properties: as one expression the compiler could not type-check
+    // this body in reasonable time on CI.
     var body: some View {
         ZStack {
-            Canvas { context, size in
-                let center = CGPoint(x: size.width / 2, y: size.height / 2)
-                let radius = min(size.width, size.height) / 2
-                let lit = Int((progress * Double(tickCount)).rounded(.down))
-                for tick in 0..<tickCount {
-                    let isMajor = tick % 5 == 0
-                    let angle = Double(tick) / Double(tickCount) * 2 * .pi - .pi / 2
-                    let outer = radius - 1
-                    let inner = outer - (isMajor ? 12 : 7)
-                    var path = Path()
-                    path.move(to: CGPoint(x: center.x + cos(angle) * inner, y: center.y + sin(angle) * inner))
-                    path.addLine(to: CGPoint(x: center.x + cos(angle) * outer, y: center.y + sin(angle) * outer))
-                    let color: Color =
-                        tick < lit
-                        ? blend(Double(tick) / Double(tickCount))
-                        : .white.opacity(isMajor ? 0.26 : 0.13)
-                    context.stroke(
-                        path,
-                        with: .color(color),
-                        style: StrokeStyle(lineWidth: isMajor ? 2.4 : 1.6, lineCap: .round)
-                    )
+            ticks
+            ring
+            center
+        }
+    }
+
+    /// The minute ticks, lit up to the time that has passed.
+    private var ticks: some View {
+        // Every value is typed on purpose: mixing CGFloat and Double through the trig and
+        // the ternaries left the compiler unable to type-check this in reasonable time.
+        Canvas { context, size in
+            let centerX: CGFloat = size.width / 2
+            let centerY: CGFloat = size.height / 2
+            let radius: CGFloat = min(size.width, size.height) / 2
+            let lit = Int((progress * Double(tickCount)).rounded(.down))
+
+            for tick in 0..<tickCount {
+                let isMajor: Bool = tick % 5 == 0
+                let angle: Double = Double(tick) / Double(tickCount) * 2 * .pi - .pi / 2
+                let cosAngle = CGFloat(cos(angle))
+                let sinAngle = CGFloat(sin(angle))
+                let outer: CGFloat = radius - 1
+                let inner: CGFloat = outer - (isMajor ? 12 : 7)
+
+                var path = Path()
+                path.move(to: CGPoint(x: centerX + cosAngle * inner, y: centerY + sinAngle * inner))
+                path.addLine(to: CGPoint(x: centerX + cosAngle * outer, y: centerY + sinAngle * outer))
+
+                let color: Color
+                if tick < lit {
+                    color = blend(Double(tick) / Double(tickCount))
+                } else {
+                    let opacity: Double = isMajor ? 0.26 : 0.13
+                    color = Color.white.opacity(opacity)
                 }
+                let width: CGFloat = isMajor ? 2.4 : 1.6
+                context.stroke(path, with: .color(color), style: StrokeStyle(lineWidth: width, lineCap: .round))
             }
-            Circle()
-                .trim(from: 0, to: progress)
-                .stroke(
-                    AngularGradient(
+        }
+    }
+
+    /// The progress ring over the ticks.
+    private var ring: some View {
+        Circle()
+            .trim(from: 0, to: progress)
+            .stroke(
+                AngularGradient(
+                    colors: [FocusPalette.warm, FocusPalette.hot],
+                    center: .center,
+                    startAngle: .degrees(0),
+                    endAngle: .degrees(360 * max(progress, 0.01))
+                ),
+                style: StrokeStyle(lineWidth: 3, lineCap: .round)
+            )
+            .rotationEffect(.degrees(-90))
+            .padding(19)
+    }
+
+    /// The state glyph and the session dots inside the dial.
+    private var center: some View {
+        VStack(spacing: 6) {
+            Image(systemName: isRunning ? "flame.fill" : "pause.fill")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(
+                    LinearGradient(
                         colors: [FocusPalette.warm, FocusPalette.hot],
-                        center: .center,
-                        startAngle: .degrees(0),
-                        endAngle: .degrees(360 * max(progress, 0.01))
-                    ),
-                    style: StrokeStyle(lineWidth: 3, lineCap: .round)
-                )
-                .rotationEffect(.degrees(-90))
-                .padding(19)
-            VStack(spacing: 6) {
-                Image(systemName: isRunning ? "flame.fill" : "pause.fill")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [FocusPalette.warm, FocusPalette.hot],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
+                        startPoint: .top,
+                        endPoint: .bottom
                     )
-                HStack(spacing: 4) {
-                    ForEach(1...sessions, id: \.self) { index in
-                        Capsule()
-                            .fill(
-                                index < session
-                                    ? FocusPalette.warm
-                                    : (index == session ? theme.primaryLabel : theme.quaternaryLabel)
-                            )
-                            .frame(width: index == session ? 10 : 4, height: 4)
-                    }
+                )
+            HStack(spacing: 4) {
+                ForEach(1...sessions, id: \.self) { index in
+                    Capsule()
+                        .fill(
+                            index < session
+                                ? FocusPalette.warm
+                                : (index == session ? theme.primaryLabel : theme.quaternaryLabel)
+                        )
+                        .frame(width: index == session ? 10 : 4, height: 4)
                 }
             }
         }
