@@ -11,6 +11,13 @@ Images and the animated hero for the root `README.md`.
 | `nook-progress.png` | `ShowcaseNook --scene progress`, expanded | `make-readme-media.sh` |
 | `nook-shelf.png` | `ShowcaseNook --scene shelf`, expanded | `make-readme-media.sh` |
 
+Not recorded yet, and so not referenced from `README.md`:
+
+| File | What it should show | Produced by |
+| --- | --- | --- |
+| `nook-playground.png` | The PlaygroundNook controls window below the expanded nook | `record-playground.sh` |
+| `nook-playground.gif` | The same pair, while one control is changed and the nook follows | `record-playground.sh` |
+
 ## Regenerate
 
 The generated files come from the same ShowcaseNook recordings as the landing
@@ -49,6 +56,35 @@ notch on the first row and a seamless loop.
 
 `shelf` is left out until its last tile is no longer clipped; `hud` and
 `compact` are small enough that they read poorly at README size.
+
+## PlaygroundNook
+
+The playground is the live-tweaking tool, so its media has to show the controls
+window and the running nook together - a still of the nook alone says nothing
+about it. It is captured live rather than cut from the reel, so it has its own
+script:
+
+```sh
+./docs/images/record-playground.sh --dry-run   # print the steps
+./docs/images/record-playground.sh             # still + clip
+./docs/images/record-playground.sh still       # just the still
+```
+
+The script hides the desk behind `playground-backdrop.swift` (the README paper,
+`#EAF1F8`, one window level *below* normal windows so the controls window stays
+in front - `Scripts/reel-backdrop.swift` sits above them and would cover it),
+opens `PlaygroundNook --sample glass --expand --keep-open`, captures the nook
+panel and the controls window by window id and composites them onto paper for
+the still, then records a rectangle around both for the GIF. Nothing is keyed:
+the backdrop is already the final colour.
+
+The clip needs a person: when the countdown ends, change one visible control
+(Appearance -> Material, or Theme -> Accent) slowly enough to read, and let the
+nook settle. The pointer is in frame on purpose.
+
+Until both files exist, `README.md` does not reference them. The markup to paste
+in, and where it goes, is the `TODO(playground media)` block at the end of
+`make-readme-media.sh`.
 
 ## Manual captures
 

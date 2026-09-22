@@ -67,3 +67,35 @@ scale=720:-2:flags=lanczos,format=rgb24" \
 done
 
 ls -la "$here"/nook-hero.gif "$here"/nook-{player,agenda,timer,progress,shelf}.png
+
+# ---- PlaygroundNook ----------------------------------------------------------
+# TODO(playground media): nook-playground.png and nook-playground.gif do not
+# exist yet, so nothing here touches them and README.md does not reference them.
+# They are captured live, not derived from the reel, so they have their own
+# script beside this one:
+#
+#   ./docs/images/record-playground.sh            # still + clip, ~8 s of tweaking
+#   ./docs/images/record-playground.sh --dry-run  # print the steps first
+#
+# It needs the Mac free: it puts a paper backdrop over the desktop, opens
+# PlaygroundNook with a sample look, captures the nook panel and the controls
+# window by window id for the still, and records a rectangle around both for the
+# GIF while the operator changes one control.
+#
+# Once both files exist, paste this section into README.md, directly after the
+# "File shelf" figure and before "## What's inside". Do not paste it earlier:
+# a missing file renders as a broken image on GitHub.
+#
+# <p align="center">
+#   <img src="docs/images/nook-playground.gif" width="840" alt="PlaygroundNook: the controls window below the expanded nook, with a control changing and the nook's material, accent and shape following it live">
+#   <br><sub><b>Playground.</b> Change the running nook from a controls window,
+#   then copy the result as Swift or a JSON preset.
+#   <code>swift run PlaygroundNook</code></sub>
+# </p>
+#
+# If only the still gets recorded, swap the GIF line for:
+#
+#   <img src="docs/images/nook-playground.png" width="840" alt="PlaygroundNook: the controls window below the expanded nook, the Appearance page open beside the exported Swift">
+#
+# Then add the two rows to the table in docs/images/README.md, and link the
+# figure from the Playground row of the README's customization table.
