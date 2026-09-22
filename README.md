@@ -13,6 +13,10 @@
 **Website:** [opennook.dev](https://opennook.dev) ·
 **Docs:** [Getting started](https://opennook.dev/start/introduction/)
 
+<p align="center">
+  <img src="docs/images/nook-hero.gif" width="840" alt="Four ShowcaseNook scenes, each opening from the collapsed notch pill into its expanded panel: a music player with its queue, a calendar beside today's schedule, a focus timer on a tick dial, and a release build going step by step">
+</p>
+
 OpenNook gives you the hard part for free: a polished window that lives in the
 menu-bar notch, expands and collapses on hover, paints a proper frosted
 backdrop, and ships with a settings shell and a global hotkey. Register your
@@ -24,21 +28,46 @@ It is a **base layer plus a working demo** - not a finished product. The demo
 app is intentionally minimal: it shows the framework off and gives you a
 known-good starting point to fork.
 
-![OpenNook expanded on macOS](docs/images/nook-expanded.png)
-
-![File shelf via NookComponents](docs/images/nook-shelf.png)
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/images/nook-player.png" alt="ShowcaseNook player scene: cover art, track details and transport controls beside an Up Next queue, with a Living Room output companion below the panel">
+      <br><sub><b>Now playing.</b> Cover art drawn in code, the queue beside it, and where it plays in a companion below. <code>swift run ShowcaseNook --scene player</code></sub>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/images/nook-agenda.png" alt="ShowcaseNook agenda scene: a September month calendar beside today's schedule, with the current meeting highlighted">
+      <br><sub><b>Agenda.</b> This month beside today's schedule. <code>swift run ShowcaseNook --scene agenda</code></sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/images/nook-timer.png" alt="ShowcaseNook timer scene: a focus countdown on a tick dial with Pause and +5 min buttons, an orange rim glow, and session lengths in a companion below">
+      <br><sub><b>Focus timer.</b> A countdown on a tick dial, session lengths in a companion, the rim lit while it runs. <code>swift run ShowcaseNook --scene timer</code></sub>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/images/nook-progress.png" alt="ShowcaseNook progress scene: a release build with a segmented progress bar and a checklist of steps, a blue rim glow, and a Restart companion below">
+      <br><sub><b>Build progress.</b> A release build step by step, with a card when it finishes. <code>swift run ShowcaseNook --scene progress</code></sub>
+    </td>
+  </tr>
+</table>
 
 Collapsed, the nook is a compact pill in the menu-bar notch (customizable
 leading/trailing slots). Hover to expand on desktop, or press **⌥⌘;** to
 toggle. Expanded, you get framework chrome (top bar, lock, settings) around
 the view you register. Layout follows the display: notch-fused on notched
 panels, floating capsule elsewhere (`NookPresentation`, overridable in
-Settings). The shelf above is from `Examples/ShelfNook` via optional
-`NookComponents`.
+Settings). The looks above are scenes from `Examples/ShowcaseNook`, recorded
+live from the running app; see [`docs/images/`](docs/images/README.md) for how they are made.
+
+<p align="center">
+  <img src="docs/images/nook-shelf.png" width="600" alt="ShowcaseNook shelf scene: five files with previews on the NookComponents file shelf, and a Show in Finder companion below">
+  <br><sub><b>File shelf.</b> Files dropped on the notch, from the optional <code>NookComponents</code>. <code>swift run ShowcaseNook --scene shelf</code></sub>
+</p>
 
 ## What's inside
 
-OpenNook is two Swift modules, a thin demo app, and two ways to launch it.
+OpenNook is two core Swift modules, an optional components library, a thin
+demo app, and two ways to launch it.
 
 ### `NookSurface` - the notch window
 
@@ -135,7 +164,7 @@ cannot drift between them.
 ## Example apps
 
 Examples under `Examples/` show how to build on OpenNook through public API
-only - no forking. All but the playground are a single `main.swift`:
+only - no forking. All but the playground and the showcase are a single `main.swift`:
 
 ```sh
 swift run HelloNook     # register one view, go
@@ -149,6 +178,7 @@ swift run VolumeNook    # an ambient volume glyph in the compact pill (NookCompo
 swift run MultiNook     # multiple interchangeable modules sharing one surface
 swift run CompanionNook # companion surfaces beside the nook, rim glow, scroll edge fade
 swift run PlaygroundNook # change the running nook live, then export Swift or a JSON preset
+swift run ShowcaseNook --scene player # finished-looking scenes: player, agenda, timer, progress, shelf, hud, compact
 ```
 
 ## Start your own notch app

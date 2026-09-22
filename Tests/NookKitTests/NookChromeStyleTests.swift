@@ -112,7 +112,7 @@ final class NookChromeStyleTests: XCTestCase {
         XCTAssertEqual(metrics.brandMarkOpacity, 0.92)
         // Compact pill
         XCTAssertEqual(metrics.compactLeadingGlyphOpacity, 0.88)
-        XCTAssertEqual(metrics.compactTrailingMarkSize, 11)
+        XCTAssertEqual(metrics.compactTrailingMarkSize, 20)
         XCTAssertEqual(metrics.compactTrailingMarkStrokeWidth, 1.1)
         XCTAssertEqual(metrics.compactTrailingMarkOpacity, 0.82)
         // Status banner
@@ -223,7 +223,7 @@ final class NookChromeStyleTests: XCTestCase {
         XCTAssertEqual(metrics.volumeGlyphOpacity, 0.85)
         // Placeholder
         XCTAssertEqual(metrics.placeholderStackSpacing, 10)
-        XCTAssertEqual(metrics.placeholderMarkSize, 28)
+        XCTAssertEqual(metrics.placeholderMarkSize, 56)
         XCTAssertEqual(metrics.placeholderMarkStrokeWidth, 2)
         XCTAssertEqual(metrics.placeholderVerticalPadding, 40)
         // Settings - spacing

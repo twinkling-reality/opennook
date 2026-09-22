@@ -1,0 +1,167 @@
+/* OpenNook motion + interaction system.
+   One place for every duration, easing curve, hover treatment and focus ring
+   on the site - landing and docs both. Before this, durations were hardcoded
+   at 160/180/220ms across two stylesheets and there was a single easing token.
+
+   Use the tokens for bespoke transitions; use the `u-` primitives for the
+   common cases so hover behaviour stays consistent.
+
+   Everything degrades in one place: the reduced-motion block at the bottom
+   collapses every duration to 1ms and disables the decorative sweeps, so
+   individual components never need their own media query. */
+
+:root {
+  /* ---- duration scale ---- */
+  --mo-instant: 90ms; /* press feedback - must feel immediate */
+  --mo-fast: 160ms; /* colour and opacity on small controls */
+  --mo-base: 240ms; /* the default: lifts, shadows, backgrounds */
+  --mo-slow: 380ms; /* layout-ish moves, larger surfaces */
+  --mo-slower: 620ms; /* cross-dissolves and sweeps */
+
+  /* ---- easing ----
+     ease      - decelerating, the workhorse (was --on-ease-out)
+     in-out    - symmetric, for things that travel across a surface
+     settle    - firm arrival, no overshoot: good for size changes
+     spring    - slight overshoot: good for scale and lift */
+  --mo-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --mo-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --mo-settle: cubic-bezier(0.32, 0.72, 0, 1);
+  --mo-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ---- elevation used by the hover treatments ---- */
+  --mo-lift: -2px;
+  --mo-press: 0.985;
+  --mo-shadow-rest:
+    0 1px 2px rgba(16, 28, 45, 0.06),
+    0 8px 18px -12px rgba(16, 28, 45, 0.38);
+  --mo-shadow-hover:
+    0 2px 6px rgba(16, 28, 45, 0.09),
+    0 20px 42px -18px rgba(16, 28, 45, 0.5);
+
+  --mo-focus: rgba(58, 126, 210, 0.85);
+
+  /* Legacy name for --mo-ease. Nothing in the site uses it any more; it stays
+     as an alias so an old reference resolves to the one real curve. This is
+     its only definition (tokens.css no longer declares it). */
+  --on-ease-out: var(--mo-ease);
+}
+
+/* ---------- interaction primitives ---------- */
+
+/* Everything that responds to a pointer transitions the same properties on the
+   same curves. Put this on the element, then add a treatment below. */
+.u-interactive {
+  transition:
+    color var(--mo-fast) var(--mo-ease),
+    background-color var(--mo-fast) var(--mo-ease),
+    border-color var(--mo-fast) var(--mo-ease),
+    opacity var(--mo-fast) var(--mo-ease),
+    box-shadow var(--mo-base) var(--mo-ease),
+    transform var(--mo-base) var(--mo-spring);
+}
+
+/* Lift: the surface rises a touch and its shadow spreads and softens. The
+   shadow doing more work than the movement is what keeps it from feeling
+   like a jump. */
+.u-lift {
+  box-shadow: var(--mo-shadow-rest);
+}
+
+.u-lift:hover {
+  transform: translateY(var(--mo-lift));
+  box-shadow: var(--mo-shadow-hover);
+}
+
+.u-lift:active {
+  transform: translateY(0) scale(var(--mo-press));
+  box-shadow: var(--mo-shadow-rest);
+  transition-duration: var(--mo-instant);
+}
+
+/* Sheen: a specular highlight travels across the surface once per hover.
+   Cheap (one transform) and it reads as glass catching light. */
+.u-sheen {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.u-sheen::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(
+    102deg,
+    transparent 36%,
+    rgba(255, 255, 255, 0.34) 49%,
+    transparent 63%
+  );
+  transform: translateX(-130%);
+  transition: transform var(--mo-slower) var(--mo-ease-in-out);
+}
+
+.u-sheen:hover::after {
+  transform: translateX(130%);
+}
+
+/* Wash: a soft background that scales in from under the label, rather than a
+   hard colour swap. For text links that sit on a dark surface. */
+.u-wash {
+  position: relative;
+  isolation: isolate;
+}
+
+.u-wash::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: currentColor;
+  opacity: 0;
+  transform: scale(0.86);
+  transition:
+    opacity var(--mo-fast) var(--mo-ease),
+    transform var(--mo-base) var(--mo-spring);
+}
+
+.u-wash:hover::before {
+  opacity: 0.12;
+  transform: scale(1);
+}
+
+/* ---------- focus ---------- */
+
+:where(a, button, [tabindex]):focus-visible {
+  outline: 2px solid var(--mo-focus);
+  outline-offset: 3px;
+}
+
+/* ---------- reduced motion ----------
+   Collapsing the scale here means no component needs its own media query.
+   Colour and opacity still change, they just arrive immediately. */
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --mo-instant: 1ms;
+    --mo-fast: 1ms;
+    --mo-base: 1ms;
+    --mo-slow: 1ms;
+    --mo-slower: 1ms;
+    --mo-lift: 0px;
+    --mo-press: 1;
+  }
+
+  .u-sheen::after {
+    display: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

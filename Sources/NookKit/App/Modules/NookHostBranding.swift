@@ -89,14 +89,24 @@ public struct NookHostBranding: Sendable, Equatable {
     public static let `default` = NookHostBranding()
 
     /// Builds the brand mark view at the given size/color - the host's ``mark`` if set,
-    /// otherwise the framework ``NookMarkView`` at the supplied `strokeWidth`.
+    /// otherwise the framework ``NookMarkView``. The host mark fills a `size` square; the
+    /// framework mark is much wider than tall, so it's drawn ``frameworkMarkWidthScale``
+    /// times `size` wide in a frame `size` tall. `strokeWidth` is kept for compatibility
+    /// and ignored by the filled framework mark.
     @MainActor
     public func markView(size: CGFloat, strokeWidth: CGFloat, color: Color) -> AnyView {
         if let mark {
-            return mark(size, color)
+            return AnyView(mark(size, color).frame(width: size, height: size))
         }
-        return AnyView(NookMarkView(size: size, strokeWidth: strokeWidth, color: color))
+        return AnyView(
+            NookMarkView(size: size * Self.frameworkMarkWidthScale, strokeWidth: strokeWidth, color: color)
+                .frame(height: size)
+        )
     }
+
+    /// How many times a glyph `size` the framework mark is drawn wide, so it carries about
+    /// the visual weight of a square glyph at that size.
+    public static let frameworkMarkWidthScale: CGFloat = 2
 }
 
 #if canImport(AppKit)
@@ -104,11 +114,12 @@ public struct NookHostBranding: Sendable, Equatable {
 
     extension NookHostBranding {
         /// Renders the menu-bar status item's icon into a template `NSImage` - the host's
-        /// ``menuBarIcon`` if set, then its ``mark``, otherwise the framework mark.
+        /// ``menuBarIcon`` if set, then its ``mark``, otherwise the framework mark, drawn
+        /// ``frameworkMarkWidthScale`` times `size` wide.
         @MainActor
         public func menuBarTemplateImage(size: CGFloat = 14) -> NSImage? {
             guard let icon = menuBarIcon ?? mark else {
-                return NookMarkView.makeTemplateImage(size: size)
+                return NookMarkView.makeTemplateImage(size: size * Self.frameworkMarkWidthScale)
             }
             let renderer = ImageRenderer(content: icon(size, .primary))
             renderer.scale = 2

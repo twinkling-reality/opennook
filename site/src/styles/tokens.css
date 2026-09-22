@@ -1,60 +1,94 @@
-/* OpenNook shared design tokens - landing + docs */
+/* OpenNook shared design tokens - landing + docs.
+   Light follows the landing's cool paper (landing.css --paper / --ink); dark is
+   the same hue family taken down to a cool near-black. Durations and easing
+   live in motion.css. */
 
 :root,
 html[data-palette='light'],
 [data-theme='light'] {
-  --on-page-bg: #f3f0e8;
-  --on-page-bg-nav: #f3f0e8;
-  --on-ink: #0a0a0a;
-  --on-ink-muted: rgba(10, 10, 10, 0.58);
-  --on-ink-faint: rgba(10, 10, 10, 0.36);
-  --on-hairline: rgba(10, 10, 10, 0.08);
-  --on-hairline-strong: rgba(10, 10, 10, 0.14);
-  --on-surface: #0a0a0a;
-  --on-surface-deep: #050505;
-  --on-surface-text: #f0eee6;
-  --on-surface-text-soft: rgba(240, 238, 230, 0.6);
-  --on-page-glow-a: rgba(255, 255, 255, 0.55);
-  --on-page-glow-b: rgba(10, 10, 10, 0.025);
-  --on-page-ambient-a: rgba(110, 150, 210, 0.14);
-  --on-page-ambient-b: rgba(210, 130, 90, 0.1);
-  --on-page-ambient-c: rgba(255, 255, 255, 0.28);
-  --on-control-bg: rgba(255, 255, 255, 0.55);
-  --on-control-border: rgba(10, 10, 10, 0.12);
-  --on-control-border-hover: rgba(10, 10, 10, 0.32);
-  --on-inline-code-bg: #ede9dc;
-  --on-aside-bg: rgba(10, 10, 10, 0.04);
-  --on-aside-border: rgba(10, 10, 10, 0.18);
-  --on-aside-text: #0a0a0a;
-  --on-backdrop: rgba(10, 10, 10, 0.42);
+  --on-page-bg: #f7f9fb;
+  --on-page-bg-nav: #f7f9fb;
+  --on-ink: #131a21;
+  --on-text: #29323c;
+  --on-ink-muted: rgba(19, 26, 33, 0.62);
+  --on-ink-faint: rgba(19, 26, 33, 0.4);
+  --on-hairline: rgba(19, 26, 33, 0.08);
+  --on-hairline-strong: rgba(19, 26, 33, 0.14);
+
+  /* The notch: always dark, whatever the page does. */
+  --on-surface: #0d1116;
+  --on-surface-deep: #08090b;
+  --on-surface-text: #eef2f6;
+  --on-surface-text-soft: rgba(238, 242, 246, 0.6);
+
+  /* The field: the landing's sky and cyan masses, much quieter. */
+  --on-field-a: rgba(96, 186, 220, 0.16);
+  --on-field-b: rgba(92, 150, 214, 0.12);
+  --on-field-wash: #eef3f8;
+  --on-grain: rgb(24 32 41 / 7%);
+
+  --on-accent: #2f6fb8;
+  --on-accent-wash: rgba(92, 150, 214, 0.12);
+  --on-accent-wash-strong: rgba(92, 150, 214, 0.18);
+  --on-selection: rgba(92, 150, 214, 0.26);
+
+  --on-control-bg: rgba(255, 255, 255, 0.6);
+  --on-control-border: rgba(19, 26, 33, 0.12);
+  --on-control-border-hover: rgba(19, 26, 33, 0.3);
+  --on-inline-code-bg: #ebf0f6;
+  --on-aside-bg: rgba(92, 150, 214, 0.07);
+  --on-aside-border: rgba(47, 111, 184, 0.45);
+  --on-aside-text: #131a21;
+  --on-backdrop: rgba(19, 26, 33, 0.38);
+
+  /* Code blocks (Expressive Code reads these, see astro.config.mjs). */
+  --on-code-bg: #0d1116;
+  --on-code-bar: #08090b;
+  --on-code-border: #1c222a;
+  --on-code-shadow:
+    0 1px 2px rgba(16, 28, 45, 0.06),
+    0 10px 24px -16px rgba(16, 28, 45, 0.4);
 }
 
 html[data-palette='dark'],
 [data-theme='dark'] {
-  --on-page-bg: #0c0c0c;
-  --on-page-bg-nav: #0c0c0c;
-  --on-ink: #f0eee6;
-  --on-ink-muted: rgba(240, 238, 230, 0.58);
-  --on-ink-faint: rgba(240, 238, 230, 0.36);
-  --on-hairline: rgba(240, 238, 230, 0.08);
-  --on-hairline-strong: rgba(240, 238, 230, 0.14);
-  --on-surface: #0a0a0a;
-  --on-surface-deep: #050505;
-  --on-surface-text: #f0eee6;
-  --on-surface-text-soft: rgba(240, 238, 230, 0.6);
-  --on-page-glow-a: rgba(255, 255, 255, 0.04);
-  --on-page-glow-b: rgba(0, 0, 0, 0.2);
-  --on-page-ambient-a: rgba(90, 130, 200, 0.1);
-  --on-page-ambient-b: rgba(200, 110, 70, 0.08);
-  --on-page-ambient-c: rgba(255, 255, 255, 0.03);
-  --on-control-bg: rgba(10, 10, 10, 0.35);
-  --on-control-border: rgba(240, 238, 230, 0.16);
-  --on-control-border-hover: rgba(240, 238, 230, 0.34);
-  --on-inline-code-bg: #1a1a1a;
-  --on-aside-bg: rgba(240, 238, 230, 0.04);
-  --on-aside-border: rgba(240, 238, 230, 0.18);
-  --on-aside-text: #f0eee6;
-  --on-backdrop: rgba(0, 0, 0, 0.62);
+  --on-page-bg: #0b0e12;
+  --on-page-bg-nav: #0b0e12;
+  --on-ink: #eef2f6;
+  --on-text: #c5ced8;
+  --on-ink-muted: rgba(238, 242, 246, 0.62);
+  --on-ink-faint: rgba(238, 242, 246, 0.4);
+  --on-hairline: rgba(238, 242, 246, 0.08);
+  --on-hairline-strong: rgba(238, 242, 246, 0.14);
+
+  --on-surface: #12171e;
+  --on-surface-deep: #08090b;
+  --on-surface-text: #eef2f6;
+  --on-surface-text-soft: rgba(238, 242, 246, 0.6);
+
+  --on-field-a: rgba(96, 186, 220, 0.07);
+  --on-field-b: rgba(92, 150, 214, 0.06);
+  --on-field-wash: #0b0e12;
+  --on-grain: rgb(238 242 246 / 4%);
+
+  --on-accent: #7fb2ea;
+  --on-accent-wash: rgba(127, 178, 234, 0.1);
+  --on-accent-wash-strong: rgba(127, 178, 234, 0.16);
+  --on-selection: rgba(127, 178, 234, 0.3);
+
+  --on-control-bg: rgba(18, 23, 30, 0.5);
+  --on-control-border: rgba(238, 242, 246, 0.14);
+  --on-control-border-hover: rgba(238, 242, 246, 0.32);
+  --on-inline-code-bg: #151b23;
+  --on-aside-bg: rgba(127, 178, 234, 0.06);
+  --on-aside-border: rgba(127, 178, 234, 0.4);
+  --on-aside-text: #eef2f6;
+  --on-backdrop: rgba(3, 5, 8, 0.62);
+
+  --on-code-bg: #12171e;
+  --on-code-bar: #0d1117;
+  --on-code-border: #232a33;
+  --on-code-shadow: none;
 }
 
 :root {
@@ -63,16 +97,4 @@ html[data-palette='dark'],
   --on-radius-sm: 4px;
   --on-radius-md: 8px;
   --on-radius-lg: 14px;
-  --on-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-
-  /* Landing aliases */
-  --page-bg: var(--on-page-bg);
-  --ink: var(--on-ink);
-  --ink-muted: var(--on-ink-muted);
-  --ink-faint: var(--on-ink-faint);
-  --page-glow-a: var(--on-page-glow-a);
-  --page-glow-b: var(--on-page-glow-b);
-  --font-sans: var(--on-font-sans);
-  --font-mono: var(--on-font-mono);
-  --ease-out: var(--on-ease-out);
 }

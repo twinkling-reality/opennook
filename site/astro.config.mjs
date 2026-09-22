@@ -20,7 +20,54 @@ export default defineConfig({
       editLink: { baseUrl: undefined },
       lastUpdated: false,
       defaultLocale: 'en',
-      customCss: ['./src/styles/custom.css'],
+      // Code blocks are little nooks: dark in both site themes, so there is one
+      // syntax theme and no light/dark switch. Colours come from tokens.css
+      // (--on-code-*); the var() fallbacks are what Expressive Code measures
+      // token contrast against, so keep them equal to the lighter of the two
+      // frame backgrounds (the dark site theme's) as the worst case.
+      expressiveCode: {
+        themes: ['github-dark-default'],
+        useStarlightDarkModeSwitch: false,
+        useStarlightUiThemeColors: false,
+        minSyntaxHighlightingColorContrast: 5.5,
+        styleOverrides: {
+          borderRadius: '14px',
+          borderColor: 'var(--on-code-border, #262d36)',
+          codeBackground: 'var(--on-code-bg, #12171e)',
+          codeForeground: '#e6edf3',
+          codeSelectionBackground: 'rgba(92, 150, 214, 0.32)',
+          scrollbarThumbColor: 'rgba(238, 242, 246, 0.14)',
+          scrollbarThumbHoverColor: 'rgba(238, 242, 246, 0.28)',
+          frames: {
+            editorBackground: 'var(--on-code-bg, #12171e)',
+            terminalBackground: 'var(--on-code-bg, #12171e)',
+            editorTabBarBackground: 'var(--on-code-bar, #0b0e13)',
+            editorTabBarBorderColor: 'var(--on-code-border, #262d36)',
+            editorTabBorderRadius: '0px',
+            editorActiveTabBackground: 'var(--on-code-bg, #12171e)',
+            editorActiveTabForeground: '#e6edf3',
+            editorActiveTabBorderColor: 'transparent',
+            editorActiveTabIndicatorTopColor: 'transparent',
+            editorActiveTabIndicatorBottomColor: 'transparent',
+            editorActiveTabIndicatorHeight: '0px',
+            terminalTitlebarBackground: 'var(--on-code-bar, #0b0e13)',
+            terminalTitlebarForeground: 'rgba(230, 237, 243, 0.62)',
+            terminalTitlebarBorderBottomColor: 'var(--on-code-border, #262d36)',
+            terminalTitlebarDotsForeground: 'rgba(230, 237, 243, 0.42)',
+            terminalTitlebarDotsOpacity: '0.6',
+            inlineButtonForeground: '#e6edf3',
+            inlineButtonBorder: 'rgba(230, 237, 243, 0.24)',
+            frameBoxShadowCssValue: 'var(--on-code-shadow, none)',
+            tooltipSuccessBackground: '#2f6fb8',
+            tooltipSuccessForeground: '#ffffff',
+          },
+          textMarkers: {
+            markBackground: 'rgba(92, 150, 214, 0.16)',
+            markBorderColor: 'rgba(92, 150, 214, 0.55)',
+          },
+        },
+      },
+      customCss: ['./src/styles/motion.css', './src/styles/custom.css'],
       components: {
         Header: './src/components/Header.astro',
         SiteTitle: './src/components/SiteTitle.astro',

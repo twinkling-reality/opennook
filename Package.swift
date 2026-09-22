@@ -33,7 +33,7 @@ var package = Package(
         // through public API only, most in a single `main.swift`. Run with `swift run
         // HelloNook` (or `ClockNook` / `ThemedNook` / `ChromeNook` / `LayoutNook` /
         // `ShelfNook` / `ActivityNook` / `VolumeNook` / `MultiNook` / `CompanionNook` /
-        // `PlaygroundNook`).
+        // `PlaygroundNook` / `ShowcaseNook`).
         .executable(name: "HelloNook", targets: ["HelloNook"]),
         .executable(name: "ClockNook", targets: ["ClockNook"]),
         .executable(name: "ThemedNook", targets: ["ThemedNook"]),
@@ -45,6 +45,7 @@ var package = Package(
         .executable(name: "MultiNook", targets: ["MultiNook"]),
         .executable(name: "CompanionNook", targets: ["CompanionNook"]),
         .executable(name: "PlaygroundNook", targets: ["PlaygroundNook"]),
+        .executable(name: "ShowcaseNook", targets: ["ShowcaseNook"]),
     ],
     targets: [
         .target(
@@ -163,6 +164,12 @@ var package = Package(
             name: "PlaygroundNook",
             dependencies: ["NookApp", "PlaygroundNookCore"],
             path: "Examples/PlaygroundNook/App",
+            swiftSettings: strictConcurrency
+        ),
+        .executableTarget(
+            name: "ShowcaseNook",
+            dependencies: ["NookApp", "NookComponents"],
+            path: "Examples/ShowcaseNook",
             swiftSettings: strictConcurrency
         ),
         .testTarget(

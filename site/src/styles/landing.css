@@ -1,0 +1,248 @@
+/* OpenNook landing.
+   The first screen is the hero: the nav sits in a notch at the top, the copy in
+   the middle, and the showcase display rises from the bottom edge. It is one
+   screen: nothing scrolls.
+
+   The ground follows the recipe from the other Twinkling Reality sites: a fine
+   dot grain (manyminions `--field-grain`), two large soft colour masses and a
+   vertical wash (halowake `.mesh-body`), all under a radial mask so the field
+   has no edge of its own. */
+
+@import './tokens.css';
+@import './motion.css';
+
+:root {
+  --pad: clamp(20px, 4vw, 48px);
+
+  /* Cool, pale ground - a black notch needs a light field to read against. */
+  --paper: #f7f9fb;
+  --wash-top: #eef3f8;
+  --wash-bottom: #e6edf5;
+  --mass-sky: 92, 150, 214;
+  --mass-cyan: 96, 186, 220;
+  --mass-mint: 150, 214, 196;
+
+  --ink: #131a21;
+  --ink-soft: rgba(19, 26, 33, 0.62);
+  --ink-faint: rgba(19, 26, 33, 0.4);
+
+  --grain: radial-gradient(rgb(24 32 41 / 13%) 0.7px, transparent 0.8px);
+  --grain-size: 9px 9px;
+
+  --notch: #08090b;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  background: var(--paper);
+}
+
+body {
+  font-family: var(--on-font-sans);
+  font-feature-settings: 'ss01', 'ss03';
+  color: var(--ink);
+  background: var(--paper);
+  height: 100svh;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- the ground ---------- */
+
+.field {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    var(--grain),
+    radial-gradient(
+      72% 64% at 22% 18%,
+      rgba(var(--mass-cyan), 0.42) 0%,
+      rgba(var(--mass-sky), 0.3) 34%,
+      rgba(var(--mass-sky), 0.11) 66%,
+      rgba(var(--mass-sky), 0) 100%
+    ),
+    radial-gradient(
+      78% 70% at 82% 76%,
+      rgba(var(--mass-mint), 0.36) 0%,
+      rgba(var(--mass-cyan), 0.25) 36%,
+      rgba(var(--mass-cyan), 0.09) 68%,
+      rgba(var(--mass-cyan), 0) 100%
+    ),
+    linear-gradient(180deg, var(--wash-top) 0%, var(--wash-bottom) 100%);
+  background-size: var(--grain-size), auto, auto, auto;
+  /* No hard rim: the field fades to paper before it reaches the corners. */
+  -webkit-mask-image: radial-gradient(
+    96% 86% at 50% 42%,
+    rgba(0, 0, 0, 0.98) 0%,
+    rgba(0, 0, 0, 0.9) 30%,
+    rgba(0, 0, 0, 0.62) 58%,
+    rgba(0, 0, 0, 0.26) 80%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  mask-image: radial-gradient(
+    96% 86% at 50% 42%,
+    rgba(0, 0, 0, 0.98) 0%,
+    rgba(0, 0, 0, 0.9) 30%,
+    rgba(0, 0, 0, 0.62) 58%,
+    rgba(0, 0, 0, 0.26) 80%,
+    rgba(0, 0, 0, 0) 100%
+  );
+}
+
+.page {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  /* svh, not vh: the hero is exactly the first screen, and mobile browser
+     chrome must not push the display card below the fold. */
+  height: 100svh;
+}
+
+/* ---------- the nav, in a notch ---------- */
+
+.notchbar {
+  display: flex;
+  justify-content: center;
+  padding: 0 var(--pad);
+}
+
+.notchbar__nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 34px;
+  padding: 0 16px;
+  /* Square at the top where it meets the screen edge, rounded below: the
+     silhouette of a real notch. Matches NookConfiguration.defaultStyle. */
+  border-radius: 0 0 19px 19px;
+  background: var(--notch);
+  box-shadow: var(--mo-shadow-rest);
+}
+
+.notchbar__brand {
+  padding-right: 6px;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: -0.012em;
+  color: #f2f4f7;
+}
+
+.notchbar__rule {
+  width: 1px;
+  height: 13px;
+  margin-right: 6px;
+  background: rgba(242, 244, 247, 0.2);
+}
+
+.notchbar__link {
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 400;
+  letter-spacing: -0.006em;
+  color: rgba(242, 244, 247, 0.6);
+  text-decoration: none;
+}
+
+.notchbar__link:hover {
+  color: #f2f4f7;
+}
+
+/* ---------- hero ---------- */
+
+.hero {
+  display: grid;
+  /* The showcase sizes itself from the viewport (NookShowcase.astro budgets
+     330px for the nav and copy), sits on the bottom edge, and the copy is
+     centred in whatever height is left, so the hero fills the first screen
+     exactly. */
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-height: 0;
+  padding: 0 var(--pad);
+}
+
+.hero__copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: 0;
+  text-align: center;
+  padding-block: clamp(14px, 3.4vh, 38px);
+}
+
+.hero__title {
+  margin: 0;
+  /* One line on a desktop, so the copy stays inside the showcase budget. */
+  max-width: 22ch;
+  font-size: clamp(34px, 5.4vw, 62px);
+  font-weight: 300;
+  line-height: 1.02;
+  letter-spacing: -0.045em;
+  color: var(--ink);
+}
+
+.hero__tagline {
+  margin: 0;
+  max-width: 58ch;
+  font-size: clamp(13.5px, 1.25vw, 16px);
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.hero__cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  margin-top: 6px;
+  padding: 0 22px;
+  border-radius: 999px;
+  background: var(--notch);
+  color: #f2f4f7;
+  font-size: 13.5px;
+  font-weight: 400;
+  letter-spacing: -0.008em;
+  text-decoration: none;
+}
+
+@media (max-width: 720px) {
+  .hero__title {
+    max-width: 12ch;
+    letter-spacing: -0.035em;
+  }
+
+  .notchbar__brand {
+    font-size: 12.5px;
+  }
+}

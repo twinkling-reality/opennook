@@ -1,46 +1,66 @@
-# OpenNook screenshots
+# OpenNook README media
 
-macOS app screenshots for the root `README.md`. Drop PNGs here with the
-filenames below. Crop tightly to the opaque nook chrome only - no desktop
-or browser background.
+Images and the animated hero for the root `README.md`.
 
-## Run the demo
+| File | What it shows | Produced by |
+| --- | --- | --- |
+| `nook-hero.gif` | Five ShowcaseNook scenes, each opening from the collapsed pill: player, agenda, shelf, timer, progress | `make-readme-media.sh` |
+| `nook-player.png` | `ShowcaseNook --scene player`, expanded | `make-readme-media.sh` |
+| `nook-agenda.png` | `ShowcaseNook --scene agenda`, expanded | `make-readme-media.sh` |
+| `nook-timer.png` | `ShowcaseNook --scene timer`, expanded | `make-readme-media.sh` |
+| `nook-progress.png` | `ShowcaseNook --scene progress`, expanded | `make-readme-media.sh` |
+| `nook-shelf.png` | `ShowcaseNook --scene shelf`, expanded | `make-readme-media.sh` |
 
-From the repo root (after `swift build` once):
+## Regenerate
+
+The generated files come from the same ShowcaseNook recordings as the landing
+page, so one recording session feeds both the site and the README:
 
 ```sh
-swift run Nook          # default demo - expanded home view
+./Scripts/record-showcase.sh player agenda timer progress   # re-record the scenes (optional)
+./Scripts/build-landing-reel.sh                             # cut the landing reel from them
+./docs/images/make-readme-media.sh                          # rebuild the five files above
+```
+
+`make-readme-media.sh` only reads its inputs. It needs `ffmpeg` and takes a
+few seconds.
+
+### What the script does
+
+Its inputs already carry alpha: `record-showcase.sh` keys the cream recording
+backdrop out and unmixes the rim glow from it (`Scripts/unmix-backdrop.swift`),
+and `build-landing-reel.sh` cuts the scenes into one 1440x672 reel with the
+notch on the first row and a seamless loop.
+
+1. **Backdrop.** Everything is composited onto a cool paper, `#EAF1F8`. The
+   black nook needs a light surface around it so its outline shows on GitHub's
+   dark theme, and the paper reads as a soft card on the light one too.
+
+2. **Hero GIF.** The whole reel (`site/src/assets/reel/reel-alpha.webm`, about
+   16 s) on paper at 12 fps, scaled to 840x392 with lanczos. The reel ends on
+   the frame it starts with, so the GIF loops without a seam. One global
+   256-colour `palettegen` pass, applied with
+   `paletteuse=dither=sierra2_4a:diff_mode=rectangle`, keeps it under 3 MB.
+
+3. **Stills.** Each window capture in `site/src/assets/showcase/<scene>.png`
+   is centred on a 1440x672 paper canvas (the reel's frame) with the notch on
+   the top edge, so the four stills line up in the README grid, then halved to
+   720x336.
+
+`shelf` is left out until its last tile is no longer clipped; `hud` and
+`compact` are small enough that they read poorly at README size.
+
+## Manual captures
+
+For a still the script does not cover, run the example from the repo root
+(after `swift build` once), expand with **⌥⌘;**, and capture:
+
+```sh
 swift run ShelfNook     # file shelf (NookComponents)
 ```
 
-Expand with **⌥⌘;** (Option + Command + semicolon), or hover the menu-bar
-pill on the display where the nook appears.
-
-Quit with **⌘Q** on the Nook process, or from the menu-bar item.
-
-## Multi-display setup
-
-OpenNook defaults to the **built-in (notched) display**. On a dual-monitor
-setup the nook is on the laptop panel, not necessarily the screen you are
-looking at.
-
-For capture:
-
-1. Glance at the built-in display (or mirror displays in System Settings).
-2. Or open Settings -> Display in the nook and pick your external monitor
-   or **Main display** for the session, then switch back when done.
-
-Use a solid gray wallpaper and hide other windows (**Cmd+Option+H**) if
-you want a clean backdrop behind the pill.
-
-## Files to add
-
-| Filename | What to capture |
-| --- | --- |
-| `nook-expanded.png` | Expanded demo home (`swift run Nook`) |
-| `nook-shelf.png` | Shelf empty state (`swift run ShelfNook`) |
-
-**Capture tip:** **Cmd+Shift+4**, then **Space**, click the nook window.
-Or drag a tight region around the black pill only.
-
-Recommended width: ~540 px (1x). PNG, no alpha required.
+OpenNook defaults to the built-in (notched) display. On a multi-display setup,
+capture from the laptop panel, or pick another display in Settings -> Display
+for the session. **Cmd+Shift+4**, then **Space**, then click the nook window
+captures it on its own. Crop tightly to the nook and keep the width near the
+existing stills (about 720px).

@@ -81,11 +81,13 @@ public struct NookChromeMetrics: Sendable, Equatable {
 
     // MARK: - Leading brand mark
 
-    /// Point size and bounding frame of the top bar's leading-cluster brand mark glyph
-    /// (used when no host `leadingIcon` is set). Default `11`.
+    /// Point size and frame height of the top bar's leading-cluster brand mark glyph
+    /// (used when no host `leadingIcon` is set). A host mark fills a square this size; the
+    /// wide framework mark is drawn twice this wide. Default `11`.
     public var brandMarkSize: CGFloat
 
-    /// Stroke width of the leading-cluster brand mark glyph. Default `1.1`.
+    /// Stroke width of the leading-cluster brand mark glyph. The filled framework mark
+    /// ignores it. Default `1.1`.
     public var brandMarkStrokeWidth: CGFloat
 
     /// Opacity multiplier on the resolved secondary label for the leading brand mark.
@@ -101,11 +103,12 @@ public struct NookChromeMetrics: Sendable, Equatable {
     /// glyph. Default `0.88`.
     public var compactLeadingGlyphOpacity: CGFloat
 
-    /// Point size of the default compact trailing mark glyph. Distinct from
-    /// ``compactSlotSize`` (the slot frame around it). Default `11`.
+    /// Width of the default compact trailing mark (its height follows from the mark's
+    /// aspect). Keep it within ``compactSlotSize``, the slot frame around it. Default `20`.
     public var compactTrailingMarkSize: CGFloat
 
-    /// Stroke width of the default compact trailing mark glyph. Default `1.1`.
+    /// Stroke width of the default compact trailing mark glyph. The filled framework mark
+    /// ignores it. Default `1.1`.
     public var compactTrailingMarkStrokeWidth: CGFloat
 
     /// Opacity multiplier on the resolved primary label for the default compact trailing
@@ -205,10 +208,12 @@ public struct NookChromeMetrics: Sendable, Equatable {
     /// Spacing between the placeholder home's mark, title, and body. Default `10`.
     public var placeholderStackSpacing: CGFloat
 
-    /// Point size of the placeholder home's brand mark. Default `28`.
+    /// Width of the placeholder home's brand mark (its height follows from the mark's
+    /// aspect). Default `56`.
     public var placeholderMarkSize: CGFloat
 
-    /// Stroke width of the placeholder home's brand mark. Default `2`.
+    /// Stroke width of the placeholder home's brand mark. The filled framework mark ignores
+    /// it. Default `2`.
     public var placeholderMarkStrokeWidth: CGFloat
 
     /// Outer vertical padding of the placeholder home. Default `40`.
@@ -342,7 +347,7 @@ public struct NookChromeMetrics: Sendable, Equatable {
         brandMarkOpacity: CGFloat = 0.92,
         compactSlotSize: CGFloat = NookLayout.compactSlotSize,
         compactLeadingGlyphOpacity: CGFloat = 0.88,
-        compactTrailingMarkSize: CGFloat = 11,
+        compactTrailingMarkSize: CGFloat = 20,
         compactTrailingMarkStrokeWidth: CGFloat = 1.1,
         compactTrailingMarkOpacity: CGFloat = 0.82,
         bannerRowSpacing: CGFloat = 8,
@@ -373,7 +378,7 @@ public struct NookChromeMetrics: Sendable, Equatable {
         activityCardHorizontalPadding: CGFloat = 8,
         volumeGlyphOpacity: CGFloat = 0.85,
         placeholderStackSpacing: CGFloat = 10,
-        placeholderMarkSize: CGFloat = 28,
+        placeholderMarkSize: CGFloat = 56,
         placeholderMarkStrokeWidth: CGFloat = 2,
         placeholderVerticalPadding: CGFloat = 40,
         settingsSectionSpacing: CGFloat = 16,

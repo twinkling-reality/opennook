@@ -1,0 +1,145 @@
+---
+// The showcase card is the top of a Mac display: its top edge is the screen
+// edge and the nook hangs from the middle of it. The card rises from the
+// bottom of the page, so the rest of the display is implied rather than drawn.
+//
+// It plays one authored reel, not a switcher: ShowcaseNook's player, agenda,
+// shelf, timer and progress scenes, each opening from the collapsed pill.
+// Scripts/record-showcase.sh records each scene and keys the cream backdrop
+// out to transparency, so the nook floats on the card rather than dragging a
+// beige rectangle onto the page; Scripts/build-landing-reel.sh cuts those
+// takes into a single looping sequence, cropped to 1440x672 with the notch on
+// the reel's first row.
+//
+// Rebuild the reel, its Safari cut and the poster with:
+//   ./Scripts/record-showcase.sh player agenda timer progress
+//   ./Scripts/build-landing-reel.sh
+
+import webm from '../../assets/reel/reel-alpha.webm?url';
+import hevc from '../../assets/reel/reel-alpha.mov?url';
+import poster from '../../assets/reel/reel-poster.png?url';
+---
+
+<section class="showcase" aria-label="OpenNook in use">
+  <div class="showcase__frame">
+    <!-- No src and no autoplay in the markup: the script picks the cut this
+         browser can show with alpha and starts it only when motion is
+         allowed. Without it, the poster shows the nook expanded. -->
+    <video
+      class="showcase__reel"
+      data-reel
+      data-webm={webm}
+      data-hevc={hevc}
+      poster={poster}
+      width="1440"
+      height="672"
+      muted
+      loop
+      playsinline
+      preload="none"
+      aria-hidden="true"
+      tabindex="-1"></video>
+  </div>
+</section>
+
+<style>
+  .showcase {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    min-height: 0;
+  }
+
+  /* The display, lit from below in the logo's colours: sky, periwinkle and
+     lavender rising into a pale top where the nook hangs. The reel carries its
+     own alpha, so the dark nook sits straight on it. */
+  .showcase__frame {
+    --ratio: 2;
+    /* The nook's share of the display width. The expanded player panel is
+       ~97% of the reel, so at 60% it takes ~58% of the card: larger than on a
+       real laptop screen, so the scenes read and the card isn't mostly empty.
+       The tallest look (progress) still ends well above the glow. */
+    --reel-w: 60cqw;
+    /* Height-led from what the copy leaves, but also capped by the viewport
+       width, so the card fits at any window shape without cropping the nook. */
+    --card-h: clamp(170px, calc(100svh - 330px), 640px);
+    position: relative;
+    container-type: inline-size;
+    width: min(100%, calc(var(--card-h) * var(--ratio)), 1280px);
+    aspect-ratio: var(--ratio);
+    overflow: hidden;
+    border-radius: clamp(14px, 1.8vw, 24px) clamp(14px, 1.8vw, 24px) 0 0;
+    background:
+      radial-gradient(60% 80% at 10% 80%, #9fdcfe, transparent 72%),
+      radial-gradient(55% 75% at 50% 100%, #8e98fd, transparent 70%),
+      radial-gradient(60% 80% at 92% 78%, #dcb0fb, transparent 72%),
+      linear-gradient(180deg, #f4f6fe 0%, #d7defc 100%);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.95) inset,
+      0 -24px 64px -34px rgba(20, 35, 55, 0.4);
+  }
+
+  /* Flush with the card top: the notch in the reel sits on the very first row. */
+  .showcase__reel {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    z-index: 1;
+    width: var(--reel-w);
+    height: auto;
+    aspect-ratio: 1440 / 672;
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+
+  @media (max-width: 720px) {
+    .showcase__frame {
+      --ratio: 1.3;
+      --reel-w: 90cqw;
+    }
+  }
+</style>
+
+<script>
+  const reel = document.querySelector<HTMLVideoElement>('[data-reel]');
+  const still = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  // Safari, and every browser on iOS since they all run WebKit, plays VP9 WebM
+  // but drops its alpha channel, so the keyed-out area would paint black.
+  // WebKit gets the HEVC-with-alpha cut instead; Chromium and Firefox cannot
+  // show that one's alpha, so they keep the WebM.
+  const ua = navigator.userAgent;
+  const webkit = /AppleWebKit/.test(ua) && !/Chrome\/|Chromium|Edg\//.test(ua);
+
+  if (reel && !still.matches) {
+    reel.muted = true;
+    reel.src = (webkit ? reel.dataset.hevc : reel.dataset.webm) ?? '';
+    reel.preload = 'auto';
+
+    // Play only while the tab is visible AND the card is on screen, so neither
+    // listener restarts playback the other one paused.
+    let onScreen = !('IntersectionObserver' in window);
+    const sync = () => {
+      if (onScreen && !document.hidden && !still.matches) {
+        void reel.play().catch(() => {});
+      } else {
+        reel.pause();
+      }
+    };
+
+    document.addEventListener('visibilitychange', sync);
+    still.addEventListener('change', sync);
+
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) onScreen = entry.isIntersecting;
+          sync();
+        },
+        { threshold: 0.1 }
+      ).observe(reel);
+    } else {
+      sync();
+    }
+  }
+</script>

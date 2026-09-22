@@ -35,6 +35,7 @@ executables=(
   MultiNook
   CompanionNook
   PlaygroundNook
+  ShowcaseNook
 )
 
 echo "Building executables..."
