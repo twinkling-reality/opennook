@@ -1,0 +1,100 @@
+---
+title: Live activities
+description: Show what is going on in the compact pill, from any module, the way the Dynamic Island shows a live activity.
+---
+
+A live activity is something ongoing or short-lived that a module shows in the compact
+pill: a timer counting down, a song playing, a build running. Several can run at once,
+from different modules. The framework decides which one holds the pill and draws the
+pill, the peek, the capsules beside it, and their motion; an activity only supplies
+views.
+
+## Starting one
+
+Each module gets its own view of the host's activities, `NookLiveActivities`. Resolve it
+from the module's services, or read `\.nookLiveActivities` in a view.
+
+```swift
+let activities = context.services.resolve(NookLiveActivitiesKey.self)
+
+var focus = NookLiveActivity(id: "focus", accessibilityLabel: "Focus session") {
+    Image(systemName: "flame.fill").foregroundStyle(.orange)       // left of the notch
+} compactTrailing: {
+    TimerText(timer: timer)                                         // right of the notch
+} minimal: {
+    FocusRing(timer: timer)                                         // the capsule
+}
+focus.setPeek { FocusPeek(timer: timer) }           // optional: the pill grows to show it
+focus.setExpanded { FocusDetail(timer: timer) }     // optional: what the nook opens onto
+activities.start(focus)
+```
+
+The views read the module's own state, so the timer ticks in place. Starting another
+activity with the same `id` replaces it without moving it. `end(_:after:)` ends one, now
+or later, and `endAll()` ends every activity the module runs.
+
+Keep compact content to a symbol and one short value. Text belongs in the peek.
+
+## Who holds the pill
+
+The running activities are ordered by:
+
+1. their `priority` (`.low`, `.normal`, `.high`), highest first;
+2. then an activity whose alert is showing;
+3. then the most recently started.
+
+- **No activities:** the module's own compact slots, as before.
+- **One activity:** its `compactLeading` and `compactTrailing` replace them.
+- **Two or more:** the first keeps the pill, and the next show their `minimal` view in
+  capsules beside it. When more run than show, the last capsule counts the rest.
+
+`NookHostConfiguration.activityPolicy` sets how many capsules show (one by default; zero
+shows none) and on which side:
+
+```swift
+host.activityPolicy = NookActivityPolicy(capsules: 2, side: .leading)
+```
+
+## Alerts
+
+An activity can call for attention when it starts, or later with `alert(_:_:)`:
+
+| Alert | What happens |
+|---|---|
+| `.none` (default) | It only appears in the pill |
+| `.peek(duration)` | The pill grows into the activity's peek for that long |
+| `.expand(duration)` | The nook opens onto the activity's expanded view for that long |
+
+```swift
+activities.alert("song", .peek(.seconds(3)))   // a new song
+```
+
+Alerts are surface claims, so they wait while the person is using the nook, and a higher
+priority alert preempts a lower one. An activity with no peek opens the nook instead of
+peeking. From a module that is not in front, only a `.high` priority alert takes the
+surface; a lower one updates the pill and nothing more.
+
+## Peek and the expanded view
+
+With "Peek first" chosen in Settings (see [Hover and peek](/guides/hover-and-peek/)),
+hovering the pill shows the peek of the activity holding it, or the module's own peek
+when that activity has none. A click, or resting on the peek, opens the nook onto the
+activity's expanded view under a breadcrumb with the activity's label; the back glyph
+returns to the module's home. Opening the nook any other way shows the module's home, as
+always.
+
+## Lifetimes and modules
+
+- `lifetime: .transient(duration)` ends an activity on its own; `.ongoing` (the default)
+  lasts until the module ends it.
+- When a module is unloaded (the default `.unloadOnSwitchAway` policy, on a switch), its
+  activities end, since their views read state that is gone. A module whose activities
+  should outlive a switch uses `.stayResident`.
+- `NookModuleDescriptor.loadsAtLaunch` builds a resident module at launch and gives it
+  its `onReady`, so it can run activities from the background before it is ever shown.
+
+## Try it
+
+```sh
+swift run ShowcaseNook --scene compact   # the song in the pill, the focus session in a capsule
+```
