@@ -116,6 +116,8 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     }
 
     private var bottomCornerRadius: CGFloat {
+        // A peeking pill rounds its grown bottom the same way in both forms.
+        if nook.state == .compact, nook.isPeeking { return nook.style.peekBottomCornerRadius }
         if isFloating {
             return nook.state == .expanded ? floatingExpandedRadii.bottom : floatingCompactRadius
         }
@@ -163,6 +165,12 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
             .background { chromeShadow() }
             .contentShape(notchShape)
             .onHover(perform: nook.updateChromeHoverState)
+            // A click opens the pill when hover no longer does, or while it peeks. Otherwise
+            // the gesture is off and only the content's own gestures run, as before.
+            .gesture(
+                TapGesture().onEnded { nook.handleChromeClick() },
+                including: nook.opensOnClick ? .all : .subviews
+            )
             .overlay { companionLayer() }
             .offset(x: xOffset)
             // Floating mode drops the panel below the menu bar; notch mode keeps it
@@ -175,6 +183,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
                 withAnimation(Self.rimAnimation) { rimColor = color }
             }
             .animation(nook.effectiveConversionAnimation, value: nook.state)
+            .animation(nook.effectivePeekAnimation, value: nook.isPeeking)
             .animation(nook.effectiveConversionAnimation, value: [compactLeadingWidth, compactTrailingWidth])
             .environment(\.nookHasKeyboardFocus, nook.hasKeyboardFocus)
     }
@@ -322,15 +331,18 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
 
     private func notchContent() -> some View {
         ZStack {
-            compactContent()
-                .fixedSize()
-                .offset(x: nook.state == .compact ? 0 : compactXOffset)
-                .frame(
-                    // Notch mode reserves the notch width while expanded so the
-                    // collapsed slots line up; a floating pill is content-driven.
-                    width: (nook.state == .compact || isFloating) ? nil : nook.notchSize.width,
-                    height: (nook.state == .compact && nook.isHovering) ? nook.menubarHeight : nook.notchSize.height
-                )
+            VStack(spacing: 0) {
+                compactContent()
+                    .fixedSize()
+                    .offset(x: nook.state == .compact ? 0 : compactXOffset)
+                    .frame(
+                        // Notch mode reserves the notch width while expanded so the
+                        // collapsed slots line up; a floating pill is content-driven.
+                        width: (nook.state == .compact || isFloating) ? nil : nook.notchSize.width,
+                        height: (nook.state == .compact && nook.isHovering) ? nook.menubarHeight : nook.notchSize.height
+                    )
+                peekRegion()
+            }
 
             expandedContent()
                 .fixedSize()
@@ -357,6 +369,34 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
             removal: configuration.compactContentRemoval,
             surfaceAnimation: nook.effectiveConversionAnimation
         )
+    }
+
+    /// How the peek content arrives and leaves, like ``compactTransition``. The pill grows on the
+    /// peek curve (see the `.animation(_:value:)` on `body`), so a peek that waits waits on it.
+    private var peekTransition: NookContentTransitionPlan {
+        let configuration = nook.transitionConfiguration
+        return .plan(
+            insertion: configuration.peekContentTransition,
+            removal: configuration.peekContentRemoval,
+            surfaceAnimation: nook.effectivePeekAnimation
+        )
+    }
+
+    /// The region the compact pill grows into below its slots while it peeks. Absent the rest
+    /// of the time, so a pill that never peeks lays out exactly as before.
+    @ViewBuilder
+    private func peekRegion() -> some View {
+        if nook.state == .compact, nook.isPeeking, let content = nook.peekContent {
+            let insets = nook.style.peekContentInsets
+            content
+                .frame(maxHeight: max(nook.style.peekMaxHeight, 0), alignment: .top)
+                .clipped()
+                .padding(.top, insets.top)
+                .padding(.bottom, insets.bottom)
+                .padding(.leading, insets.leading)
+                .padding(.trailing, insets.trailing)
+                .transition(peekTransition.anyTransition(axis: .vertical, anchor: .top))
+        }
     }
 
     /// How the expanded content arrives and leaves, like ``compactTransition``.

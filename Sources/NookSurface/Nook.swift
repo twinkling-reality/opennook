@@ -136,7 +136,17 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// or react through the ``onExpand`` / ``onCompact`` / ``onHide`` callbacks - the
     /// callbacks fire on every transition, including hover- and drag-driven ones that
     /// never pass through a host-called `expand`/`compact`.
-    @Published public private(set) var state: NookState = .hidden
+    @Published public private(set) var state: NookState = .hidden {
+        didSet {
+            // A peek is a way of being compact; leaving compact ends it, on the same
+            // transaction (and so the same curve) as the state change itself.
+            if state != .compact {
+                if isPeeking { isPeeking = false }
+                peekStartedByHover = false
+                cancelHoverIntent()
+            }
+        }
+    }
     @Published private(set) var notchSize: CGSize = .zero
     @Published private(set) var menubarHeight: CGFloat = 0
 
@@ -284,6 +294,39 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// `nookScrollEdgeFade(axes:)`, so turning this on never fades content
     /// that is not scrolling.
     @Published public var scrollEdgeFade: NookScrollEdgeFade?
+
+    /// The view the compact pill grows to show below its slots while it peeks: a song's
+    /// title and progress, a timer, a HUD. `nil` (the default) means the pill has no peek, so
+    /// ``peek(on:)`` does nothing and a ``NookHoverIntent/Action/peek`` hover opens the full
+    /// nook instead. Setting it to `nil` while peeking ends the peek.
+    ///
+    /// The view is sized by its content, up to ``NookStyle/peekMaxHeight`` tall, inside
+    /// ``NookStyle/peekContentInsets``.
+    @Published public var peekContent: AnyView? {
+        didSet {
+            if peekContent == nil, isPeeking {
+                withAnimation(effectivePeekAnimation) { isPeeking = false }
+                peekStartedByHover = false
+            }
+        }
+    }
+
+    /// `true` while the compact pill shows its peek region. The ``state`` stays
+    /// ``NookState/compact`` throughout; leaving compact ends the peek. See ``peek(on:)``.
+    @Published public internal(set) var isPeeking: Bool = false
+
+    /// What resting the pointer on the compact pill does. ``NookHoverIntent/standard`` (open
+    /// at once) by default.
+    public var hoverIntent: NookHoverIntent = .standard
+
+    /// `true` when the current peek was started by the pointer rather than by the host, so
+    /// the pointer leaving ends it. A host peek stays until ``endPeek()``.
+    var peekStartedByHover = false
+
+    /// A pending hover action (waiting out ``NookHoverIntent/delay``) or a pending dwell
+    /// (waiting out ``NookHoverIntent/dwellToExpand``). Cancelled when the pointer leaves or
+    /// the state leaves compact.
+    var hoverIntentTask: Task<Void, Never>?
 
     /// `true` while the pointer is over the chrome's own shape. Tracked apart from companion
     /// hover so the pointer crossing from the chrome onto a companion reads as one
@@ -457,6 +500,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     var effectiveConversionAnimation: Animation {
         transitionConfiguration.conversionAnimation ?? style.conversionAnimation
     }
+    var effectivePeekAnimation: Animation { transitionConfiguration.peekAnimation ?? effectiveConversionAnimation }
 
     /// When the chrome becomes visible (state transitions out of `.hidden`), replay any
     /// feedback that was requested during the boot race. Single sink keeps lifetime tied
@@ -566,6 +610,19 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
 
         isHovering = hovering
         performHoverHapticIfEnabled()
+        cancelHoverIntent()
+
+        // Any intent but the standard one waits, peeks, or does nothing; see `Nook+Peek.swift`.
+        // The standard intent takes the path below, exactly as before intents existed.
+        if hovering, hoverIntent != .standard {
+            hoverEntered()
+            return
+        }
+        // Leaving a peek ends it if the pointer started it; a host's peek stays.
+        if !hovering, state == .compact, isPeeking {
+            if peekStartedByHover { runEndPeek() }
+            return
+        }
 
         guard hovering || !suppressesHoverExitCompact else {
             if state == .expanded { hasDeferredHoverExit = true }

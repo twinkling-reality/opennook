@@ -10,6 +10,14 @@ import SwiftUI
 
 extension NSScreen {
     /// Heuristic - Apple notched displays expose auxiliary widths on both sides of the camera.
+    /// `true` for the Mac's own display, `false` for an external one.
+    var isBuiltIn: Bool {
+        guard let number = deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else {
+            return false
+        }
+        return CGDisplayIsBuiltin(CGDirectDisplayID(number.uint32Value)) != 0
+    }
+
     var hasNotch: Bool {
         auxiliaryTopLeftArea?.width != nil && auxiliaryTopRightArea?.width != nil
     }
