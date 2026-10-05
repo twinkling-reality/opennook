@@ -212,6 +212,18 @@ final class NookThemeResolutionTests: XCTestCase {
         XCTAssertEqual(theme.color(.feedbackTint, in: dark), Color(nsColor: .controlAccentColor))
     }
 
+    /// The one intentional difference from the chrome before themes: feedback follows the
+    /// accent, so an accent the person picked now colors the cue (it was always the macOS
+    /// accent). With the "System" accent it is still the macOS accent, as asserted above.
+    func testFeedbackTintFollowsThePersonsAccent() {
+        let violet = NookThemeContext(isDark: true, accentPreset: .violet)
+        XCTAssertEqual(NookTheme.standard.color(.feedbackTint, in: violet), NookAccentPreset.violet.color())
+        XCTAssertEqual(
+            NookTheme(accent: "#FF0000").color(.feedbackTint, in: NookThemeContext(isDark: true)),
+            NookRGBA(hex: "#FF0000")!.color
+        )
+    }
+
     // MARK: - Knobs
 
     func testScaleMovesSpacingAndTypeButNotNotchSizes() {
