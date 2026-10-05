@@ -10,13 +10,12 @@ Images and the animated hero for the root `README.md`.
 | `nook-timer.png` | `ShowcaseNook --scene timer`, expanded | `make-readme-media.sh` |
 | `nook-progress.png` | `ShowcaseNook --scene progress`, expanded | `make-readme-media.sh` |
 | `nook-shelf.png` | `ShowcaseNook --scene shelf`, expanded | `make-readme-media.sh` |
+| `nook-playground.gif` | The PlaygroundNook controls window below the expanded nook, while Material moves Solid -> Translucent -> Glass and the nook follows | `record-playground.sh` |
+| `nook-themes.gif` | `ShowcaseNook --scene agenda`, re-themed live: the standard look, then Dusk, Aurora and Ember from `Examples/Themes` | `record-themes.sh` |
 
-Not recorded yet, and so not referenced from `README.md`:
-
-| File | What it should show | Produced by |
-| --- | --- | --- |
-| `nook-playground.png` | The PlaygroundNook controls window below the expanded nook | `record-playground.sh` |
-| `nook-playground.gif` | The same pair, while Material moves Solid -> Translucent -> Glass and the nook follows | `record-playground.sh` |
+`record-playground.sh` also writes `nook-playground.png`, a still of the same
+pair, which `README.md` does not use. `record-themes.sh` also writes
+`site/src/assets/themes/nook-themes.png` for the Theming guide.
 
 ## Regenerate
 
@@ -54,8 +53,8 @@ notch on the first row and a seamless loop.
    the top edge, so the four stills line up in the README grid, then halved to
    720x336.
 
-`shelf` is left out until its last tile is no longer clipped; `hud` and
-`compact` are small enough that they read poorly at README size.
+`hud` and `compact` are small enough that they read poorly at README size, so
+they are left out.
 
 ## PlaygroundNook
 
@@ -138,9 +137,39 @@ visible control (Appearance -> Material, or Theme -> Accent) slowly enough to
 read, and let the nook settle. Keep the pointer over the controls window, which
 is the only place the capture can see it.
 
-Until both files exist, `README.md` does not reference them. The markup to paste
-in, and where it goes, is the `TODO(playground media)` block at the end of
-`make-readme-media.sh`.
+## Themes
+
+`nook-themes.gif` shows one running nook taking each theme file in turn, so it
+is captured live too:
+
+```sh
+./docs/images/record-themes.sh --dry-run   # print the steps
+./docs/images/record-themes.sh             # the GIF and the guide's grid
+```
+
+The script launches `ShowcaseNook --scene agenda --keep-open --theme <file>`
+with a scratch theme file, then copies the standard theme and each file in
+`Examples/Themes` over it. ShowcaseNook watches that file
+(`NookThemeSource.watching(fileAt:)`), so each frame is the same process
+re-themed on save, not a relaunch. The reload has no transition, and the GIF
+does not invent one: it cuts from theme to theme, holding each for 2.2 s.
+
+- **Captures.** One `screencapture -x -o -l<id>` of the nook panel per theme,
+  the app's layer-33 window, found by pid with `Scripts/nook-windows.swift`. No
+  rectangle of the screen is recorded.
+- **Crop.** All four captures are cropped to one rectangle, the union of their
+  non-transparent pixels, so the nook stays put from frame to frame and no
+  shadow is cut off in a straight line.
+- **Paper.** Each capture is laid on opaque `#EAF1F8` paper, flush with the
+  top edge, with a 72 px margin at the sides and bottom.
+- **GIF.** The hero GIF's recipe: 840 wide, one global 256-colour
+  `palettegen`, `paletteuse=dither=sierra2_4a:diff_mode=rectangle`, `-loop 0`.
+- **Grid.** The same four frames two by two, at full resolution, written to
+  `site/src/assets/themes/nook-themes.png`; the site scales it.
+
+ShowcaseNook's defaults domains are exported before the launch and imported
+again afterwards, or deleted if they did not exist, so a run leaves no setting
+behind.
 
 ## Manual captures
 

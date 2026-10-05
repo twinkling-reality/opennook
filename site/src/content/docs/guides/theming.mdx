@@ -15,6 +15,11 @@ value for value), turn a few knobs, or override any single part of the chrome.
 NookApp.main(theme: NookTheme(accent: "#3399FF", radius: .large)) { MyHomeView() }
 ```
 
+![The ShowcaseNook agenda scene four times: the standard black chrome, Dusk with a violet gradient and glow, Aurora with a green and indigo mesh and a mint accent, and Ember with a warm radial glow and serif type](../../../assets/themes/nook-themes.png)
+
+The same scene in the standard theme and in the three [sample theme files](#samples):
+Dusk, Aurora, and Ember. Only the theme changes; the app is the same.
+
 ## Three tiers
 
 A theme has three layers. Each layer defaults from the one above it, so changing
@@ -195,6 +200,24 @@ standard theme:
 let theme = try NookTheme(contentsOf: url)              // issues dropped
 let result = try NookThemeCoder.decode(data)           // result.theme, result.issues
 let text = try NookThemeCoder.encodeString(theme)       // write one out
+```
+
+### Samples
+
+`Examples/Themes` holds three theme files to start from, each about twenty lines:
+
+| File | Backdrop | Also |
+|---|---|---|
+| `dusk.json` | Linear gradient, black at the notch to violet | Coral accent, large radius, violet chrome shadow |
+| `aurora.json` | 3x3 mesh gradient, green and indigo | Mint accent, rounded type, green chrome shadow |
+| `ember.json` | Radial gradient glowing from the bottom | Amber accent, serif type, warm chrome shadow |
+
+Each pins the dark palette, sets its own label colors, and keeps the person's accent
+choice from replacing its own. Try one on any ShowcaseNook scene; it reloads each time
+you save the file:
+
+```sh
+swift run ShowcaseNook --scene agenda --theme Examples/Themes/aurora.json
 ```
 
 ### Values
