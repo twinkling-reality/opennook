@@ -1156,15 +1156,26 @@ public final class AppCoordinator: ObservableObject {
             state: state,
             form: form
         )
+        // The displayed theme's backdrop for this surface style, when it describes one. A
+        // host resolver still wins; the framework mapping paints everything else, shaded the
+        // theme's way unless the host chose a shading.
+        let theme = displayedTheme
+        let glassShading =
+            behavior.glassShading == .even ? theme.backdrops.glassShading ?? .even : behavior.glassShading
+        let themeBackdrop =
+            behavior.backdrop == nil
+            ? theme.backdrop(in: context, customBackdrops: moduleHost.displayedConfiguration.themeBackdrops) : nil
         let backdrop: NookBackdrop
         if let resolve = behavior.backdrop {
             backdrop = resolve(context)
+        } else if let themeBackdrop {
+            backdrop = themeBackdrop
         } else {
             backdrop = NookBackdropMapping.notchBackdrop(
                 preferences: preferences,
                 effectiveColorScheme: scheme,
                 reduceTransparency: reduceTransparency,
-                glassShading: behavior.glassShading,
+                glassShading: glassShading,
                 state: state
             )
         }
@@ -1177,12 +1188,12 @@ public final class AppCoordinator: ObservableObject {
         let companionBackdrop: NookBackdrop?
         if let resolve = behavior.companionBackdrop {
             companionBackdrop = resolve(context)
-        } else if behavior.backdrop == nil {
+        } else if behavior.backdrop == nil, themeBackdrop == nil {
             companionBackdrop = NookBackdropMapping.companionBackdrop(
                 preferences: preferences,
                 effectiveColorScheme: scheme,
                 reduceTransparency: reduceTransparency,
-                glassShading: behavior.glassShading,
+                glassShading: glassShading,
                 state: state
             )
         } else {
