@@ -220,17 +220,21 @@ public struct NookStandardCompanionStyle: NookCompanionStyle, Equatable {
 
     /// What changes while the pointer is over the surface. The parts combine.
     public struct Hover: Equatable, Sendable {
-        /// The opacity of a white wash over the surface, from 0 (none) to 1.
+        /// The opacity of a ``washColor`` wash over the surface, from 0 (none) to 1.
         public var wash: Double
         /// The surface's scale. 1 for none.
         public var scale: CGFloat
         /// A glow around the surface.
         public var glow: Glow?
+        /// The color of the wash. White (the default) brightens a dark surface; on a light
+        /// one a white wash barely shows, so pick black or the theme's text color there.
+        public var washColor: Color
 
-        public init(wash: Double = 0, scale: CGFloat = 1, glow: Glow? = nil) {
+        public init(wash: Double = 0, scale: CGFloat = 1, glow: Glow? = nil, washColor: Color = .white) {
             self.wash = min(max(wash, 0), 1)
             self.scale = max(scale, 0)
             self.glow = glow
+            self.washColor = washColor
         }
 
         /// No change.
@@ -402,7 +406,7 @@ private struct NookStandardCompanionBody: View {
             }
             .overlay {
                 outline
-                    .fill(Color.white.opacity(configuration.isHovered ? style.hover.wash : 0))
+                    .fill(style.hover.washColor.opacity(configuration.isHovered ? style.hover.wash : 0))
                     .allowsHitTesting(false)
             }
             .scaleEffect(configuration.isHovered ? style.hover.scale : 1)

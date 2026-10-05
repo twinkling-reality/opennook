@@ -46,10 +46,24 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// see ``NookContentInsets/expanded(form:topCornerRadius:bottomCornerRadius:chromeSafeAreaInset:)``.
     private var contentInsets: NookContentInsets {
         guard nook.state == .expanded else { return .zero }
+        let style = nook.style
+        // A style that sets its own floating radii gets insets measured from them. One that
+        // does not keeps the historical floating formula, so its reported insets are
+        // unchanged.
+        if isFloating,
+            style.floatingExpandedTopCornerRadius != nil || style.floatingExpandedBottomCornerRadius != nil
+        {
+            let radii = style.resolvedFloatingExpandedRadii
+            return NookContentInsets.floatingExpanded(
+                topCornerRadius: radii.top,
+                bottomCornerRadius: radii.bottom,
+                chromeSafeAreaInsets: expandedContentInsets
+            )
+        }
         return NookContentInsets.expanded(
             form: nook.layoutForm,
-            topCornerRadius: nook.style.topCornerRadius,
-            bottomCornerRadius: nook.style.bottomCornerRadius,
+            topCornerRadius: style.topCornerRadius,
+            bottomCornerRadius: style.bottomCornerRadius,
             chromeSafeAreaInsets: expandedContentInsets
         )
     }
@@ -71,14 +85,16 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     }
 
     private var compactCornerRadii: (top: CGFloat, bottom: CGFloat) {
-        (top: 6, bottom: 14)
+        (top: nook.style.compactTopCornerRadius, bottom: nook.style.compactBottomCornerRadius)
     }
 
     /// Floating panels use convex corners - a card when expanded, a capsule when
-    /// compact (radius = half the pill height). No notch ears to fuse, so the same
-    /// radius applies to all four corners.
-    private var floatingExpandedRadius: CGFloat { expandedCornerRadii.bottom }
-    private var floatingCompactRadius: CGFloat { max(nook.notchSize.height / 2, 8) }
+    /// compact (radius = half the pill height) unless the style says otherwise. No notch
+    /// ears to fuse, so by default the same radius applies to all four corners.
+    private var floatingExpandedRadii: (top: CGFloat, bottom: CGFloat) { nook.style.resolvedFloatingExpandedRadii }
+    private var floatingCompactRadius: CGFloat {
+        nook.style.resolvedFloatingCompactRadius(pillHeight: nook.notchSize.height)
+    }
 
     /// Vertical gap that drops the floating panel clear of the menu bar. Zero in notch
     /// mode, where the chrome is meant to sit flush against the top edge.
@@ -94,14 +110,14 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
 
     private var topCornerRadius: CGFloat {
         if isFloating {
-            return nook.state == .expanded ? floatingExpandedRadius : floatingCompactRadius
+            return nook.state == .expanded ? floatingExpandedRadii.top : floatingCompactRadius
         }
         return nook.state == .expanded ? expandedCornerRadii.top : compactCornerRadii.top
     }
 
     private var bottomCornerRadius: CGFloat {
         if isFloating {
-            return nook.state == .expanded ? floatingExpandedRadius : floatingCompactRadius
+            return nook.state == .expanded ? floatingExpandedRadii.bottom : floatingCompactRadius
         }
         return nook.state == .expanded ? expandedCornerRadii.bottom : compactCornerRadii.bottom
     }
@@ -144,6 +160,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
             .compositingGroup()
             .clipShape(notchShape)
             .background { rimHalo() }
+            .background { chromeShadow() }
             .contentShape(notchShape)
             .onHover(perform: nook.updateChromeHoverState)
             .overlay { companionLayer() }
@@ -168,9 +185,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     private func feedbackOverlay() -> some View {
         NookFeedbackOverlay(
             event: nook.feedbackEvent,
-            form: nook.layoutForm,
-            topCornerRadius: topCornerRadius,
-            bottomCornerRadius: bottomCornerRadius,
+            shape: notchShape,
             reduceMotion: reduceMotion
         )
     }
@@ -179,8 +194,18 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
         NookShape(
             form: nook.layoutForm,
             topCornerRadius: topCornerRadius,
-            bottomCornerRadius: bottomCornerRadius
+            bottomCornerRadius: bottomCornerRadius,
+            outline: nook.style.outline
         )
+    }
+
+    /// The host's chrome shadow, behind the halo and the clipped chrome. Shares the rim's
+    /// top fade, so the notch form's shadow does not smear across the menu bar.
+    @ViewBuilder
+    private func chromeShadow() -> some View {
+        if let shadow = nook.chromeShadow {
+            NookChromeShadowView(shadow: shadow, shape: notchShape, topFadeHeight: rimTopFadeHeight)
+        }
     }
 
     // MARK: Rim glow
@@ -319,6 +344,11 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
         .fixedSize()
         .frame(minWidth: minWidth, minHeight: nook.notchSize.height)
         .environment(\.nookChromeBackdrop, nook.backdrop)
+        .environment(\.nookChromeShape, notchShape)
+    }
+
+    private var compactTransition: NookContentTransition {
+        nook.transitionConfiguration.compactContentTransition
     }
 
     private func compactContent() -> some View {
@@ -329,9 +359,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
                     .safeAreaInset(edge: .top, spacing: 0) { Color.clear.frame(height: 4) }
                     .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: 8) }
                     .onGeometryChange(for: CGFloat.self, of: \.size.width) { compactLeadingWidth = $0 }
-                    .transition(
-                        .blur(intensity: 6).combined(with: .scale(x: 0, anchor: .trailing)).combined(with: .opacity)
-                    )
+                    .transition(compactTransition.anyTransition(axis: .horizontal, anchor: .trailing))
             }
 
             // Notch mode: a gap exactly the notch width, so the leading/trailing slots
@@ -346,9 +374,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
                     .safeAreaInset(edge: .top, spacing: 0) { Color.clear.frame(height: 4) }
                     .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: 8) }
                     .onGeometryChange(for: CGFloat.self, of: \.size.width) { compactTrailingWidth = $0 }
-                    .transition(
-                        .blur(intensity: 6).combined(with: .scale(x: 0, anchor: .leading)).combined(with: .opacity)
-                    )
+                    .transition(compactTransition.anyTransition(axis: .horizontal, anchor: .leading))
             }
         }
         .frame(height: nook.notchSize.height)
@@ -369,7 +395,10 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
                     .environment(\.nookNotchCutout, notchCutout)
                     .environment(\.nookScrollEdgeFade, nook.scrollEdgeFade)
                     .transition(
-                        .blur(intensity: 6).combined(with: .scale(y: 0.72, anchor: .top)).combined(with: .opacity)
+                        nook.transitionConfiguration.expandedContentTransition.anyTransition(
+                            axis: .vertical,
+                            anchor: .top
+                        )
                     )
             }
         }
@@ -380,7 +409,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
         .safeAreaInset(edge: .trailing, spacing: 0) { Color.clear.frame(width: expandedContentInsets.trailing) }
         .background {
             if let ambientColor {
-                NookAmbientColorBackground(color: ambientColor)
+                NookAmbientColorBackground(color: ambientColor, wash: nook.ambientWash)
                     .transition(.opacity)
             }
         }

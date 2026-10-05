@@ -126,6 +126,25 @@ extension NookContentInsets {
         }
     }
 
+    /// Residual insets for the floating form when the style sets its own expanded radii.
+    ///
+    /// The chrome pads the content horizontally by the top radius, so the side residual is
+    /// whatever the larger corner reaches past that padding and the side inset. The top and
+    /// bottom residuals are each corner's radius past its own inset.
+    static func floatingExpanded(
+        topCornerRadius: CGFloat,
+        bottomCornerRadius: CGFloat,
+        chromeSafeAreaInsets: NookEdgeInsets
+    ) -> NookContentInsets {
+        let reach = max(topCornerRadius, bottomCornerRadius)
+        return NookContentInsets(
+            top: max(0, topCornerRadius - chromeSafeAreaInsets.top),
+            bottom: max(0, bottomCornerRadius - chromeSafeAreaInsets.bottom),
+            leading: max(0, reach - (topCornerRadius + chromeSafeAreaInsets.leading)),
+            trailing: max(0, reach - (topCornerRadius + chromeSafeAreaInsets.trailing))
+        )
+    }
+
     /// Subtract a wrapper's own padding from each axis and floor at zero. Used
     /// by a wrapper view (e.g. `NookExpandedView`) to re-inject insets that are
     /// relative to its inner content frame rather than its outer frame.

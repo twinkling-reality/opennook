@@ -305,7 +305,7 @@ final class NookSurfaceConcurrencyTests: XCTestCase {
             startedAt: Date(),
             effect: .shimmer,
             duration: duration,
-            tint: .white,
+            style: NookFeedbackStyle(color: .white),
             respectsReduceMotion: true,
             repeats: repeats
         )
