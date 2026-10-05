@@ -12,8 +12,9 @@ import XCTest
 
 /// Coverage for the surface's visual customization seams: gradient, mesh, and custom
 /// backdrops and their Reduce Transparency rule, the exposed vibrancy and glass knobs, the
-/// compact and floating radii and custom outlines, content transitions, the hover wash color,
-/// the chrome shadow, the feedback style and pulse, the ambient wash, and the hover haptic.
+/// compact and floating radii and custom outlines, content transitions (asymmetric and delayed
+/// arrival included), the hover wash color, the chrome shadow, the feedback style and pulse,
+/// the ambient wash, and the hover haptic.
 ///
 /// Every seam defaults to the look the surface had before it existed. Where a piece renders
 /// without an `NSView`, the defaults are pinned by rendering the new code next to a copy of
@@ -353,6 +354,90 @@ final class NookSurfaceVisualSeamsTests: XCTestCase {
         XCTAssertEqual(NookContentTransition(blurRadius: -1, scale: -1).blurRadius, 0)
         XCTAssertEqual(NookContentTransition(blurRadius: -1, scale: -1).scale, 0)
         XCTAssertFalse(NookContentTransition.identity.fades)
+        // Arrival and leaving are one transition on the surface's curve, arriving at once.
+        XCTAssertNil(configuration.compactContentRemoval)
+        XCTAssertNil(configuration.expandedContentRemoval)
+        for transition in [NookContentTransition.standardCompact, .standardExpanded, .opacity, .identity] {
+            XCTAssertNil(transition.animation)
+            XCTAssertEqual(transition.delay, 0)
+        }
+        XCTAssertEqual(NookContentTransition(delay: -1).delay, 0)
+        XCTAssertEqual(NookContentTransition(delay: .infinity).delay, 0)
+        XCTAssertEqual(NookContentTransition(delay: .nan).delay, 0)
+    }
+
+    /// The default configuration plans the single, reversible transition the surface always
+    /// played, which builds through the historical code path.
+    func testDefaultContentTransitionsPlanTheHistoricalTransition() {
+        let configuration = NookTransitionConfiguration()
+        for (insertion, removal) in [
+            (configuration.expandedContentTransition, configuration.expandedContentRemoval),
+            (configuration.compactContentTransition, configuration.compactContentRemoval),
+        ] {
+            let plan = NookContentTransitionPlan.plan(
+                insertion: insertion,
+                removal: removal,
+                surfaceAnimation: .spring(response: 0.54, dampingFraction: 0.86)
+            )
+            XCTAssertTrue(plan.isHistorical)
+            XCTAssertEqual(plan.insertion, insertion)
+            XCTAssertEqual(plan.removal, insertion)
+            XCTAssertNil(plan.insertionAnimation)
+            XCTAssertNil(plan.removalAnimation)
+        }
+    }
+
+    /// A delay with no curve of its own waits on the surface's curve; leaving does not wait.
+    func testAnEnterDelayWaitsOnTheSurfaceCurve() {
+        let surface = Animation.spring(response: 0.54, dampingFraction: 0.86)
+        let insertion = NookContentTransition(blurRadius: 6, scale: 0.72, delay: 0.16)
+        let plan = NookContentTransitionPlan.plan(insertion: insertion, removal: nil, surfaceAnimation: surface)
+        XCTAssertFalse(plan.isHistorical)
+        XCTAssertEqual(plan.insertionAnimation, surface.delay(0.16))
+        XCTAssertEqual(plan.removal, insertion, "leaves the way it arrived")
+        XCTAssertNil(plan.removalAnimation, "and on the transaction's curve, without waiting")
+    }
+
+    /// Arrival and leaving take their own transitions and curves; a removal's delay is ignored.
+    func testRemovalAndCurvesAreSeparate() {
+        let surface = Animation.spring(response: 0.54, dampingFraction: 0.86)
+        let insertion = NookContentTransition(
+            blurRadius: 8,
+            scale: 0.97,
+            animation: .easeOut(duration: 0.3),
+            delay: 0.16
+        )
+        let removal = NookContentTransition(blurRadius: 8, scale: 0.97, animation: .easeOut(duration: 0.16), delay: 5)
+        let plan = NookContentTransitionPlan.plan(insertion: insertion, removal: removal, surfaceAnimation: surface)
+        XCTAssertFalse(plan.isHistorical)
+        XCTAssertEqual(plan.insertion, insertion)
+        XCTAssertEqual(plan.removal, removal)
+        XCTAssertEqual(plan.insertionAnimation, Animation.easeOut(duration: 0.3).delay(0.16))
+        XCTAssertEqual(plan.removalAnimation, .easeOut(duration: 0.16))
+
+        // A removal alone, with no curve of its own, leaves on the transaction's curve.
+        let exitOnly = NookContentTransitionPlan.plan(
+            insertion: .standardExpanded,
+            removal: .opacity,
+            surfaceAnimation: surface
+        )
+        XCTAssertFalse(exitOnly.isHistorical)
+        XCTAssertNil(exitOnly.insertionAnimation)
+        XCTAssertNil(exitOnly.removalAnimation)
+    }
+
+    /// The configuration's new fields keep its initializer source compatible and default to
+    /// today's behavior.
+    func testTransitionConfigurationTakesARemoval() {
+        let removal = NookContentTransition(blurRadius: 8, scale: 0.97)
+        let configuration = NookTransitionConfiguration(
+            compactContentRemoval: .opacity,
+            expandedContentRemoval: removal
+        )
+        XCTAssertEqual(configuration.compactContentRemoval, .opacity)
+        XCTAssertEqual(configuration.expandedContentRemoval, removal)
+        XCTAssertEqual(configuration.expandedContentTransition, .standardExpanded)
+        XCTAssertEqual(configuration.compactContentTransition, .standardCompact)
     }
 
     // MARK: - Hover wash
