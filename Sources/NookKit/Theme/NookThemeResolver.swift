@@ -242,7 +242,10 @@ public struct NookResolvedTokens: Sendable {
                 animation: compact.animation
             ),
             expandedContentTransition: Self.expandedContentTransition(enter, delay: Double(self[.contentEnterDelay])),
-            expandedContentRemoval: removal
+            expandedContentRemoval: removal,
+            // The top bar holds back for `motion.header.delay` after the content arrives; an
+            // awaited expand waits for it. Staggered rows are open-ended and are not waited for.
+            expandedEntranceDuration: Double(self[.headerDelay])
         )
     }
 

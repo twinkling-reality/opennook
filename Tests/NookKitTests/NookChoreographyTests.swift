@@ -66,6 +66,27 @@ final class NookChoreographyTests: XCTestCase {
         XCTAssertNil(transitions.compactContentRemoval)
     }
 
+    /// The top bar's `motion.header.delay` becomes the surface's expanded entrance, so an
+    /// awaited expand waits for the held-back top bar. The standard theme adds no wait.
+    func testTheHeaderDelayIsTheExpandedEntrance() {
+        XCTAssertEqual(NookResolvedTokens.standard.transitionConfiguration.expandedEntranceDuration, 0)
+        let transitions = choreographedTheme().resolvedTokens().transitionConfiguration
+        XCTAssertEqual(transitions.expandedEntranceDuration, 0.3, accuracy: 0.0001)
+    }
+
+    /// Host-supplied transitions replace the theme's curves, but the theme's header delay still
+    /// holds the top bar back, so the coordinator keeps it in the entrance.
+    func testHostTransitionsKeepTheThemesHeaderDelayInTheEntrance() {
+        var configuration = NookConfiguration()
+        configuration.chromeTheme = choreographedTheme()
+        configuration.transitions = NookTransitionConfiguration(animationDuration: 0.7)
+        let coordinator = AppCoordinator(configuration: configuration)
+        coordinator.configureNotchAnimations()
+
+        XCTAssertEqual(coordinator.surface.transitionConfiguration.animationDuration, 0.7)
+        XCTAssertEqual(coordinator.surface.transitionConfiguration.expandedEntranceDuration, 0.3, accuracy: 0.0001)
+    }
+
     /// A theme that writes only `motion.content.enter` leaves with it in reverse, as it did
     /// before exits were drawn.
     func testAThemeWithoutAnExitLeavesTheWayItArrives() {

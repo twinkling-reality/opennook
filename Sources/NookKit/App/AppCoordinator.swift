@@ -912,8 +912,13 @@ public final class AppCoordinator: ObservableObject {
     /// less overshoot. A host can override the whole set via
     /// ``NookConfiguration/transitions``; otherwise these defaults apply.
     func configureNotchAnimations() {
-        surface.transitionConfiguration =
-            moduleHost.displayedConfiguration.effectiveTransitions ?? AppCoordinator.defaultTransitions
+        let configuration = moduleHost.displayedConfiguration
+        var transitions = configuration.effectiveTransitions ?? AppCoordinator.defaultTransitions
+        // The top bar's `motion.header.delay` holds it back whatever curves the host chose, so an
+        // awaited expand waits for it even under host-supplied transitions.
+        let headerDelay = Double(configuration.effectiveThemeTokens[.headerDelay])
+        transitions.expandedEntranceDuration = max(transitions.expandedEntranceDuration, headerDelay)
+        surface.transitionConfiguration = transitions
     }
 
     /// The framework's default chrome animation curves, used when a host does not supply
