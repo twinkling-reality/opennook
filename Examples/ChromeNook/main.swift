@@ -101,7 +101,7 @@ struct ChromeTrailingActions: View {
 
     var body: some View {
         Button {
-            appState.showStatus("Heads up — warning posted from the top bar.", severity: .warning)
+            appState.showStatus("Heads up - warning posted from the top bar.", severity: .warning)
         } label: {
             Image(systemName: "bell")
                 .font(.system(size: 11, weight: .semibold))
