@@ -253,6 +253,69 @@ final class AppCoordinatorTests: XCTestCase {
         try? await Task.sleep(nanoseconds: 30_000_000)  // 30 ms - generous on CI
     }
 
+    // MARK: - Claims while Settings is open
+
+    /// A claim granted while Settings is the view opens onto the claim's content, not Settings,
+    /// and Settings comes back once the last claim ends.
+    func testAClaimSetsSettingsAsideAndRestoresIt() async throws {
+        let a = SpyModule(id: "A", expandLog: ExpandLog())
+        let surface = FakeNookSurface()
+        let coordinator = makeCoordinator(modules: [a], surface: surface)
+        coordinator.appState.showSettings()
+
+        let tokenGrant = await coordinator.beginTransientPresentation(NookSurfaceClaim(moduleID: "A"))
+        let token = try XCTUnwrap(tokenGrant)
+        XCTAssertTrue(coordinator.appState.isHomeView, "the claim's content shows, not Settings")
+
+        await coordinator.endTransientPresentation(token)
+        XCTAssertTrue(coordinator.appState.isSettingsView, "Settings comes back after the claim")
+    }
+
+    /// A preempting claim keeps Settings aside; it only comes back after the last claim.
+    func testSettingsStaysAsideUntilTheLastClaimEnds() async throws {
+        let a = SpyModule(id: "A", expandLog: ExpandLog())
+        let surface = FakeNookSurface()
+        let coordinator = makeCoordinator(modules: [a], surface: surface)
+        coordinator.appState.showSettings()
+
+        let normalGrant = await coordinator.beginTransientPresentation(NookSurfaceClaim(moduleID: "A"))
+        let normal = try XCTUnwrap(normalGrant)
+        let urgentGrant = await coordinator.beginTransientPresentation(NookSurfaceClaim(moduleID: "A", priority: .urgent))
+        let urgent = try XCTUnwrap(urgentGrant)
+        await coordinator.endTransientPresentation(urgent)
+        XCTAssertTrue(coordinator.appState.isHomeView, "a claim still holds the surface")
+
+        await coordinator.endTransientPresentation(normal)
+        XCTAssertTrue(coordinator.appState.isSettingsView)
+    }
+
+    /// A view the person picks during the claim wins: Settings is not forced back over it.
+    func testChoosingAViewDuringAClaimCancelsTheRestore() async throws {
+        let a = SpyModule(id: "A", expandLog: ExpandLog())
+        let surface = FakeNookSurface()
+        let coordinator = makeCoordinator(modules: [a], surface: surface)
+        coordinator.appState.showSettings()
+
+        let tokenGrant = await coordinator.beginTransientPresentation(NookSurfaceClaim(moduleID: "A"))
+        let token = try XCTUnwrap(tokenGrant)
+        coordinator.appState.showHome()
+        await coordinator.endTransientPresentation(token)
+        XCTAssertTrue(coordinator.appState.isHomeView)
+    }
+
+    /// Outside Settings a claim changes nothing about the view.
+    func testAClaimLeavesHomeAlone() async throws {
+        let a = SpyModule(id: "A", expandLog: ExpandLog())
+        let surface = FakeNookSurface()
+        let coordinator = makeCoordinator(modules: [a], surface: surface)
+
+        let tokenGrant = await coordinator.beginTransientPresentation(NookSurfaceClaim(moduleID: "A"))
+        let token = try XCTUnwrap(tokenGrant)
+        XCTAssertTrue(coordinator.appState.isHomeView)
+        await coordinator.endTransientPresentation(token)
+        XCTAssertTrue(coordinator.appState.isHomeView)
+    }
+
     /// REGRESSION: the arbiter's own `expand()` must NOT trip `isUserEngaged`. Before
     /// the fix, `isUserEngaged` read `appState.isNookVisible`, which mirrored the
     /// surface and flipped `true` as soon as the arbiter expanded - silently disabling
