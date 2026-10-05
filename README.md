@@ -129,7 +129,7 @@ lifecycle hooks, file drops - take the `NookConfiguration` overload:
 var configuration = NookConfiguration()
 configuration.setHome { MyHomeView() }
 configuration.setCompactTrailing { MyGlyph() }
-configuration.theme = { appState in MyPalette.resolve(appState) }
+configuration.chromeTheme = NookTheme(accent: "#3399FF", radius: .large)
 configuration.onFileDrop = { urls in /* accept/reject dropped files */ true }
 
 NookApp.main(configuration)
@@ -199,7 +199,7 @@ Swift or a JSON preset.
 | You want | Seam | Guide |
 | --- | --- | --- |
 | Launch defaults, hover and shimmer, the backdrop resolver, labels, metrics, motion, branding, the status banner | `preferenceDefaults`, `chromeBehavior`, `labels`, `metrics`, `motion`, `branding` | [Chrome customization](https://opennook.dev/guides/chrome-customization/) |
-| A host palette for the chrome | `configuration.theme` | [Theming](https://opennook.dev/guides/theming/) |
+| The chrome's look as data - palette, spacing, type, motion, backdrops - in Swift or a JSON theme file | `configuration.chromeTheme` | [Theming](https://opennook.dev/guides/theming/) |
 | Solid, translucent, or real Liquid Glass | `surfaceStyle` | [Surface materials](https://opennook.dev/guides/surface-materials/) |
 | The top bar, the lock and gear, the Settings screens | `configuration.topBar` | [Settings chrome](https://opennook.dev/guides/settings-chrome/) |
 | Expanded width, content insets, clearing the notch | `expandedWidth`, `nookContentInsets`, `notchClearance` | [Layout and content insets](https://opennook.dev/guides/layout-and-insets/#clearing-the-notch) |

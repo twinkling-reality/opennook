@@ -285,10 +285,66 @@ Reduce Transparency is on, hues kept, so a fade to `.clear` becomes a fade to
 black. A custom backdrop is the host's view, so it decides: read
 `context.reduceTransparency` and paint something opaque.
 
+## Theme backdrops
+
+A [theme](/guides/theming/) can describe the backdrop for each surface style the
+person can pick, as data a theme file can hold:
+
+```json
+"backdrops": {
+  "solid": { "kind": "linearGradient", "stops": ["#101014", "#000000"], "start": "top", "end": "bottom" },
+  "translucent": { "kind": "vibrancy", "material": "hudWindow", "darken": { "dark": 0.5, "light": 0.1 }, "darkenColor": "white" },
+  "liquidGlass": { "kind": "liquidGlass", "tint": "accent", "tintStrength": 0.3, "variant": "clear",
+                   "shading": { "stops": [{ "black": 0.3 }, { "black": 0.05 }] } },
+  "glassShading": "notchFade"
+}
+```
+
+```swift
+var theme = NookTheme()
+theme.backdrops.solid = .radialGradient(.init(gradient: NookGradientSpec(colors: ["#1A1030", "#000000"]), center: .top))
+theme.backdrops.translucent = .vibrancy(.init(material: .hudWindow, darken: 0.4))
+theme.backdrops.glassShading = .notchFade
+```
+
+The kinds are `framework` (the mapping above), `solid`, `vibrancy` (with
+`darkenColor`), `liquidGlass` (with `variant`, `fallbackMaterial`, `highlightColor`,
+and `rimWidth`), `linearGradient`, `radialGradient`, `ellipticalGradient`,
+`angularGradient`, `mesh`, and `custom`. A style the theme leaves out uses the
+framework's mapping. Colors resolve for the chrome's appearance, so `"accent"` and
+`{"dark": ..., "light": ...}` work here too.
+
+- The person's backdrop strength scales a vibrancy darken and a glass tint and
+  shading unless the description sets `"scalesWithStrength": false`.
+- Under Reduce Transparency a vibrancy or glass description gives way to the
+  framework's solid fill. Gradients and meshes are painted opaque by the surface.
+- A theme's backdrop is painted in both the collapsed and expanded states; use a
+  `chromeBehavior.backdrop` resolver for one that differs between them. A host
+  resolver always wins over the theme.
+- `glassShading` shades the framework's own Liquid Glass while the host's
+  `chromeBehavior.glassShading` is left at `.even`.
+- A kind this build does not know is read with its `fallback`, so a theme written by a
+  newer build still opens.
+
+A theme file cannot hold a view, so a custom backdrop is named, and the host
+supplies the view:
+
+```json
+"liquidGlass": { "kind": "custom", "id": "com.example.aurora", "fallback": { "kind": "framework" } }
+```
+
+```swift
+configuration.themeBackdrops["com.example.aurora"] = { context in
+    .custom(.init(id: "com.example.aurora") { _ in AuroraView() })
+}
+```
+
+With nothing registered under the id, the fallback is painted.
+
 ## See also
 
-- [Theming](/guides/theming/) - the palette resolver and `NookResolvedTheme`
-  slots that pair with the surface material.
+- [Theming](/guides/theming/) - `NookTheme`, its palette, and the backdrops it
+  describes.
 - `Sources/NookSurface/NookBackdrop.swift` - the `NookBackdrop` and `LiquidGlass`
   types, the source of truth for the knobs.
 - `Sources/NookKit/App/NookBackdropMapping.swift` - how a style, color scheme,

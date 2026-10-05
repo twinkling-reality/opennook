@@ -147,8 +147,7 @@ configuration, state, and lifecycle).
 nonisolated static let moduleDescriptor = NookModuleDescriptor(
     id: "com.opennook.example.counter",
     displayName: "Counter",
-    icon: "number",
-    accent: .orange
+    icon: "number"
 )
 ```
 
@@ -165,8 +164,7 @@ final class CounterModule: NookModule {
     nonisolated static let moduleDescriptor = NookModuleDescriptor(
         id: "com.opennook.example.counter",
         displayName: "Counter",
-        icon: "number",
-        accent: .orange
+        icon: "number"
     )
 
     let descriptor = CounterModule.moduleDescriptor
@@ -357,7 +355,11 @@ For one switch from A to B, the framework:
    foreground).
 3. Builds `B`'s `NookConfiguration` from `makeConfiguration()` and re-publishes
    it to the surface, which re-wires its hooks and runs `onReady` for the new
-   module.
+   module. In the same animation the chrome takes on `B`'s look: its
+   `chromeTheme` (or the host's), `style`, and `transitions` - shape, curves,
+   shadow, wash, backdrop, and window appearance. Give each module its own accent
+   with `configuration.chromeTheme = NookTheme(accent: ...)`; see
+   [Theming](/guides/theming/#using-a-theme).
 4. Awaits `A.prepareForSwitchAway()` in a follow-on task, bounded by a
    2-second timeout, so it runs without blocking the user-visible switch.
 5. Calls `A.onDeactivate()` (synchronous, cheap cleanup).
