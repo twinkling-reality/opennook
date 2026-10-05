@@ -68,6 +68,43 @@ struct VolumeHUD: View {
 /// A plain description of the default output device, read once through CoreAudio. It names the
 /// kind of device rather than the device, so a renamed pair of headphones never shows its
 /// owner's name on screen.
+/// The volume at a glance, in the pill's peek under the notch while the volume changes: the
+/// speaker, a level bar, and the number.
+struct VolumePeek: View {
+    @ObservedObject var volume: SystemVolumeObserver
+    @Environment(\.nookResolvedTheme) private var theme
+
+    private let segments = 16
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(
+                systemName: volume.isMuted ? "speaker.slash.fill" : "speaker.wave.3.fill",
+                variableValue: volume.volume
+            )
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(theme.primaryLabel)
+            .contentTransition(.symbolEffect(.replace))
+            .frame(width: 20)
+            HStack(spacing: 2) {
+                ForEach(0..<segments, id: \.self) { index in
+                    let lit = !volume.isMuted && Double(index) < (volume.volume * Double(segments)).rounded()
+                    Capsule()
+                        .fill(lit ? theme.primaryLabel : theme.subtleFill.opacity(2.2))
+                        .frame(width: 8, height: 5)
+                }
+            }
+            .animation(.snappy(duration: 0.18), value: volume.volume)
+            Text(volume.isMuted ? "Muted" : "\(Int((volume.volume * 100).rounded()))%")
+                .font(.system(size: 11, weight: .semibold, design: .rounded).monospacedDigit())
+                .foregroundStyle(theme.secondaryLabel)
+                .contentTransition(.numericText())
+                .frame(width: 40, alignment: .trailing)
+        }
+        .padding(.vertical, 2)
+    }
+}
+
 enum OutputDevice {
     static func currentLabel() -> String {
         var device = AudioObjectID(kAudioObjectUnknown)

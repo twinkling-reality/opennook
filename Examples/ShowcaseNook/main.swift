@@ -18,8 +18,9 @@
 //   - `progress`: a release build step by step. When it finishes, a `NookActivityQueue` card
 //     (NookComponents) says so once the nook is free.
 //   - `shelf`: the NookComponents file shelf holding sample files written to a temporary folder.
-//   - `hud`: a volume HUD over `SystemVolumeObserver` (NookComponents) that takes the surface
-//     for a moment when the volume changes, with `NookVolumeIndicator` beside the notch.
+//   - `hud`: a volume HUD over `SystemVolumeObserver` (NookComponents): when the volume
+//     changes, the pill grows into a volume peek and shrinks a moment after the last change (a
+//     peek claim with a scheduled end), with `NookVolumeIndicator` beside the notch.
 //   - `compact`: two live activities sharing the collapsed pill: the song holds it, and the
 //     focus session waits in a capsule beside it (`NookLiveActivity`).
 //
