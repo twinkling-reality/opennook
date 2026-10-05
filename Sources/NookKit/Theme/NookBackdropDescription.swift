@@ -23,6 +23,7 @@ import Foundation
 ///   "shading": { "stops": [{ "black": 0.22 }, { "black": 0.09 }], "start": "top", "end": "bottom" } }
 /// { "kind": "linearGradient", "stops": ["#101014", "#000000"], "start": "top", "end": "bottom" }
 /// { "kind": "radialGradient", "stops": [...], "center": "top", "startRadius": 0, "endRadius": 300 }
+/// { "kind": "ellipticalGradient", "stops": [...], "center": "top", "startRadius": 0, "endRadius": 0.8 }
 /// { "kind": "angularGradient", "stops": [...], "center": "center", "startAngle": 0, "endAngle": 360 }
 /// { "kind": "mesh", "width": 2, "height": 2, "points": [[0, 0], [1, 0], [0, 1], [1, 1]], "colors": [...] }
 /// { "kind": "custom", "id": "com.example.aurora", "fallback": { "kind": "framework" } }
@@ -38,6 +39,9 @@ public indirect enum NookBackdropDescription: Equatable, Sendable {
     case liquidGlass(LiquidGlass)
     case linearGradient(LinearGradient)
     case radialGradient(RadialGradient)
+    /// A radial gradient that stretches with the surface: radius 1 is half its width
+    /// horizontally and half its height vertically.
+    case ellipticalGradient(EllipticalGradient)
     case angularGradient(AngularGradient)
     case mesh(Mesh)
     /// A backdrop view the host registers in Swift under `id`. `fallback` is painted when no
@@ -78,17 +82,22 @@ public indirect enum NookBackdropDescription: Equatable, Sendable {
         public var darken: NookAdaptiveNumber
         /// Whether the person's backdrop strength multiplies ``darken``.
         public var scalesWithStrength: Bool
+        /// The color of the darken pass. `nil` is black; white lightens instead, for a light
+        /// chrome over a dark wallpaper.
+        public var darkenColor: NookColorValue?
 
         public init(
             material: Material = .sidebar,
             blending: Blending = .behindWindow,
             darken: NookAdaptiveNumber = 0,
-            scalesWithStrength: Bool = true
+            scalesWithStrength: Bool = true,
+            darkenColor: NookColorValue? = nil
         ) {
             self.material = material
             self.blending = blending
             self.darken = darken
             self.scalesWithStrength = scalesWithStrength
+            self.darkenColor = darkenColor
         }
     }
 
@@ -101,20 +110,42 @@ public indirect enum NookBackdropDescription: Equatable, Sendable {
         /// Whether the person's backdrop strength multiplies ``tintStrength`` and the shading's
         /// opacity.
         public var scalesWithStrength: Bool
+        /// Apple's glass material: `regular` (`nil`, the default) or `clear`.
+        public var variant: GlassVariant?
+        /// The material the approximation uses before macOS 26. `nil` is the surface's default.
+        public var fallbackMaterial: Material?
+        /// The color of the approximation's sheen and rim. `nil` is white.
+        public var highlightColor: NookColorValue?
+        /// The width of the approximation's rim. `nil` is the surface's default, 1 point.
+        public var rimWidth: Double?
 
         public init(
             tint: NookColorValue? = nil,
             tintStrength: NookAdaptiveNumber = 0.3,
             highlight: Double = 0.6,
             shading: LinearGradient? = nil,
-            scalesWithStrength: Bool = true
+            scalesWithStrength: Bool = true,
+            variant: GlassVariant? = nil,
+            fallbackMaterial: Material? = nil,
+            highlightColor: NookColorValue? = nil,
+            rimWidth: Double? = nil
         ) {
             self.tint = tint
             self.tintStrength = tintStrength
             self.highlight = highlight
             self.shading = shading
             self.scalesWithStrength = scalesWithStrength
+            self.variant = variant
+            self.fallbackMaterial = fallbackMaterial
+            self.highlightColor = highlightColor
+            self.rimWidth = rimWidth
         }
+    }
+
+    /// Apple's two Liquid Glass materials.
+    public enum GlassVariant: String, Codable, Sendable, CaseIterable {
+        case regular
+        case clear
     }
 
     public struct LinearGradient: Equatable, Sendable {
@@ -140,6 +171,27 @@ public indirect enum NookBackdropDescription: Equatable, Sendable {
             center: NookUnitPointSpec = .center,
             startRadius: Double = 0,
             endRadius: Double = 300
+        ) {
+            self.gradient = gradient
+            self.center = center
+            self.startRadius = startRadius
+            self.endRadius = endRadius
+        }
+    }
+
+    public struct EllipticalGradient: Equatable, Sendable {
+        public var gradient: NookGradientSpec
+        public var center: NookUnitPointSpec
+        /// A fraction of the surface's half-size.
+        public var startRadius: Double
+        /// A fraction of the surface's half-size.
+        public var endRadius: Double
+
+        public init(
+            gradient: NookGradientSpec,
+            center: NookUnitPointSpec = .center,
+            startRadius: Double = 0,
+            endRadius: Double = 0.5
         ) {
             self.gradient = gradient
             self.center = center
@@ -212,7 +264,8 @@ extension NookBackdropDescription: Codable {
                         material: try container.optional(Material.self, "material") ?? .sidebar,
                         blending: try container.optional(Blending.self, "blending") ?? .behindWindow,
                         darken: try container.optional(NookAdaptiveNumber.self, "darken") ?? 0,
-                        scalesWithStrength: try container.optional(Bool.self, "scalesWithStrength") ?? true
+                        scalesWithStrength: try container.optional(Bool.self, "scalesWithStrength") ?? true,
+                        darkenColor: try container.optional(NookColorValue.self, "darkenColor")
                     )
                 )
             case "liquidGlass":
@@ -222,7 +275,11 @@ extension NookBackdropDescription: Codable {
                         tintStrength: try container.optional(NookAdaptiveNumber.self, "tintStrength") ?? 0.3,
                         highlight: try container.optional(Double.self, "highlight") ?? 0.6,
                         shading: try container.optional(LinearGradient.self, "shading"),
-                        scalesWithStrength: try container.optional(Bool.self, "scalesWithStrength") ?? true
+                        scalesWithStrength: try container.optional(Bool.self, "scalesWithStrength") ?? true,
+                        variant: try container.optional(GlassVariant.self, "variant"),
+                        fallbackMaterial: try container.optional(Material.self, "fallbackMaterial"),
+                        highlightColor: try container.optional(NookColorValue.self, "highlightColor"),
+                        rimWidth: try container.optional(Double.self, "rimWidth")
                     )
                 )
             case "linearGradient":
@@ -234,6 +291,15 @@ extension NookBackdropDescription: Codable {
                         center: try container.optional(NookUnitPointSpec.self, "center") ?? .center,
                         startRadius: try container.optional(Double.self, "startRadius") ?? 0,
                         endRadius: try container.optional(Double.self, "endRadius") ?? 300
+                    )
+                )
+            case "ellipticalGradient":
+                self = .ellipticalGradient(
+                    EllipticalGradient(
+                        gradient: try container.required(NookGradientSpec.self, "stops"),
+                        center: try container.optional(NookUnitPointSpec.self, "center") ?? .center,
+                        startRadius: try container.optional(Double.self, "startRadius") ?? 0,
+                        endRadius: try container.optional(Double.self, "endRadius") ?? 0.5
                     )
                 )
             case "angularGradient":
@@ -285,6 +351,7 @@ extension NookBackdropDescription: Codable {
                 try container.put(vibrancy.blending, "blending")
                 try container.put(vibrancy.darken, "darken")
                 if !vibrancy.scalesWithStrength { try container.put(false, "scalesWithStrength") }
+                try container.putIfPresent(vibrancy.darkenColor, "darkenColor")
             case .liquidGlass(let glass):
                 try container.put("liquidGlass", "kind")
                 try container.putIfPresent(glass.tint, "tint")
@@ -292,11 +359,21 @@ extension NookBackdropDescription: Codable {
                 try container.put(glass.highlight, "highlight")
                 try container.putIfPresent(glass.shading, "shading")
                 if !glass.scalesWithStrength { try container.put(false, "scalesWithStrength") }
+                try container.putIfPresent(glass.variant, "variant")
+                try container.putIfPresent(glass.fallbackMaterial, "fallbackMaterial")
+                try container.putIfPresent(glass.highlightColor, "highlightColor")
+                try container.putIfPresent(glass.rimWidth, "rimWidth")
             case .linearGradient(let gradient):
                 try container.put("linearGradient", "kind")
                 try gradient.encodeMembers(into: &container)
             case .radialGradient(let gradient):
                 try container.put("radialGradient", "kind")
+                try container.put(gradient.gradient, "stops")
+                try container.put(gradient.center, "center")
+                try container.put(gradient.startRadius, "startRadius")
+                try container.put(gradient.endRadius, "endRadius")
+            case .ellipticalGradient(let gradient):
+                try container.put("ellipticalGradient", "kind")
                 try container.put(gradient.gradient, "stops")
                 try container.put(gradient.center, "center")
                 try container.put(gradient.startRadius, "startRadius")

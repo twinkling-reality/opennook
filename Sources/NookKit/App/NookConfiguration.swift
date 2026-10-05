@@ -95,6 +95,18 @@ public struct NookConfiguration: Sendable {
         didSet { resolvedThemeTokens = chromeTheme?.resolvedTokens() }
     }
 
+    /// Backdrop views a theme names by id, for a ``NookBackdropDescription/custom(id:fallback:)``
+    /// backdrop: a theme file cannot hold a view, so it names one and the host supplies it.
+    /// Each resolver gets the same ``NookBackdropContext`` a ``NookChromeBehavior/backdrop``
+    /// resolver does. A theme naming an id with nothing registered paints its fallback.
+    ///
+    /// ```swift
+    /// configuration.themeBackdrops["com.example.aurora"] = { context in
+    ///     .custom(.init(id: "com.example.aurora") { _ in AuroraView() })
+    /// }
+    /// ```
+    public var themeBackdrops: [String: NookChromeBehavior.BackdropResolver] = [:]
+
     /// ``chromeTheme``'s tokens, resolved once when it is set rather than on every render.
     private(set) var resolvedThemeTokens: NookResolvedTokens?
 
