@@ -36,6 +36,7 @@ public struct NookHoverHaptic: Equatable, Sendable {
     /// When the haptic plays relative to the hover change.
     public var performanceTime: NSHapticFeedbackManager.PerformanceTime
 
+    /// A hover haptic playing `pattern` at `performanceTime`.
     public init(
         pattern: NSHapticFeedbackManager.FeedbackPattern = .alignment,
         performanceTime: NSHapticFeedbackManager.PerformanceTime = .default

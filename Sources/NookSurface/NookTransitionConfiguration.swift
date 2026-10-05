@@ -92,6 +92,8 @@ public struct NookContentTransition: Equatable, Sendable {
     /// Whether the content fades in and out as well.
     public var fades: Bool
 
+    /// A transition with the given blur and scale, fading unless `fades` is `false`.
+    /// Negative values are treated as 0.
     public init(blurRadius: CGFloat = 0, scale: CGFloat = 1, fades: Bool = true) {
         self.blurRadius = max(blurRadius, 0)
         self.scale = max(scale, 0)

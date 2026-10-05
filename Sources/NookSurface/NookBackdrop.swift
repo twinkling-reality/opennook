@@ -263,6 +263,7 @@ public enum NookBackdrop: Equatable, Sendable {
         /// Where the gradient runs.
         public var layout: Layout
 
+        /// `gradient` laid out by `layout`. The static constructors are shorter.
         public init(gradient: Gradient, layout: Layout) {
             self.gradient = gradient
             self.layout = layout
@@ -357,6 +358,7 @@ public enum NookBackdrop: Equatable, Sendable {
             /// something opaque.
             public var reduceTransparency: Bool
 
+            /// A context for painting inside `shape`.
             public init(shape: AnyShape, reduceTransparency: Bool) {
                 self.shape = shape
                 self.reduceTransparency = reduceTransparency
@@ -383,6 +385,7 @@ public enum NookBackdrop: Equatable, Sendable {
             body.makeView(context)
         }
 
+        /// Equal when the ids match; the views are not compared.
         public static func == (lhs: Custom, rhs: Custom) -> Bool {
             lhs.id == rhs.id
         }

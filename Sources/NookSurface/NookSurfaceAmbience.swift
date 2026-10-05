@@ -39,6 +39,7 @@ public struct NookAmbientWash: Equatable, Sendable {
         /// 0...1 position along the gradient.
         public var location: CGFloat
 
+        /// A stop at `location`, with `opacity` clamped to 0...1.
         public init(opacity: Double, location: CGFloat) {
             self.opacity = min(max(opacity, 0), 1)
             self.location = location
@@ -52,6 +53,7 @@ public struct NookAmbientWash: Equatable, Sendable {
     /// Where the gradient ends. The bottom edge by default.
     public var endPoint: UnitPoint
 
+    /// A wash through `stops`, from `startPoint` to `endPoint`.
     public init(stops: [Stop], startPoint: UnitPoint = .top, endPoint: UnitPoint = .bottom) {
         self.stops = stops
         self.startPoint = startPoint
@@ -86,6 +88,7 @@ public struct NookAmbientColorBackground: View {
     let color: Color
     let wash: NookAmbientWash
 
+    /// A wash of `color`, shaped by `wash`.
     public init(color: Color, wash: NookAmbientWash = .standard) {
         self.color = color
         self.wash = wash

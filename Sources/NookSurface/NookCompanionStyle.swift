@@ -230,6 +230,8 @@ public struct NookStandardCompanionStyle: NookCompanionStyle, Equatable {
         /// one a white wash barely shows, so pick black or the theme's text color there.
         public var washColor: Color
 
+        /// A hover with a `wash` of `washColor`, a `scale`, and an optional `glow`. The wash is
+        /// clamped to 0...1 and the scale to 0 or more.
         public init(wash: Double = 0, scale: CGFloat = 1, glow: Glow? = nil, washColor: Color = .white) {
             self.wash = min(max(wash, 0), 1)
             self.scale = max(scale, 0)
