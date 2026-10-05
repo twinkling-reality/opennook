@@ -132,8 +132,8 @@ final class ShowcaseModule: NookModule {
     private var trackObservation: AnyCancellable?
     private var trackPeek: NookSurfaceToken?
     private var trackPeekGeneration = 0
-    private var hudTask: Task<Void, Never>?
-    private var hudDeadline = ContinuousClock.now
+    private var hudToken: NookSurfaceToken?
+    private var hudGeneration = 0
 
     init(scene: ShowcaseScene, context: NookModuleContext) {
         self.scene = scene
@@ -236,6 +236,7 @@ final class ShowcaseModule: NookModule {
                 let volume = volume
                 let label = outputLabel
                 configuration.setHome { VolumeHUD(volume: volume, deviceName: label) }
+                configuration.setPeek { VolumePeek(volume: volume) }
                 configuration.setCompactLeading { CompactGlyph(symbol: "hifispeaker.fill") }
                 configuration.setCompactTrailing { NookVolumeIndicator(observer: volume) }
         }
@@ -330,6 +331,20 @@ final class ShowcaseModule: NookModule {
                     }
                 }
             case .hud:
+                if LaunchOptions.peeks {
+                    // For a recording: hold the volume peek without touching the volume.
+                    Task { @MainActor [weak self] in
+                        try? await Task.sleep(for: .milliseconds(800))
+                        guard let self else { return }
+                        let claim = NookSurfaceClaim(
+                            moduleID: self.descriptor.id,
+                            priority: .ambient,
+                            maxDuration: nil,
+                            presentation: .peek
+                        )
+                        self.hudToken = await coordinator.beginTransientPresentation(claim)
+                    }
+                }
                 // `@Published` sends the new value before storing it, so a change is passed
                 // along rather than read back.
                 volumeObservation = volume.$volume
@@ -386,20 +401,31 @@ final class ShowcaseModule: NookModule {
         }
     }
 
-    /// Takes the surface while the volume is changing, and gives it back a moment after the
-    /// last change. A change made while the nook is open just updates the HUD in place.
+    /// Grows the pill into the volume peek while the volume is changing, and shrinks it a
+    /// moment after the last change: each change moves the claim's scheduled end. A change made
+    /// while the nook is open just updates the HUD in place.
     private func showHUD(on coordinator: AppCoordinator) {
-        hudDeadline = .now + .milliseconds(1600)
-        guard hudTask == nil else { return }
-        let claim = NookSurfaceClaim(moduleID: descriptor.id, priority: .ambient, maxDuration: .seconds(10))
-        hudTask = Task { @MainActor [weak self] in
-            if let token = await coordinator.beginTransientPresentation(claim) {
-                while let deadline = self?.hudDeadline, ContinuousClock.now < deadline {
-                    try? await Task.sleep(for: .milliseconds(100))
-                }
-                await coordinator.endTransientPresentation(token)
+        hudGeneration += 1
+        let generation = hudGeneration
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            if self.hudToken == nil {
+                let claim = NookSurfaceClaim(
+                    moduleID: self.descriptor.id,
+                    priority: .ambient,
+                    maxDuration: .seconds(10),
+                    presentation: .peek
+                )
+                if let token = await coordinator.beginTransientPresentation(claim) { self.hudToken = token }
             }
-            self?.hudTask = nil
+            guard let token = self.hudToken else { return }
+            guard await coordinator.endTransientPresentation(token, after: .milliseconds(1600)) else {
+                self.hudToken = nil
+                return
+            }
+            try? await Task.sleep(for: .milliseconds(1700))
+            // No later change moved the end, so the claim is over.
+            if generation == self.hudGeneration { self.hudToken = nil }
         }
     }
 }
