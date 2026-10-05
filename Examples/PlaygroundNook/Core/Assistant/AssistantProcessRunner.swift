@@ -85,9 +85,15 @@ public struct AssistantProcessLauncher: AssistantProcessRunner {
             process.terminationHandler = { process in
                 output.fileHandleForReading.readabilityHandler = nil
                 diagnostics.fileHandleForReading.readabilityHandler = nil
-                // Whatever landed between the last handler call and exit.
+                // Whatever landed between the last handler call and exit, on both pipes: a
+                // tool that complains just before it exits must not lose the complaint.
                 if let rest = try? output.fileHandleForReading.readToEnd(), !rest.isEmpty {
                     continuation.yield(.output(rest))
+                }
+                if let rest = try? diagnostics.fileHandleForReading.readToEnd(), !rest.isEmpty,
+                    let text = String(data: rest, encoding: .utf8)
+                {
+                    continuation.yield(.diagnostic(text))
                 }
                 continuation.yield(.finished(status: process.terminationStatus))
                 continuation.finish()
