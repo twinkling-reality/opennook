@@ -56,7 +56,7 @@ swift run PlaygroundNook --hide-controls           # skip the controls window
 
 | Page | Changes | Lands on |
 |---|---|---|
-| Appearance | layout, palette, material, backdrop strength, accent, haptics | `AppState.appearancePreferences` |
+| Appearance | layout, palette, material, backdrop strength, accent, haptics; under **Opening**, what hovering the pill does and its waits | `AppState.appearancePreferences` |
 | Theme | font design and width; corner, scale, and motion knobs; accent, label, fill, stroke, hover, status, and inactive icon colors; the backdrop of each material (framework, solid, frosted, Liquid Glass with its variant, linear, radial, elliptical, and angular gradients, mesh) and the theme's glass shading; under **Theme File**, the name, pins, sound volume, and what the person may change | `NookConfiguration.chromeTheme` |
 | Panel | expanded width, corner radii, content insets, a few metrics | `expandedWidth`, `style`, `metrics` |
 | Type and Motion | four typography roles, the Settings and banner springs | `typography`, `motion` |
@@ -64,6 +64,7 @@ swift run PlaygroundNook --hide-controls           # skip the controls window
 | Companions | the size, look, and entrance every companion shares; add, duplicate, remove, and reorder companions; the selected one's items, placement, style, and details | `companionSize`, `companionStyle`, `companionPresence`, `addCompanion(...)` |
 | Effects | rim style, scroll edge fade edges and length, the chrome's shadow | `rimGlow`, `scrollEdgeFade`, the theme's `shadow.chrome` |
 | Behavior | hover keeps visible, hover haptics, glass shading | `chromeBehavior.hoverBehavior`, `chromeBehavior.glassShading` |
+| Activities | starts, alerts, and ends three sample live activities, to see the pill shared and the peek; not part of a preset | the module's `NookLiveActivities` |
 | Tokens | any theme token by id: colors, numbers, fonts, animations, content transitions, sounds, shadows | `NookConfiguration.chromeTheme` tokens |
 
 Some controls exist only to show a setting off. **Preview** on the Top Bar page posts
