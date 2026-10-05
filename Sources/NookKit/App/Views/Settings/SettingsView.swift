@@ -221,12 +221,13 @@ private struct SettingsDisclosureSection<Content: View>: View {
     @Environment(\.nookResolvedTheme) private var theme
     @Environment(\.nookChromeTypography) private var typography
     @Environment(\.nookChromeMetrics) private var metrics
+    @Environment(\.nookChromeMotion) private var motion
 
     var body: some View {
         let iconGutter = metrics.settingsDisclosureGutter
         VStack(alignment: .leading, spacing: metrics.settingsBlockSpacing) {
             Button {
-                withAnimation(.spring(response: 0.30, dampingFraction: 0.86)) {
+                withAnimation(motion.settingsDisclosure) {
                     isExpanded.toggle()
                 }
             } label: {

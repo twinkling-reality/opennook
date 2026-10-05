@@ -398,6 +398,12 @@ extension NookAnimationID {
     public static let statusBanner: NookAnimationID = "motion.statusBanner"
     /// ``NookChromeMotion/breadcrumb``.
     public static let breadcrumb: NookAnimationID = "motion.breadcrumb"
+    /// ``NookChromeMotion/settingsDisclosure``.
+    public static let settingsDisclosure: NookAnimationID = "motion.settingsDisclosure"
+    /// ``NookChromeMotion/moduleSwitch``.
+    public static let moduleSwitch: NookAnimationID = "motion.moduleSwitch"
+    /// ``NookChromeMotion/activityCard``.
+    public static let activityCard: NookAnimationID = "motion.activityCard"
 }
 
 extension NookTransitionID {

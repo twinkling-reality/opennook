@@ -22,6 +22,9 @@ public struct NookActivityHost<Content: View>: View {
     @ObservedObject private var queue: NookActivityQueue
     private let content: () -> Content
 
+    /// The card's takeover curve, ``NookChromeMotion/activityCard``.
+    @Environment(\.nookChromeMotion) private var motion
+
     public init(queue: NookActivityQueue, @ViewBuilder content: @escaping () -> Content) {
         self.queue = queue
         self.content = content
@@ -36,7 +39,7 @@ public struct NookActivityHost<Content: View>: View {
                 content()
             }
         }
-        .animation(.spring(response: 0.36, dampingFraction: 0.86), value: queue.current?.id)
+        .animation(motion.activityCard, value: queue.current?.id)
     }
 }
 
