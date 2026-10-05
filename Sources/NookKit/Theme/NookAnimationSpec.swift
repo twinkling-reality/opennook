@@ -292,6 +292,15 @@ public struct NookContentTransitionSpec: Equatable, Sendable {
         blur: 6,
         scaleX: 0
     )
+
+    /// The peek content's transition: fade, blur 4, vertical scale 0.9 from the top, on the
+    /// peek curve (`NookContentTransition.standardPeek`).
+    public static let peekContentDefault = NookContentTransitionSpec(
+        opacity: 0,
+        blur: 4,
+        scaleY: 0.9,
+        anchor: .top
+    )
 }
 
 extension NookContentTransitionSpec: Codable {

@@ -66,6 +66,37 @@ final class NookChoreographyTests: XCTestCase {
         XCTAssertNil(transitions.compactContentRemoval)
     }
 
+    /// With the standard theme the peek draws as the surface's own defaults, on the snappy spring.
+    func testTheStandardThemeKeepsTheSurfacesPeekDefaults() {
+        let tokens = NookResolvedTokens.standard
+        XCTAssertEqual(tokens.style.peekBottomCornerRadius, NookStyle.standardPeekBottomCornerRadius)
+        XCTAssertEqual(tokens.style.peekContentInsets, NookStyle.standardPeekContentInsets)
+        XCTAssertEqual(tokens.style.peekMaxHeight, NookStyle.standardPeekMaxHeight)
+        XCTAssertEqual(tokens.transitionConfiguration.peekContentTransition, .standardPeek)
+        XCTAssertNil(tokens.transitionConfiguration.peekContentRemoval)
+        XCTAssertEqual(tokens.transitionConfiguration.peekAnimation, tokens[.springSnappy])
+    }
+
+    /// A theme's peek shape, curve, and exit reach the surface.
+    func testAThemesPeekTokensReachTheSurface() {
+        var theme = NookTheme()
+        theme.tokens[.peekBottomRadius] = 30
+        theme.tokens[.peekMaxHeight] = 80
+        theme.tokens[.peekInsetLeading] = 20
+        theme.tokens[.transitionPeek] = NookAnimationSpec.curve(.easeOut, duration: 0.2)
+        theme.tokens[.peekExit] = NookContentTransitionSpec(opacity: 0, blur: 2, scaleY: 1)
+        let tokens = theme.resolvedTokens()
+
+        XCTAssertEqual(tokens.style.peekBottomCornerRadius, 30)
+        XCTAssertEqual(tokens.style.peekMaxHeight, 80)
+        XCTAssertEqual(tokens.style.peekContentInsets.leading, 20)
+        XCTAssertEqual(tokens.transitionConfiguration.peekAnimation, .easeOut(duration: 0.2))
+        XCTAssertEqual(
+            tokens.transitionConfiguration.peekContentRemoval,
+            NookContentTransition(blurRadius: 2, scale: 1)
+        )
+    }
+
     /// The top bar's `motion.header.delay` becomes the surface's expanded entrance, so an
     /// awaited expand waits for the held-back top bar. The standard theme adds no wait.
     func testTheHeaderDelayIsTheExpandedEntrance() {
