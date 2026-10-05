@@ -437,7 +437,7 @@ struct EffectsPage: View {
 
             SectionCard(
                 title: "Shadow",
-                help: "A shadow the chrome casts, the theme's shadow.chrome token. Off is none, as the framework draws it.",
+                help: "The chrome's shadow, the theme's shadow.chrome token. Off is none, as the framework draws it.",
                 isModified: model.settings.theme.tokens[.chrome] != nil,
                 reset: { model.settings.theme.tokens[.chrome] = nil }
             ) {

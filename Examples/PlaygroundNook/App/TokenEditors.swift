@@ -131,7 +131,10 @@ struct ColorValueEditor: View {
         SegmentedRow(
             title: "Form",
             selection: formBinding,
-            choices: [Choice(.color, "Color"), Choice(.pair, "Dark/Light"), Choice(.accent, "Accent"), Choice(.token, "Token")],
+            choices: [
+                Choice(.color, "Color"), Choice(.pair, "Dark/Light"), Choice(.accent, "Accent"),
+                Choice(.token, "Token"),
+            ],
             help: "A plain color, one for dark chrome and one for light, the accent, or another color token."
         )
         switch form {
@@ -615,7 +618,10 @@ struct AnimationSpecEditor: View {
             case .reference(let id):
                 MenuRow(
                     title: "Token",
-                    selection: Binding(get: { id.rawValue }, set: { value = .reference(NookAnimationID(rawValue: $0)) }),
+                    selection: Binding(
+                        get: { id.rawValue },
+                        set: { value = .reference(NookAnimationID(rawValue: $0)) }
+                    ),
                     choices: referenceChoices
                 )
         }

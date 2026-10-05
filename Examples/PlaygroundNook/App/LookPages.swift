@@ -176,7 +176,8 @@ struct ThemePage: View {
                     title: "Width",
                     selection: optional(\.fontWidth, standard: .standard),
                     choices: [
-                        Choice(.compressed, "Compressed"), Choice(.condensed, "Condensed"), Choice(.standard, "Standard"),
+                        Choice(.compressed, "Compressed"), Choice(.condensed, "Condensed"),
+                        Choice(.standard, "Standard"),
                         Choice(.expanded, "Expanded"),
                     ],
                     help: "The width of the chrome's own text."
@@ -252,7 +253,8 @@ struct ThemePage: View {
                     title: "Pin palette",
                     selection: $model.settings.theme.palette,
                     choices: [
-                        Choice(nil, "No"), Choice(.followSystem, "System"), Choice(.dark, "Dark"), Choice(.light, "Light"),
+                        Choice(nil, "No"), Choice(.followSystem, "System"), Choice(.dark, "Dark"),
+                        Choice(.light, "Light"),
                     ],
                     help: "Pins the palette over the person's choice."
                 )

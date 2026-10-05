@@ -105,7 +105,9 @@ struct TokensPage: View {
     }
 
     /// The number a dimension editor starts from: the resolved value at the theme's scale 1.
-    private func seed(for descriptor: NookTokenDescriptor, resolved: NookResolvedTokenValue?, theme: NookTheme) -> Double {
+    private func seed(for descriptor: NookTokenDescriptor, resolved: NookResolvedTokenValue?, theme: NookTheme)
+        -> Double
+    {
         guard case .dimension(let value)? = resolved else { return 0 }
         let multiplier: Double =
             switch descriptor.scaling {
@@ -156,7 +158,8 @@ struct TokensPage: View {
         let needle = query.trimmingCharacters(in: .whitespaces).lowercased()
         return Self.allGroups.compactMap { group in
             let tokens = group.tokens.filter { descriptor in
-                (needle.isEmpty || descriptor.id.lowercased().contains(needle) || group.title.lowercased().contains(needle))
+                (needle.isEmpty || descriptor.id.lowercased().contains(needle)
+                    || group.title.lowercased().contains(needle))
                     && (!showsChangedOnly || override(of: descriptor) != nil)
             }
             return tokens.isEmpty ? nil : TokenGroup(id: group.id, tokens: tokens)

@@ -173,10 +173,21 @@ final class PlaygroundTokenOverrideTests: XCTestCase {
         settings.theme.tokens[.chrome] = NookShadowSpec(radius: 10, y: 4)
         settings.theme.tokens[.stagger] = 0.035
         settings.theme.backdrops.liquidGlass = .liquidGlass(
-            .init(tint: .accent, variant: .clear, fallbackMaterial: .hudWindow, highlightColor: "#FFEEDD", rimWidth: 1.5)
+            .init(
+                tint: .accent,
+                variant: .clear,
+                fallbackMaterial: .hudWindow,
+                highlightColor: "#FFEEDD",
+                rimWidth: 1.5
+            )
         )
         settings.theme.backdrops.solid = .mesh(
-            .init(width: 2, height: 2, points: [[0, 0], [1, 0], [0, 1], [1, 1]], colors: ["#110000", "#001100", "#000011", "#000000"])
+            .init(
+                width: 2,
+                height: 2,
+                points: [[0, 0], [1, 0], [0, 1], [1, 1]],
+                colors: ["#110000", "#001100", "#000011", "#000000"]
+            )
         )
         settings.theme.backdrops.glassShading = .notchFade
         settings.theme.fontWidth = .expanded
@@ -305,7 +316,10 @@ final class PlaygroundTokenOverrideTests: XCTestCase {
     func testValueLiteralsAreTheSwiftAHostWrites() {
         typealias Exporter = PlaygroundSwiftExporter
         XCTAssertEqual(Exporter.literal(NookColorValue.accent), ".accent")
-        XCTAssertEqual(Exporter.literal(NookColorValue.reference(.labelPrimary, opacity: nil)), "\"{color.label.primary}\"")
+        XCTAssertEqual(
+            Exporter.literal(NookColorValue.reference(.labelPrimary, opacity: nil)),
+            "\"{color.label.primary}\""
+        )
         XCTAssertEqual(
             Exporter.literal(NookColorValue.reference(.accent, opacity: 0.5)),
             ".reference(\"color.accent\", opacity: 0.5)"
@@ -317,18 +331,30 @@ final class PlaygroundTokenOverrideTests: XCTestCase {
             Exporter.literal(NookAnimationSpec.spring(response: 0.3, dampingFraction: 0.8, blendDuration: 0.1)),
             ".spring(response: 0.3, dampingFraction: 0.8, blendDuration: 0.1)"
         )
-        XCTAssertEqual(Exporter.literal(NookAnimationSpec.preset(.snappy, duration: 0.4)), ".preset(.snappy, duration: 0.4)")
-        XCTAssertEqual(Exporter.literal(NookContentTransitionSpec.expandedContentDefault), "NookContentTransitionSpec(blur: 6, scaleY: 0.72, anchor: .top)")
+        XCTAssertEqual(
+            Exporter.literal(NookAnimationSpec.preset(.snappy, duration: 0.4)),
+            ".preset(.snappy, duration: 0.4)"
+        )
+        XCTAssertEqual(
+            Exporter.literal(NookContentTransitionSpec.expandedContentDefault),
+            "NookContentTransitionSpec(blur: 6, scaleY: 0.72, anchor: .top)"
+        )
         XCTAssertEqual(
             Exporter.literal(NookSoundSpec(.file(URL(fileURLWithPath: "/tmp/a.caf")))),
             "NookSoundSpec(.file(URL(fileURLWithPath: \"/tmp/a.caf\")))"
         )
         XCTAssertEqual(
-            Exporter.literal(NookBackdropDescription.linearGradient(.init(gradient: NookGradientSpec(colors: ["#101014", "#000000"])))),
+            Exporter.literal(
+                NookBackdropDescription.linearGradient(
+                    .init(gradient: NookGradientSpec(colors: ["#101014", "#000000"]))
+                )
+            ),
             ".linearGradient(.init(gradient: NookGradientSpec(colors: [\"#101014\", \"#000000\"]), start: .top, end: .bottom))"
         )
         XCTAssertEqual(
-            Exporter.literal(NookGradientSpec(stops: [.init(color: "#FF0000", location: 0), .init(color: "#0000FF", location: 0.8)])),
+            Exporter.literal(
+                NookGradientSpec(stops: [.init(color: "#FF0000", location: 0), .init(color: "#0000FF", location: 0.8)])
+            ),
             "NookGradientSpec(stops: [.init(color: \"#FF0000\", location: 0), .init(color: \"#0000FF\", location: 0.8)])"
         )
         XCTAssertEqual(Exporter.literal(NookUnitPointSpec(x: 0.2, y: 0.3)), "NookUnitPointSpec(x: 0.2, y: 0.3)")

@@ -58,7 +58,7 @@ struct ThemeBackdropCard: View {
             help: "What the chrome paints behind its content. Each Material has its own; the nook paints the one "
                 + "for the Material picked on the Appearance page.",
             isModified: !backdrops.isEmpty,
-            reset: { model.settings.theme.backdrops = NookThemeBackdrops() }
+            reset: resetBackdrops
         ) {
             SegmentedRow(
                 title: "Material",
@@ -83,6 +83,10 @@ struct ThemeBackdropCard: View {
     }
 
     private var backdrops: NookThemeBackdrops { model.settings.theme.backdrops }
+
+    private func resetBackdrops() {
+        model.settings.theme.backdrops = NookThemeBackdrops()
+    }
 
     private func setDescription(_ description: NookBackdropDescription?) {
         switch slot {
@@ -197,11 +201,14 @@ struct BackdropDescriptionEditor: View {
                 GlassEditor(glass: Binding(get: { glass }, set: { description = .liquidGlass($0) }), resolver: resolver)
             case .linearGradient(let gradient):
                 GradientStopsEditor(
-                    gradient: Binding(get: { gradient.gradient }, set: { updated in
-                        var gradient = gradient
-                        gradient.gradient = updated
-                        description = .linearGradient(gradient)
-                    }),
+                    gradient: Binding(
+                        get: { gradient.gradient },
+                        set: { updated in
+                            var gradient = gradient
+                            gradient.gradient = updated
+                            description = .linearGradient(gradient)
+                        }
+                    ),
                     resolver: resolver
                 )
                 UnitPointRow(title: "Start", point: linear(\.start, in: gradient))
