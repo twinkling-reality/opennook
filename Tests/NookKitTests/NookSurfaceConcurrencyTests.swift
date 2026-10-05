@@ -235,9 +235,17 @@ final class NookSurfaceConcurrencyTests: XCTestCase {
     func testContentArrivalAddsEachStatesDelays() {
         let nook = makeNook()
         let hideDwell = nook.intermediateHideDuration
-        nook.transitionConfiguration.expandedContentTransition = NookContentTransition(blurRadius: 6, scale: 0.72, delay: 0.2)
+        nook.transitionConfiguration.expandedContentTransition = NookContentTransition(
+            blurRadius: 6,
+            scale: 0.72,
+            delay: 0.2
+        )
         nook.transitionConfiguration.expandedEntranceDuration = 0.3
-        nook.transitionConfiguration.compactContentTransition = NookContentTransition(blurRadius: 6, scale: 0, delay: 0.1)
+        nook.transitionConfiguration.compactContentTransition = NookContentTransition(
+            blurRadius: 6,
+            scale: 0,
+            delay: 0.1
+        )
 
         XCTAssertEqual(nook.contentArrivalDuration(for: .expanded), .seconds(0.5))
         XCTAssertEqual(nook.contentArrivalDuration(for: .compact), .seconds(0.1))
@@ -258,7 +266,11 @@ final class NookSurfaceConcurrencyTests: XCTestCase {
         let nook = makeSlowNook()
         await nook.compact(on: screen)
         nook.transitionConfiguration.skipIntermediateHides = true
-        nook.transitionConfiguration.expandedContentTransition = NookContentTransition(blurRadius: 6, scale: 0.72, delay: 0.25)
+        nook.transitionConfiguration.expandedContentTransition = NookContentTransition(
+            blurRadius: 6,
+            scale: 0.72,
+            delay: 0.25
+        )
         nook.transitionConfiguration.expandedEntranceDuration = 0.25
 
         let clock = ContinuousClock()
