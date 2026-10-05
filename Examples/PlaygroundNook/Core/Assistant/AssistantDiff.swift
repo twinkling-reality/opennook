@@ -6,6 +6,7 @@
 // A copy is included at /LICENSE in the repository root.
 
 import Foundation
+import NookKit
 
 /// Works out what changed between two presets, in the vocabulary of the catalog.
 ///
@@ -59,6 +60,10 @@ public enum AssistantDiff {
             let oldJSON = AssistantProposal.value(at: field.path.components[...], in: base) ?? .null
             let newJSON = AssistantProposal.value(at: field.path.components[...], in: proposed) ?? .null
             guard oldJSON != newJSON else { continue }
+            if case .tokenOverrides = field.kind {
+                changes += tokenChanges(field, from: oldJSON, to: newJSON)
+                continue
+            }
             changes.append(
                 AssistantChange(
                     id: field.path.text,
@@ -75,6 +80,66 @@ public enum AssistantDiff {
             )
         }
         return changes
+    }
+
+    /// One row per token whose override changed, so each can be switched off on its own. The row
+    /// sits at the token's own key under the tokens object, which is where switching it off puts
+    /// the old value back; an absent override goes back as `null`, which the preset reads as none.
+    private static func tokenChanges(
+        _ field: AssistantField,
+        from base: AssistantJSON,
+        to proposed: AssistantJSON
+    ) -> [AssistantChange] {
+        var ids: [String] = []
+        for member in (base.members ?? []) + (proposed.members ?? []) where !ids.contains(member.name) {
+            ids.append(member.name)
+        }
+        var changes: [AssistantChange] = []
+        for id in ids.sorted() {
+            let oldJSON = base[id] ?? .null
+            let newJSON = proposed[id] ?? .null
+            guard oldJSON != newJSON else { continue }
+            let path = AssistantFieldPath(components: field.path.components + [.key(id)])
+            let unit = NookTokenDescriptor.named(id)?.unit
+            changes.append(
+                AssistantChange(
+                    id: field.path.text + "[\(id)]",
+                    group: field.group,
+                    kind: .value,
+                    subject: nil,
+                    title: id,
+                    oldValue: tokenValue(oldJSON, unit: unit),
+                    newValue: tokenValue(newJSON, unit: unit),
+                    location: .field(path),
+                    oldJSON: oldJSON,
+                    newJSON: newJSON
+                )
+            )
+        }
+        return changes
+    }
+
+    /// A token's JSON as a row shows it: a swatch for a hex color, a number with its unit, and
+    /// anything else as compact JSON.
+    private static func tokenValue(_ json: AssistantJSON, unit: NookTokenDescriptor.Unit?) -> AssistantChange.Value {
+        switch json {
+            case .null:
+                return .none
+            case .number(let number):
+                let fieldUnit: AssistantField.Unit =
+                    switch unit {
+                        case .points?: .points
+                        case .opacity?: .fraction
+                        case .seconds?: .seconds
+                        case .tracking?, nil: .none
+                    }
+                return .number(number, fieldUnit)
+            case .string(let text):
+                if let color = PlaygroundColor(hex: text) { return .color(color) }
+                return .text(text)
+            default:
+                return .text(json.compactText)
+        }
     }
 
     // MARK: - Companions
@@ -280,6 +345,12 @@ public enum AssistantDiff {
             case .choice:
                 guard let name = json.stringValue else { return .none }
                 return .choice(AssistantWording.choiceTitle(name))
+            case .backdrop:
+                guard let kind = json["kind"]?.stringValue else { return .none }
+                return .choice(AssistantWording.choiceTitle(kind))
+            case .tokenOverrides:
+                let count = json.members?.count ?? 0
+                return .text(count == 1 ? "1 override" : "\(count) overrides")
         }
     }
 }

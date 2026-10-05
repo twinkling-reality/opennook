@@ -34,7 +34,11 @@ public enum AssistantPrompt {
         What you can change is the chrome around the content: the palette and material, the theme \
         colors, the type design, the panel's width and corners and insets, the top bar and what sits \
         in it, companion surfaces floated beside the panel, the rim glow, the scroll edge fade, and \
-        how it behaves on hover.
+        how it behaves on hover. Underneath those, the theme can paint a gradient, mesh, or glass \
+        backdrop, and any single theme token can be overridden by its id under \
+        settings.theme.tokens: a spacing step, a component's corners or font or spring, a content \
+        transition, a sound, the chrome's shadow. Prefer the named settings where one fits, and \
+        reach for a token only for what they do not cover.
 
         Companions are where controls live outside the panel, and you can compose them freely: a \
         companion holds items (glyph buttons, labels, and the nook's own lock and gear) in a row or a \

@@ -16,6 +16,7 @@ import SwiftUI
 struct TopBarPage: View {
     @ObservedObject var model: PlaygroundModel
     @AppStorage("playground.topBar.showsLabels") private var showsLabels = false
+    @AppStorage("playground.topBar.showsSymbols") private var showsSymbols = false
 
     private static let iconSuggestions = [
         "house", "music.note", "sun.max", "calendar", "bolt.fill", "sparkles", "timer", "tray.full", "bell",
@@ -101,6 +102,25 @@ struct TopBarPage: View {
                 TextRow(title: "Lock tooltip", text: $model.settings.labels.keepOpenHelp)
                 TextRow(title: "Gear tooltip", text: $model.settings.labels.settingsHelp)
                 TextRow(title: "Close tooltip", text: $model.settings.labels.dismissHelp)
+                ForEach(PlaygroundSettings.Labels.GroupTitle.allCases, id: \.self) { group in
+                    TextRow(title: group.title, text: groupTitle(group), prompt: group.defaultTitle)
+                }
+            }
+
+            CollapsibleCard(
+                title: "Symbols",
+                help: "The SF Symbols the top bar draws for the lock, the gear, and the breadcrumb.",
+                isExpanded: $showsSymbols,
+                isModified: PlaygroundSettings.TopBar.Symbol.allCases.contains { topBar[$0] != nil },
+                reset: {
+                    for symbol in PlaygroundSettings.TopBar.Symbol.allCases {
+                        model.settings.topBar[symbol] = nil
+                    }
+                }
+            ) {
+                ForEach(PlaygroundSettings.TopBar.Symbol.allCases, id: \.self) { symbol in
+                    SymbolRow(symbol: symbol, name: $model.settings.topBar[symbol])
+                }
             }
 
             SectionCard(title: "Banner Preview") {
@@ -124,6 +144,17 @@ struct TopBarPage: View {
 
     private var topBar: PlaygroundSettings.TopBar { model.settings.topBar }
     private var defaults: PlaygroundSettings.TopBar { .init() }
+
+    /// A Settings group title as text: empty reads as the framework's title.
+    private func groupTitle(_ group: PlaygroundSettings.Labels.GroupTitle) -> Binding<String> {
+        Binding(
+            get: { model.settings.labels[group] ?? "" },
+            set: { title in
+                let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+                model.settings.labels[group] = trimmed.isEmpty || trimmed == group.defaultTitle ? nil : title
+            }
+        )
+    }
 
     private var bannerIsShown: Bool {
         topBar.showsTopBar && topBar.showsStatusBanner
@@ -228,11 +259,94 @@ struct TopBarPage: View {
     }
 }
 
+extension PlaygroundSettings.Labels.GroupTitle {
+    fileprivate var title: String {
+        switch self {
+            case .appearanceTitle: "Appearance group"
+            case .displayTitle: "Display group"
+            case .shortcutTitle: "Shortcut group"
+            case .dataTitle: "Data group"
+            case .aboutTitle: "About group"
+        }
+    }
+}
+
+/// One of the top bar's SF Symbols: a name, a preview, and the framework's own as the prompt.
+private struct SymbolRow: View {
+    let symbol: PlaygroundSettings.TopBar.Symbol
+    @Binding var name: String?
+
+    var body: some View {
+        ControlRow(title: title, help: help, isModified: name != nil) {
+            HStack(spacing: 8) {
+                TextField(title, text: text, prompt: Text(symbol.defaultName ?? "Leading icon"))
+                    .labelsHidden()
+                    .playgroundField()
+                preview
+            }
+        } reset: {
+            name = nil
+        }
+    }
+
+    private var title: String {
+        switch symbol {
+            case .keepOpenOnSymbol: "Locked"
+            case .keepOpenOffSymbol: "Unlocked"
+            case .settingsSymbol: "Gear"
+            case .breadcrumbSeparatorSymbol: "Separator"
+            case .backSymbol: "Back"
+        }
+    }
+
+    private var help: String {
+        switch symbol {
+            case .keepOpenOnSymbol: "The lock while the nook stays open."
+            case .keepOpenOffSymbol: "The lock while the nook closes on its own."
+            case .settingsSymbol: "The gear that opens Settings."
+            case .breadcrumbSeparatorSymbol: "Between the title and the Settings breadcrumb."
+            case .backSymbol: "The leading glyph in Settings, which goes back. Empty keeps the leading icon."
+        }
+    }
+
+    private var text: Binding<String> {
+        Binding(
+            get: { name ?? "" },
+            set: { newName in
+                let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+                name = trimmed.isEmpty ? nil : trimmed
+            }
+        )
+    }
+
+    private var preview: some View {
+        Group {
+            if let shown = name ?? symbol.defaultName {
+                if NSImage(systemSymbolName: shown, accessibilityDescription: nil) != nil {
+                    Image(systemName: shown)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Image(systemName: "exclamationmark.triangle")
+                        .foregroundStyle(.orange)
+                        .help("No SF Symbol has this name, so the top bar draws nothing here")
+                }
+            } else {
+                Image(systemName: "seal")
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .font(.system(size: 13, weight: .light))
+        .frame(width: 18)
+    }
+}
+
 // MARK: - Effects
 
 /// `NookConfiguration.rimGlow` and `scrollEdgeFade`, with demos for both.
 struct EffectsPage: View {
     @ObservedObject var model: PlaygroundModel
+
+    @ObservedObject var appState: AppState
 
     private let rimDefaults = PlaygroundSettings.RimGlow()
     private let fadeDefaults = PlaygroundSettings.ScrollEdgeFade()
@@ -320,7 +434,38 @@ struct EffectsPage: View {
                     help: "A scrolling list and tag row in the nook to try the fade on."
                 )
             }
+
+            SectionCard(
+                title: "Shadow",
+                help: "A shadow the chrome casts, the theme's shadow.chrome token. Off is none, as the framework draws it.",
+                isModified: model.settings.theme.tokens[.chrome] != nil,
+                reset: { model.settings.theme.tokens[.chrome] = nil }
+            ) {
+                SwitchRow(title: "Cast a shadow", isOn: castsShadow)
+                if model.settings.theme.tokens[.chrome] != nil {
+                    ShadowSpecEditor(value: shadow, resolver: resolver)
+                }
+            }
         }
+    }
+
+    private var castsShadow: Binding<Bool> {
+        Binding(
+            get: { model.settings.theme.tokens[.chrome] != nil },
+            set: { model.settings.theme.tokens[.chrome] = $0 ? NookShadowSpec() : nil }
+        )
+    }
+
+    private var shadow: Binding<NookShadowSpec> {
+        Binding(
+            get: { model.settings.theme.tokens[.chrome] ?? NookShadowSpec() },
+            set: { model.settings.theme.tokens[.chrome] = $0 }
+        )
+    }
+
+    private var resolver: ThemeColorResolver {
+        let theme = model.settings.theme.nookTheme
+        return ThemeColorResolver(theme: theme, context: TokensPage.context(for: theme, appState: appState))
     }
 
     private var rimColor: Binding<Color> {

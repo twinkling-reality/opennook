@@ -6,6 +6,7 @@
 // A copy is included at /LICENSE in the repository root.
 
 import Foundation
+import NookKit
 
 /// Why a patch could not be turned into a preset. Each case carries the JSON path of the value at
 /// fault, in the same dotted form the field guide uses, so ``repairRequest`` can hand the model a
@@ -22,6 +23,8 @@ public enum AssistantPatchError: Error, Equatable, LocalizedError {
     case invalidValue(detail: String)
     /// A companion the patch adds does not say what it holds.
     case missingItems(companion: String)
+    /// A token override names a token the framework does not define.
+    case unknownToken(id: String)
 
     public var errorDescription: String? {
         switch self {
@@ -35,6 +38,8 @@ public enum AssistantPatchError: Error, Equatable, LocalizedError {
                 "The patch has a value the playground cannot use: \(detail)."
             case .missingItems(let companion):
                 "The new companion \(companion) has no items."
+            case .unknownToken(let id):
+                "There is no theme token called \(id)."
         }
     }
 
@@ -55,6 +60,9 @@ public enum AssistantPatchError: Error, Equatable, LocalizedError {
             case .missingItems(let companion):
                 "The new companion \(companion) needs its items: list what it holds in its items. Answer "
                     + "with the corrected JSON object and nothing else."
+            case .unknownToken(let id):
+                "There is no theme token called \(id). Remove it, or use the closest id from the token list. "
+                    + "Answer with the corrected JSON object and nothing else."
         }
     }
 }
@@ -170,6 +178,10 @@ public enum AssistantPatch {
         let index = AssistantPatchIndex.shared
 
         if index.isLeaf(path) {
+            if let field = AssistantSettingsCatalog.field(at: path), field.isStructured {
+                try validateStructured(json, of: field)
+                return
+            }
             switch json {
                 case .object, .array:
                     throw AssistantPatchError.wrongShape(path: path.text, expected: "a single value")
@@ -201,6 +213,30 @@ public enum AssistantPatch {
                 throw AssistantPatchError.unknownField(path: child.text)
             }
             try validate(member.value, at: child)
+        }
+    }
+}
+
+extension AssistantPatch {
+    /// A field that holds an object: a backdrop must be an object or null, and token overrides
+    /// an object whose every id the framework's registry defines. What each value holds is left
+    /// to the preset decoder, which names the path of a value of the wrong kind.
+    fileprivate static func validateStructured(_ json: AssistantJSON, of field: AssistantField) throws {
+        switch field.kind {
+            case .tokenOverrides:
+                guard case .object(let members) = json else {
+                    throw AssistantPatchError.wrongShape(path: field.path.text, expected: "an object keyed by token id")
+                }
+                for member in members where NookTokenDescriptor.named(member.name) == nil {
+                    throw AssistantPatchError.unknownToken(id: member.name)
+                }
+            case .backdrop:
+                switch json {
+                    case .object, .null: return
+                    default: throw AssistantPatchError.wrongShape(path: field.path.text, expected: "an object or null")
+                }
+            case .number, .flag, .text, .color, .choice:
+                return
         }
     }
 }

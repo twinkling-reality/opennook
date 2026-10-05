@@ -83,6 +83,7 @@ extension PlaygroundPage {
     enum Group: CaseIterable, Identifiable {
         case look
         case chrome
+        case advanced
         case share
 
         var id: Self { self }
@@ -91,6 +92,7 @@ extension PlaygroundPage {
             switch self {
                 case .look: "Look"
                 case .chrome: "Chrome"
+                case .advanced: "Advanced"
                 case .share: "Share"
             }
         }
@@ -104,6 +106,7 @@ extension PlaygroundPage {
         switch self {
             case .appearance, .theme, .panel, .typeAndMotion: .look
             case .topBar, .companions, .effects, .behavior: .chrome
+            case .tokens: .advanced
             case .presets: .share
         }
     }

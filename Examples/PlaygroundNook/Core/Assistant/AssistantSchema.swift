@@ -102,8 +102,11 @@ public enum AssistantSchema {
                 if field.isNullable {
                     line += " or null"
                 }
-                line += ", default \(field.defaultValue.text). \(field.summary)"
+                line += ", default \(field.defaultValue.compactText). \(field.summary)"
                 lines.append(line)
+                if case .tokenOverrides = field.kind {
+                    lines += AssistantTokenCatalog.guideLines
+                }
             }
         }
         return lines.dropFirst().joined(separator: "\n")
@@ -222,9 +225,13 @@ private struct SchemaNode {
             case .choice(let choices):
                 members.append(AssistantJSON.Member("type", Self.typeName("string", nullable: field.isNullable)))
                 members.append(AssistantJSON.Member("enum", .array(choices.map { .string($0) })))
+            case .tokenOverrides:
+                members += AssistantTokenCatalog.schemaMembers
+            case .backdrop:
+                members += AssistantTokenCatalog.backdropSchemaMembers
         }
 
-        description += " Default \(field.defaultValue.text)."
+        description += " Default \(field.defaultValue.compactText)."
         members.append(AssistantJSON.Member("description", .string(description)))
         return .object(members)
     }

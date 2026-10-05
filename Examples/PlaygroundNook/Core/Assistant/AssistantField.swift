@@ -90,6 +90,12 @@ public struct AssistantField: Sendable, Equatable, Identifiable {
         case color
         /// One of a fixed set of names, in the order the playground lists them.
         case choice([String])
+        /// An object of theme token overrides keyed by token id, each value in the form a theme
+        /// file writes it, validated against the framework's token registry. `null` for an id
+        /// removes its override.
+        case tokenOverrides
+        /// A theme backdrop description: an object with a `kind`, as a theme file writes it.
+        case backdrop
     }
 
     /// What a number counts, so the guide can say `pt` rather than leave it to be guessed.
@@ -138,6 +144,15 @@ public struct AssistantField: Sendable, Equatable, Identifiable {
 
     public var id: String { path.text }
 
+    /// Whether the field holds an object rather than a single value. A patch writes such a
+    /// field as an object, and a preset's keys below it are the field's own.
+    public var isStructured: Bool {
+        switch kind {
+            case .tokenOverrides, .backdrop: true
+            case .number, .flag, .text, .color, .choice: false
+        }
+    }
+
     /// The type name the field guide prints: `number`, `true or false`, `text`, `color`, or the
     /// choices themselves.
     public var typeDescription: String {
@@ -163,6 +178,10 @@ public struct AssistantField: Sendable, Equatable, Identifiable {
                 return "color such as \"#1C1C1E\""
             case .choice(let choices):
                 return choices.map { "\"\($0)\"" }.joined(separator: " | ")
+            case .tokenOverrides:
+                return "object of token overrides keyed by token id"
+            case .backdrop:
+                return "backdrop object with a \"kind\""
         }
     }
 }

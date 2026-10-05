@@ -24,6 +24,7 @@ public enum AssistantFieldGroup: String, CaseIterable, Sendable, Identifiable {
     case companions
     case effects
     case behavior
+    case tokens
 
     public var id: String { rawValue }
 
@@ -38,6 +39,7 @@ public enum AssistantFieldGroup: String, CaseIterable, Sendable, Identifiable {
             case .companions: "Companions"
             case .effects: "Effects"
             case .behavior: "Behavior"
+            case .tokens: "Tokens"
         }
     }
 }
@@ -154,7 +156,89 @@ public enum AssistantSettingsCatalog {
                 nullable: true,
                 "How springy the chrome's animations are: calm has no overshoot, expressive has more; null is standard."
             ),
+            choice(
+                "settings.theme.fontWidth",
+                of: NookFontWidth.self,
+                nullable: true,
+                "The width of the chrome's text, from compressed to expanded; null is standard."
+            ),
+            number(
+                "settings.theme.soundVolume",
+                nullable: true,
+                0,
+                1,
+                .fraction,
+                "Multiplies the volume of every sound the theme plays; null is full volume."
+            ),
+            flag(
+                "settings.theme.allowsUserAccent",
+                nullable: true,
+                "Whether the person's own accent choice replaces the theme's accent; null is true."
+            ),
+            flag(
+                "settings.theme.allowsUserSoundToggle",
+                nullable: true,
+                "Whether the person may turn the theme's sounds off; null is true."
+            ),
+            choice(
+                "settings.theme.palette",
+                of: NookChromePalette.self,
+                nullable: true,
+                "Pins the chrome to dark, light, or the system appearance over the person's choice; null leaves it to "
+                    + "them."
+            ),
+            choice(
+                "settings.theme.surface",
+                of: NookSurfaceStyle.self,
+                nullable: true,
+                "Pins the surface over the person's choice; null leaves it to them."
+            ),
+            number(
+                "settings.theme.backdropStrength",
+                nullable: true,
+                0.15,
+                1,
+                .fraction,
+                "Pins the backdrop strength over the person's choice; null leaves it to them."
+            ),
+            text(
+                "settings.theme.name",
+                nullable: true,
+                "The theme's display name, written into a theme file."
+            ),
         ]
+        for (slot, style) in [("solid", "solid"), ("translucent", "translucent"), ("liquidGlass", "Liquid Glass")] {
+            fields.append(
+                AssistantField(
+                    path: AssistantFieldPath("settings.theme.backdrops.\(slot)"),
+                    group: .theme,
+                    kind: .backdrop,
+                    summary: "What the chrome paints behind its content on the \(style) surface. "
+                        + AssistantTokenCatalog.backdropForm,
+                    defaultValue: .null,
+                    isNullable: true
+                )
+            )
+        }
+        fields.append(
+            choice(
+                "settings.theme.backdrops.glassShading",
+                of: PlaygroundSettings.Behavior.GlassShading.self,
+                nullable: true,
+                "How the framework's Liquid Glass is shaded under this theme; null leaves it to the Behavior page."
+            )
+        )
+        fields.append(
+            AssistantField(
+                path: AssistantFieldPath("settings.theme.tokens"),
+                group: .tokens,
+                kind: .tokenOverrides,
+                summary: "Overrides of single theme tokens by id, for anything the other settings do not reach: a "
+                    + "spacing step, a banner's corners, a component's font or spring, content transitions, sounds, "
+                    + "the chrome's shadow. List only the ids you change; null removes an override.",
+                defaultValue: .object([AssistantJSON.Member]())
+            )
+        )
         return fields
     }
 
@@ -399,6 +483,14 @@ public enum AssistantSettingsCatalog {
                 "The tooltip on the control that closes the panel."
             ),
         ]
+            + PlaygroundSettings.Labels.GroupTitle.allCases.map { group in
+                text(
+                    "settings.labels.\(group.rawValue)",
+                    nullable: true,
+                    "The title of the Settings screen's \(AssistantWording.sentenceCase(group.rawValue).lowercased()) "
+                        + "group; null is \"\(group.defaultTitle)\"."
+                )
+            }
     }
 
     private static var topBarFields: [AssistantField] {
@@ -461,6 +553,24 @@ public enum AssistantSettingsCatalog {
                 isNullable: true
             ),
         ]
+            + PlaygroundSettings.TopBar.Symbol.allCases.map { symbol in
+                text("settings.topBar.\(symbol.rawValue)", nullable: true, symbolSummary(symbol))
+            }
+    }
+
+    private static func symbolSummary(_ symbol: PlaygroundSettings.TopBar.Symbol) -> String {
+        switch symbol {
+            case .keepOpenOnSymbol:
+                "The SF Symbol of the lock while the nook stays open; null is \"lock.fill\"."
+            case .keepOpenOffSymbol:
+                "The SF Symbol of the lock while the nook closes on its own; null is \"lock.open\"."
+            case .settingsSymbol:
+                "The SF Symbol of the gear; null is \"gearshape\"."
+            case .breadcrumbSeparatorSymbol:
+                "The SF Symbol between the title and the Settings breadcrumb; null is \"chevron.right\"."
+            case .backSymbol:
+                "The SF Symbol of the leading glyph in Settings, which goes back; null keeps the leading icon."
+        }
     }
 
     private static var companionFields: [AssistantField] {
@@ -838,6 +948,7 @@ public enum AssistantSettingsCatalog {
     /// group argument and cannot disagree with the path.
     private static func inferredGroup(_ path: String) -> AssistantFieldGroup {
         if path.hasPrefix("appearance.") { return .appearance }
+        if path == "settings.theme.tokens" { return .tokens }
         if path.hasPrefix("settings.theme.") { return .theme }
         if path.hasPrefix("settings.panel.") || path.hasPrefix("settings.metrics.") { return .panel }
         if path.hasPrefix("settings.typography.") || path.hasPrefix("settings.motion.") { return .typeAndMotion }
@@ -925,6 +1036,18 @@ public enum AssistantSettingsCatalog {
             kind: .text,
             summary: summary,
             defaultValue: .string(defaultValue)
+        )
+    }
+
+    /// Text that is null until set.
+    private static func text(_ path: String, nullable: Bool, _ summary: String) -> AssistantField {
+        AssistantField(
+            path: AssistantFieldPath(path),
+            group: inferredGroup(path),
+            kind: .text,
+            summary: summary,
+            defaultValue: .null,
+            isNullable: nullable
         )
     }
 

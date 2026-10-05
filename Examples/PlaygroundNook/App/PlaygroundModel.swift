@@ -276,7 +276,10 @@ final class PlaygroundModel: ObservableObject {
                     preferences.keepNookOpen = keepsOpen
                 }
             case .theme:
-                settings.theme = .init()
+                // The tokens are the Tokens page's to reset.
+                var theme = PlaygroundSettings.Theme()
+                theme.tokens = settings.theme.tokens
+                settings.theme = theme
             case .panel:
                 settings.panel = .init()
                 settings.metrics = .init()
@@ -295,8 +298,11 @@ final class PlaygroundModel: ObservableObject {
             case .effects:
                 settings.rimGlow = .init()
                 settings.scrollEdgeFade = .init()
+                settings.theme.tokens[.chrome] = nil
             case .behavior:
                 settings.behavior = .init()
+            case .tokens:
+                settings.theme.tokens = .init()
             case .presets:
                 return
         }
