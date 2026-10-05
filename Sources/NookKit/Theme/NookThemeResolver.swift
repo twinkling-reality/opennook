@@ -118,6 +118,8 @@ public struct NookResolvedTokens: Sendable {
     let transitions: [NookTransitionID: NookResolvedContentTransition]
     let sounds: [NookSoundID: NookSoundSpec]
     let shadows: [NookShadowID: NookShadowSpec]
+    /// The transitions the theme writes itself, rather than leaving at their defaults.
+    let writtenTransitions: Set<NookTransitionID>
 
     /// The number `id` resolves to, or 0 for an id the framework does not define.
     public subscript(id: NookDimensionID) -> CGFloat {
@@ -212,16 +214,23 @@ public struct NookResolvedTokens: Sendable {
         )
     }
 
-    /// The surface's expand, collapse, and conversion curves. With ``NookTheme/standard``
-    /// these are the framework's default springs.
+    /// The surface's expand, collapse, and conversion curves, and how content arrives and
+    /// leaves. With ``NookTheme/standard`` these are the framework's default springs and the
+    /// surface's own content transitions.
     ///
-    /// The content transitions come from `motion.content.enter` (expanded content, scaled
-    /// vertically) and `motion.compact.transition` (compact slots, scaled horizontally): the
-    /// surface plays one transition each way, so `motion.content.exit`, the anchors, offsets,
-    /// curves, delays, and stagger of the content tokens are not drawn by the surface yet.
+    /// The expanded content arrives with `motion.content.enter`, `motion.content.enterDelay`
+    /// seconds after the chrome starts growing, and leaves with `motion.content.exit` when the
+    /// theme writes one (with `motion.content.enter` in reverse when it does not, as before
+    /// exits existed). The compact slots arrive and leave with `motion.compact.transition`.
+    /// Each plays on its token's curve, or the surface's when it names none. The surface scales
+    /// expanded content vertically and compact slots horizontally, so it draws a token's blur,
+    /// fade, curve, and `scaleY` (expanded) or `scaleX` (compact); anchors and offsets are
+    /// fixed by where the content sits.
     public var transitionConfiguration: NookTransitionConfiguration {
-        let expanded = transition(.contentEnter)
+        let enter = transition(.contentEnter)
         let compact = transition(.compactContent)
+        let removal: NookContentTransition? =
+            writtenTransitions.contains(.contentExit) ? Self.expandedContentTransition(transition(.contentExit)) : nil
         return NookTransitionConfiguration(
             openingAnimation: self[.transitionOpen],
             closingAnimation: self[.transitionClose],
@@ -229,15 +238,30 @@ public struct NookResolvedTokens: Sendable {
             compactContentTransition: NookContentTransition(
                 blurRadius: compact.blur,
                 scale: compact.scaleX,
-                fades: compact.opacity < 1
+                fades: compact.opacity < 1,
+                animation: compact.animation
             ),
-            expandedContentTransition: NookContentTransition(
-                blurRadius: expanded.blur,
-                scale: expanded.scaleY,
-                fades: expanded.opacity < 1
-            )
+            expandedContentTransition: Self.expandedContentTransition(enter, delay: Double(self[.contentEnterDelay])),
+            expandedContentRemoval: removal
         )
     }
+
+    /// `transition` as the surface plays expanded content: scaled vertically.
+    private static func expandedContentTransition(
+        _ transition: NookResolvedContentTransition,
+        delay: TimeInterval = 0
+    ) -> NookContentTransition {
+        NookContentTransition(
+            blurRadius: transition.blur,
+            scale: transition.scaleY,
+            fades: transition.opacity < 1,
+            animation: transition.animation,
+            delay: delay
+        )
+    }
+
+    /// `true` when the theme plays at least one sound.
+    var hasSounds: Bool { !sounds.isEmpty }
 
     /// The wash behind expanded content that lights the chrome with `nookAmbientColor(_:)`.
     /// With ``NookTheme/standard`` this equals `NookAmbientWash.standard`.
@@ -538,7 +562,8 @@ final class NookThemeResolver {
             animations: animations,
             transitions: transitions,
             sounds: sounds,
-            shadows: shadows
+            shadows: shadows,
+            writtenTransitions: Set(theme.tokens.transitions.keys)
         )
     }
 }

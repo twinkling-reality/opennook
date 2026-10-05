@@ -109,11 +109,13 @@ extension NookDimensionID {
     public static let compactBottomRadius: NookDimensionID = "shape.compact.bottomRadius"
     /// The floating panel's corner radius. Default the expanded chrome's bottom radius, as today.
     public static let floatingExpandedRadius: NookDimensionID = "shape.floating.expandedRadius"
-    /// Seconds the expanded content waits before entering. Default 0, as today.
+    /// Seconds the expanded content waits, after the chrome starts growing, before entering.
+    /// Default 0, as today.
     public static let contentEnterDelay: NookDimensionID = "motion.content.enterDelay"
-    /// Seconds the top bar waits after the content starts entering. Default 0, as today.
+    /// Seconds the framework top bar waits after the content starts entering. Default 0, as today.
     public static let headerDelay: NookDimensionID = "motion.header.delay"
-    /// Seconds between successive items entering. Default 0, as today.
+    /// Seconds between successive rows entering, for rows marked with `nookStaggered(index:)`.
+    /// Default 0, as today.
     public static let stagger: NookDimensionID = "motion.stagger"
     /// The ambient wash's opacity at the top of the expanded panel, where content lights it with
     /// `nookAmbientColor(_:)`. Default 0.34.
@@ -417,6 +419,7 @@ extension NookAnimationID {
 
 extension NookTransitionID {
     /// How expanded content leaves. Default fade, blur 6, vertical scale 0.72 from the top, on the surface's curve.
+    /// A theme that does not write it leaves with `motion.content.enter` in reverse.
     public static let contentExit: NookTransitionID = "motion.content.exit"
     /// How expanded content enters. Default the same as it leaves.
     public static let contentEnter: NookTransitionID = "motion.content.enter"

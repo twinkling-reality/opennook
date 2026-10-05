@@ -26,6 +26,11 @@ struct ModuleRouterExpandedView: View {
     /// What the lock and gear do, for host content that shows them outside the top bar.
     var chromeActions: NookChromeActions = .inert
 
+    /// When the surface inserted this view: the start of the content's entrance. The surface
+    /// inserts it each time it expands and keeps it across a module switch, so a switch does
+    /// not replay the entrance's waits.
+    @State private var entranceStart = Date()
+
     var body: some View {
         let configuration = moduleHost.displayedConfiguration
         NookExpandedView(
@@ -59,6 +64,13 @@ struct ModuleRouterExpandedView: View {
         // `ModuleHost`; surface it so the chrome can read it without an init-time plumb.
         .environment(\.nookHostBranding, moduleHost.branding)
         .environment(\.nookChromeActions, chromeActions)
+        .environment(
+            \.nookContentEntrance,
+            NookContentEntrance(
+                start: entranceStart,
+                delay: configuration.effectiveTransitions?.expandedContentTransition.delay ?? 0
+            )
+        )
     }
 
     /// The in-surface switcher payload, built only when the host opted into

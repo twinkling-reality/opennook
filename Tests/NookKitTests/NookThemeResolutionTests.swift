@@ -65,6 +65,10 @@ final class NookThemeResolutionTests: XCTestCase {
         XCTAssertEqual(transitions.skipIntermediateHides, expected.skipIntermediateHides)
         XCTAssertNil(transitions.animationDuration)
         XCTAssertNil(transitions.layoutGraceDuration)
+        XCTAssertEqual(transitions.expandedContentTransition, expected.expandedContentTransition)
+        XCTAssertEqual(transitions.compactContentTransition, expected.compactContentTransition)
+        XCTAssertNil(transitions.expandedContentRemoval)
+        XCTAssertNil(transitions.compactContentRemoval)
     }
 
     func testStandardSurfaceTokensMatchTheSurfaceToday() {
@@ -73,7 +77,8 @@ final class NookThemeResolutionTests: XCTestCase {
         XCTAssertEqual(tokens[.compactTopRadius], 6)
         XCTAssertEqual(tokens[.compactBottomRadius], 14)
         XCTAssertEqual(tokens[.floatingExpandedRadius], NookConfiguration.defaultStyle.bottomCornerRadius)
-        // No choreography today: content enters and leaves together, on the surface's curve.
+        // No choreography by default: content enters and leaves together, on the surface's
+        // curve, with no delay, header delay, or stagger.
         XCTAssertEqual(tokens[.contentEnterDelay], 0)
         XCTAssertEqual(tokens[.headerDelay], 0)
         XCTAssertEqual(tokens[.stagger], 0)
@@ -90,6 +95,7 @@ final class NookThemeResolutionTests: XCTestCase {
         for id in NookSoundID.allEvents {
             XCTAssertNil(tokens.sound(id), "\(id)")
         }
+        XCTAssertFalse(tokens.hasSounds)
         XCTAssertNil(tokens.shadow(.chrome))
     }
 

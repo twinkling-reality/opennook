@@ -27,6 +27,9 @@ final class AssistantCatalogCoverageTests: XCTestCase {
         // A working aid rather than part of a look. `PlaygroundPreset` clears it on the way in and
         // out, so a patch could not make it stick anyway.
         "appearance.keepNookOpen",
+        // The person's switch for a theme's sounds. The playground's theme has no sounds, so
+        // the switch changes nothing there; a catalog entry can come with playground sounds.
+        "appearance.soundsEnabled",
     ]
 
     // MARK: - Coverage

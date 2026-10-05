@@ -63,6 +63,22 @@ public final class AppCoordinator: ObservableObject {
         NSApplication.shared.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? .dark : .light
     }
 
+    /// Makes the player for the displayed theme's sounds, on first use (see ``soundPlayer``). A
+    /// seam for tests, which hand back a recording player.
+    var makeSoundPlayer: () -> any NookSoundPlaying = { NookSystemSoundPlayer() }
+
+    /// The sound player, once ``soundPlayer`` has made it.
+    private(set) var madeSoundPlayer: (any NookSoundPlaying)?
+
+    /// Plays the displayed theme's sounds. Made on first use, so a theme with no sounds never
+    /// makes one.
+    var soundPlayer: any NookSoundPlaying {
+        if let madeSoundPlayer { return madeSoundPlayer }
+        let player = makeSoundPlayer()
+        madeSoundPlayer = player
+        return player
+    }
+
     /// Arbitrates the surface between competing transient presenters - the activity
     /// queues and ambient indicators of every loaded module. Lazy because it captures
     /// `surface`; layered over ``enqueueLifecycle`` so it serializes nothing itself.
@@ -278,7 +294,8 @@ public final class AppCoordinator: ObservableObject {
                 collapse: { self.coordinator?.hideNook() },
                 resetSettings: { self.coordinator?.resetAllSettingsToDefaults() },
                 takeKeyboardFocus: { self.coordinator?.takeNookKeyboardFocus() },
-                releaseKeyboardFocus: { self.coordinator?.releaseNookKeyboardFocus() }
+                releaseKeyboardFocus: { self.coordinator?.releaseNookKeyboardFocus() },
+                playSound: { self.coordinator?.playSound($0) }
             )
         }
     }
@@ -360,6 +377,8 @@ public final class AppCoordinator: ObservableObject {
         // `pin()`/`release()` against a windowless coordinator depend on the
         // `staysExpandedOnHoverExit` override flipping without going through `start()`.
         bindPresentationPinning()
+        // The theme's sounds follow the surface from the start too, for the same reason.
+        bindSounds()
 
         coordinatorBox.coordinator = self
         // Project the active module's lifecycle callbacks onto the surface. The hooks
@@ -379,7 +398,8 @@ public final class AppCoordinator: ObservableObject {
             collapse: { [weak self] in self?.hideNook() },
             resetSettings: { [weak self] in self?.resetAllSettingsToDefaults() },
             takeKeyboardFocus: { [weak self] in self?.takeNookKeyboardFocus() },
-            releaseKeyboardFocus: { [weak self] in self?.releaseNookKeyboardFocus() }
+            releaseKeyboardFocus: { [weak self] in self?.releaseNookKeyboardFocus() },
+            playSound: { [weak self] id in self?.playSound(id) }
         )
     }
 
@@ -456,6 +476,7 @@ public final class AppCoordinator: ObservableObject {
             if self.moduleHost.chromeBehavior.showsLaunchShimmer {
                 // In the theme's feedback tint, which follows the accent.
                 self.surface.playFeedback(.shimmer, style: self.themedFeedbackStyle, duration: 1.1, repeats: false)
+                self.playSound(.feedback)
             }
         }
 
@@ -1467,9 +1488,14 @@ extension AppCoordinator: NookSurfacePresenting {
             .eraseToAnyPublisher()
     }
 
-    /// Grants or denies the claim through the `SurfaceArbiter`.
+    /// Grants or denies the claim through the `SurfaceArbiter`. A granted `.urgent` claim plays
+    /// the theme's `sound.alert`.
     public func beginTransientPresentation(_ claim: NookSurfaceClaim) async -> NookSurfaceToken? {
-        await arbiter.begin(claim)
+        let token = await arbiter.begin(claim)
+        if token != nil, claim.priority == .urgent {
+            playSound(.alert)
+        }
+        return token
     }
 
     /// Releases the claim through the `SurfaceArbiter`.

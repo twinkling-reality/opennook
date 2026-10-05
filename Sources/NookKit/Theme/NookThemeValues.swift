@@ -319,7 +319,9 @@ extension NookShadowSpec: Codable {
 
 // MARK: - Sound
 
-/// A sound a theme plays for a chrome event. Describes the sound only; nothing plays it yet.
+/// A sound a theme plays for a chrome event. ``AppCoordinator`` plays it when the event happens
+/// (see ``NookSoundID``), unless the person turned sounds off in Settings, and
+/// ``AppCoordinator/playSound(_:)`` plays one on demand.
 ///
 /// In a theme file:
 ///
@@ -330,7 +332,7 @@ extension NookShadowSpec: Codable {
 /// ```
 public struct NookSoundSpec: Equatable, Sendable {
     /// Where the sound comes from.
-    public enum Source: Equatable, Sendable {
+    public enum Source: Hashable, Sendable {
         /// A system sound, looked up with `NSSound(named:)`, such as `"Glass"` or `"Pop"`.
         case system(String)
         /// A resource in the app's main bundle, by file name.

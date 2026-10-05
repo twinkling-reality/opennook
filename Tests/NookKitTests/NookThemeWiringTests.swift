@@ -98,6 +98,13 @@ final class NookThemeWiringTests: XCTestCase {
         )
         XCTAssertEqual(surface.transitionConfiguration.compactContentTransition, .standardCompact)
         XCTAssertEqual(surface.transitionConfiguration.expandedContentTransition, .standardExpanded)
+        // One transition each way, on the surface's curve, arriving with the chrome.
+        XCTAssertNil(surface.transitionConfiguration.compactContentRemoval)
+        XCTAssertNil(surface.transitionConfiguration.expandedContentRemoval)
+        XCTAssertEqual(surface.transitionConfiguration.expandedContentTransition.delay, 0)
+        XCTAssertNil(surface.transitionConfiguration.expandedContentTransition.animation)
+        XCTAssertNil(AppCoordinator.defaultTransitions.expandedContentRemoval)
+        XCTAssertEqual(AppCoordinator.defaultTransitions.expandedContentTransition, .standardExpanded)
         XCTAssertEqual(surface.ambientWash, .standard)
         XCTAssertNil(surface.chromeShadow)
     }
@@ -107,6 +114,8 @@ final class NookThemeWiringTests: XCTestCase {
         let transitions = tokens.transitionConfiguration
         XCTAssertEqual(transitions.compactContentTransition, .standardCompact)
         XCTAssertEqual(transitions.expandedContentTransition, .standardExpanded)
+        XCTAssertNil(transitions.compactContentRemoval)
+        XCTAssertNil(transitions.expandedContentRemoval)
         XCTAssertEqual(tokens.ambientWash, .standard)
         XCTAssertEqual(tokens.style.compactTopCornerRadius, NookStyle.standardCompactTopCornerRadius)
         XCTAssertEqual(tokens.style.compactBottomCornerRadius, NookStyle.standardCompactBottomCornerRadius)

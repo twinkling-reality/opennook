@@ -9,8 +9,9 @@ import AppKit
 import Carbon.HIToolbox
 import SwiftUI
 
-/// The global shortcut, "Stay expanded", and haptic feedback - the body of the built-in
-/// Settings screen's "Shortcut & nook" group, for a host that builds its own Settings screen.
+/// The global shortcut, "Stay expanded", haptic feedback, and, while the chrome theme has
+/// sounds the person may turn off, "Sounds" - the body of the built-in Settings screen's
+/// "Shortcut & nook" group, for a host that builds its own Settings screen.
 ///
 /// Use it inside chrome content, which supplies the chrome's actions: "Stay expanded" runs
 /// ``NookChromeActions/toggleKeepOpen``, like the top bar's lock.
@@ -25,6 +26,8 @@ public struct NookShortcutSettingsSection: View {
     @Environment(\.nookChromeMetrics) private var metrics
     @Environment(\.nookChromeActions) private var actions
     @Environment(\.nookChromeLabels) private var labels
+    @Environment(\.nookTheme) private var chromeTheme
+    @Environment(\.nookThemeTokens) private var themeTokens
 
     public init(appState: AppState) {
         self.appState = appState
@@ -54,7 +57,37 @@ public struct NookShortcutSettingsSection: View {
                 accent: theme.accent,
                 action: toggleHapticFeedback
             )
+            if showsSoundsRow {
+                SettingActionLine(
+                    icon: soundsEnabled ? "speaker.wave.2.fill" : "speaker.slash",
+                    title: labels.shortcut.soundsTitle,
+                    detail: soundsEnabled ? labels.shortcut.soundsOn : labels.shortcut.soundsOff,
+                    accent: theme.accent,
+                    action: toggleSounds
+                )
+            }
         }
+    }
+
+    private var soundsEnabled: Bool {
+        appState.appearancePreferences.soundsEnabled
+    }
+
+    /// The "Sounds" row shows while the theme has sounds and lets the person turn them off -
+    /// and also while they are off, so a person who turned them off under another theme can
+    /// always turn them back on.
+    private var showsSoundsRow: Bool {
+        Self.showsSoundsRow(theme: chromeTheme, tokens: themeTokens, soundsEnabled: soundsEnabled)
+    }
+
+    static func showsSoundsRow(theme: NookTheme, tokens: NookResolvedTokens, soundsEnabled: Bool) -> Bool {
+        tokens.hasSounds && (theme.allowsUserSoundToggle || !soundsEnabled)
+    }
+
+    private func toggleSounds() {
+        var prefs = appState.appearancePreferences
+        prefs.soundsEnabled.toggle()
+        appState.replaceAppearancePreferences(prefs)
     }
 
     /// Flip the haptic preference and fire one pulse on the way *on* so the user feels

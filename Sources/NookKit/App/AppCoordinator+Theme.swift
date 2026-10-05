@@ -51,6 +51,7 @@ extension AppCoordinator {
             surface.ambientWash = wash
         }
         applyThemeColors()
+        preloadThemeSounds()
         bindThemeSources()
     }
 
@@ -114,13 +115,14 @@ extension AppCoordinator {
     }
 
     /// Plays a peripheral cue along the chrome's edge in the theme's `feedback.tint` - a sync
-    /// that finished, a background task that completed. A cue requested while the nook is
-    /// hidden plays the next time it shows.
+    /// that finished, a background task that completed - with the theme's `sound.feedback`. A
+    /// cue requested while the nook is hidden plays the next time it shows; its sound plays now.
     ///
     /// ```swift
     /// coordinator.playFeedback(.pulse)
     /// ```
     public func playFeedback(_ effect: NookFeedback = .shimmer, duration: TimeInterval = 0.85, repeats: Bool = false) {
         surface.playFeedback(effect, style: themedFeedbackStyle, duration: duration, repeats: repeats)
+        playSound(.feedback)
     }
 }

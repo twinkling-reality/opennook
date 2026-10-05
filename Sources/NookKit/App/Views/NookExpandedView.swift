@@ -235,6 +235,8 @@ public struct NookExpandedView: View {
             if topBar.showsTopBar {
                 topBarRow
                     .frame(minHeight: notchLayout.topBarMinHeight)
+                    // The theme's `motion.header.delay`: nothing at the default 0.
+                    .modifier(NookEntranceModifier(timing: .header))
 
                 if topBar.showsStatusBanner {
                     NookTransientStatusBanner(appState: appState, theme: resolvedTheme)
