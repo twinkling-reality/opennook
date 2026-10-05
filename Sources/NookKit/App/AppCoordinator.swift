@@ -647,8 +647,10 @@ public final class AppCoordinator: ObservableObject {
         breadcrumbOwnerID = displayedID
     }
 
-    /// Runs `work` under a hard deadline. Past `timeout` the work task is cancelled and
-    /// the timeout is logged via `print` - the coordinator does not fail the switch.
+    /// Runs `work` under a hard deadline. Past `timeout` the work task is cancelled, the
+    /// timeout is logged via `print`, and this returns at once - the coordinator does not fail
+    /// the switch, and it does not wait for work that ignores cancellation. Such work keeps
+    /// running, cancelled, until it returns on its own; nothing waits for it.
     ///
     /// `work` is `@MainActor` because every caller in `AppCoordinator` is - most notably
     /// the `prepareForSwitchAway` drain in ``performSwitch(to:)``, which calls a
@@ -671,22 +673,36 @@ public final class AppCoordinator: ObservableObject {
         _ work: @escaping @MainActor @Sendable () async -> Void
     ) async {
         let workTask = Task { @MainActor in await work() }
-        let timerTask = Task<Bool, Never> {
-            (try? await Task.sleep(for: timeout)) != nil
-        }
-        await withTaskGroup(of: Bool.self) { group in
-            group.addTask {
+        let race = TimeoutRace()
+        let finishedInTime = await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
+            race.continuation = continuation
+            race.timer = Task { @MainActor in
+                try? await Task.sleep(for: timeout)
+                race.finish(false)
+            }
+            Task { @MainActor in
                 await workTask.value
-                return false
+                race.finish(true)
             }
-            group.addTask { await timerTask.value }
-            if let timedOut = await group.next(), timedOut {
-                workTask.cancel()
-                print("[OpenNook] \(label) exceeded \(timeout); cancelled")
-            } else {
-                timerTask.cancel()
-            }
-            group.cancelAll()
+        }
+        if !finishedInTime {
+            workTask.cancel()
+            print("[OpenNook] \(label) exceeded \(timeout); cancelled")
+        }
+    }
+
+    /// The first of `runWithTimeout`'s work and timer to finish resumes its continuation; the
+    /// other finds it gone. Main-actor isolated, so the two never race on it.
+    @MainActor
+    private final class TimeoutRace {
+        var continuation: CheckedContinuation<Bool, Never>?
+        var timer: Task<Void, Never>?
+
+        func finish(_ inTime: Bool) {
+            guard let continuation else { return }
+            self.continuation = nil
+            if inTime { timer?.cancel() }
+            continuation.resume(returning: inTime)
         }
     }
 
