@@ -82,6 +82,12 @@ extension NookTheme {
         NookThemeResolver(theme: self).color(id, in: context)
     }
 
+    /// `color` resolved in `context`, its references looked up in this theme: how a
+    /// third party resolves a color it was handed, the `"accent"` placeholder included.
+    public func resolve(_ color: NookColorValue, in context: NookThemeContext) -> Color {
+        NookThemeResolver(theme: self).resolve(color, in: context, useOverrides: true)
+    }
+
     /// Every token that does not depend on the appearance, resolved: lengths, fonts,
     /// animations, transitions, sounds, and shadows, with the theme's knobs applied.
     public func resolvedTokens() -> NookResolvedTokens {
@@ -186,27 +192,66 @@ public struct NookResolvedTokens: Sendable {
     /// The chrome's shape. With ``NookTheme/standard`` this equals
     /// ``NookConfiguration/defaultStyle``.
     public var style: NookStyle {
-        NookStyle(
+        let bottom = self[.chromeBottomRadius]
+        let floating = self[.floatingExpandedRadius]
+        return NookStyle(
             topCornerRadius: self[.chromeTopRadius],
-            bottomCornerRadius: self[.chromeBottomRadius],
+            bottomCornerRadius: bottom,
             expandedContentInsets: NookEdgeInsets(
                 top: self[.chromeInsetTop],
                 bottom: self[.chromeInsetBottom],
                 leading: self[.chromeInsetLeading],
                 trailing: self[.chromeInsetTrailing]
-            )
+            ),
+            compactTopCornerRadius: self[.compactTopRadius],
+            compactBottomCornerRadius: self[.compactBottomRadius],
+            // The surface's own fallback for the floating card is the expanded bottom radius,
+            // which is also this token's default; leave it to the fallback unless it differs.
+            floatingExpandedTopCornerRadius: floating == bottom ? nil : floating,
+            floatingExpandedBottomCornerRadius: floating == bottom ? nil : floating
         )
     }
 
     /// The surface's expand, collapse, and conversion curves. With ``NookTheme/standard``
     /// these are the framework's default springs.
+    ///
+    /// The content transitions come from `motion.content.enter` (expanded content, scaled
+    /// vertically) and `motion.compact.transition` (compact slots, scaled horizontally): the
+    /// surface plays one transition each way, so `motion.content.exit`, the anchors, offsets,
+    /// curves, delays, and stagger of the content tokens are not drawn by the surface yet.
     public var transitionConfiguration: NookTransitionConfiguration {
-        NookTransitionConfiguration(
+        let expanded = transition(.contentEnter)
+        let compact = transition(.compactContent)
+        return NookTransitionConfiguration(
             openingAnimation: self[.transitionOpen],
             closingAnimation: self[.transitionClose],
-            conversionAnimation: self[.transitionConvert]
+            conversionAnimation: self[.transitionConvert],
+            compactContentTransition: NookContentTransition(
+                blurRadius: compact.blur,
+                scale: compact.scaleX,
+                fades: compact.opacity < 1
+            ),
+            expandedContentTransition: NookContentTransition(
+                blurRadius: expanded.blur,
+                scale: expanded.scaleY,
+                fades: expanded.opacity < 1
+            )
         )
     }
+
+    /// The wash behind expanded content that lights the chrome with `nookAmbientColor(_:)`.
+    /// With ``NookTheme/standard`` this equals `NookAmbientWash.standard`.
+    public var ambientWash: NookAmbientWash {
+        NookAmbientWash(
+            opacities: [
+                Double(self[.ambientWashTop]), Double(self[.ambientWashUpper]), Double(self[.ambientWashLower]),
+                Double(self[.ambientWashBottom]),
+            ]
+        )
+    }
+
+    /// The standard theme's tokens: every value the chrome used before themes existed.
+    public static let standard = NookTheme.standard.resolvedTokens()
 }
 
 /// A problem found while resolving a theme: a token that refers to one the framework does not
@@ -422,7 +467,7 @@ final class NookThemeResolver {
         } ?? resolve(token.value, in: context, useOverrides: false)
     }
 
-    private func resolve(_ value: NookColorValue, in context: NookThemeContext, useOverrides: Bool) -> Color {
+    func resolve(_ value: NookColorValue, in context: NookThemeContext, useOverrides: Bool) -> Color {
         switch value {
             case .hex(let rgba):
                 return rgba.color

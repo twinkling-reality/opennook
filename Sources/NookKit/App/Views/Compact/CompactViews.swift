@@ -64,6 +64,8 @@ struct NookCompactHost<Content: View>: View {
     let branding: NookHostBranding
     let chromeActions: NookChromeActions
     var symbols: NookChromeSymbols = .default
+    var chromeTheme: NookTheme = .standard
+    var themeTokens: NookResolvedTokens = .standard
     let content: () -> Content
 
     var body: some View {
@@ -79,7 +81,9 @@ struct NookCompactHost<Content: View>: View {
                     typography: typography,
                     branding: branding,
                     chromeActions: chromeActions,
-                    symbols: symbols
+                    symbols: symbols,
+                    chromeTheme: chromeTheme,
+                    themeTokens: themeTokens
                 )
             )
     }
@@ -101,9 +105,14 @@ struct NookChromeEnvironment: ViewModifier {
     /// The top bar's glyphs, for ``NookKeepOpenButton`` and ``NookSettingsButton`` placed
     /// here. See ``NookTopBarConfiguration/symbols``.
     var symbols: NookChromeSymbols = .default
+    var chromeTheme: NookTheme = .standard
+    var themeTokens: NookResolvedTokens = .standard
 
     func body(content: Content) -> some View {
         content
+            .environment(\.nookTheme, chromeTheme)
+            .environment(\.nookThemeTokens, themeTokens)
+            .environment(\.nookChromeColors, chromeTheme.liveChromeColors(appState: appState))
             .environment(\.nookResolvedTheme, theme)
             .environment(\.nookChromeLabels, labels)
             .environment(\.nookChromeMetrics, metrics)
@@ -119,6 +128,24 @@ struct NookChromeEnvironment: ViewModifier {
             .environment(\.controlActiveState, .active)
             .tint(theme.accent)
             .fontDesign(theme.fontDesign)
-            .preferredColorScheme(appState.appearancePreferences.chromeColorSchemeOverride)
+            .modifier(NookFontWidthModifier(width: chromeTheme.fontWidth))
+            // The theme's pinned palette, if it pins one, over the person's.
+            .preferredColorScheme(
+                chromeTheme.effectivePreferences(appState.appearancePreferences).chromeColorSchemeOverride
+            )
+    }
+}
+
+/// Cascades a theme's font width, adding nothing for the standard width so the default
+/// chrome's view tree is unchanged.
+struct NookFontWidthModifier: ViewModifier {
+    let width: NookFontWidth
+
+    func body(content: Content) -> some View {
+        if width == .standard {
+            content
+        } else {
+            content.fontWidth(width.width)
+        }
     }
 }

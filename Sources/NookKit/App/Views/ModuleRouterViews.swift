@@ -41,13 +41,15 @@ struct ModuleRouterExpandedView: View {
             settingsGroups: configuration.settingsGroups,
             topBar: configuration.topBar,
             labels: configuration.labels,
-            metrics: configuration.metrics,
-            motion: configuration.motion,
-            typography: configuration.typography,
+            metrics: configuration.effectiveMetrics,
+            motion: configuration.effectiveMotion,
+            typography: configuration.effectiveTypography,
             width: configuration.expandedWidth ?? NookLayout.width,
             // Only fold a switcher into the chrome when the host opted in; otherwise the
             // surface is untouched and switching lives in the menu bar / hotkeys.
-            moduleSwitcher: leadingClusterSwitcher
+            moduleSwitcher: leadingClusterSwitcher,
+            chromeTheme: configuration.effectiveChromeTheme,
+            themeTokens: configuration.effectiveThemeTokens
         )
         // Identity tracks the displayed module so a switch tears down the old content and
         // inserts the new - letting the transition cross-fade rather than diff in place.
@@ -101,12 +103,14 @@ struct ModuleRouterCompactView: View {
             theme: configuration.theme,
             services: moduleHost.displayedServices,
             labels: configuration.labels,
-            metrics: configuration.metrics,
-            motion: configuration.motion,
-            typography: configuration.typography,
+            metrics: configuration.effectiveMetrics,
+            motion: configuration.effectiveMotion,
+            typography: configuration.effectiveTypography,
             branding: moduleHost.branding,
             chromeActions: chromeActions,
             symbols: configuration.topBar.symbols,
+            chromeTheme: configuration.effectiveChromeTheme,
+            themeTokens: configuration.effectiveThemeTokens,
             content: content
         )
     }

@@ -221,7 +221,7 @@ public final class AppCoordinator: ObservableObject {
         let chromeActions = coordinatorBox.chromeActions
         return Nook<AnyView, AnyView, AnyView>(
             hoverBehavior: moduleHost.chromeBehavior.hoverBehavior,
-            style: moduleHost.configuration.style ?? NookConfiguration.defaultStyle,
+            style: moduleHost.displayedConfiguration.effectiveStyle,
             expanded: {
                 AnyView(
                     ModuleRouterExpandedView(
@@ -388,7 +388,7 @@ public final class AppCoordinator: ObservableObject {
             showSettings()
             return
         }
-        withAnimation(configuration.motion.viewModeChange) {
+        withAnimation(configuration.effectiveMotion.viewModeChange) {
             if appState.isSettingsView {
                 appState.showHome()
             } else {
@@ -421,7 +421,7 @@ public final class AppCoordinator: ObservableObject {
         }
 
         syncNotchBackdrop()
-        configureNotchAnimations()
+        applySurfaceLook()
         configureDisplayTargeting()
 
         registerGlobalHotkey()
@@ -450,7 +450,8 @@ public final class AppCoordinator: ObservableObject {
             // The greeting shimmer is opt-out: a host can launch silently while still
             // settling into the compact launch state. See `NookChromeBehavior`.
             if self.moduleHost.chromeBehavior.showsLaunchShimmer {
-                self.surface.playFeedback(.shimmer, duration: 1.1)
+                // In the theme's feedback tint, which follows the accent.
+                self.surface.playFeedback(.shimmer, style: self.themedFeedbackStyle, duration: 1.1, repeats: false)
             }
         }
 
@@ -537,6 +538,10 @@ public final class AppCoordinator: ObservableObject {
         applyModuleHooks(moduleHost.configuration)
         withAnimation(.easeInOut(duration: 0.22)) {
             applyModuleSurfaceDecorations(moduleHost.displayedConfiguration)
+            // The incoming module's chrome look - shape, curves, wash, shadow, backdrop, and
+            // window appearance - in the same animation as its content.
+            applySurfaceLook()
+            syncNotchBackdrop()
         }
 
         // 5. Drop a stranded `.settings` viewMode if the incoming module disables
@@ -599,6 +604,8 @@ public final class AppCoordinator: ObservableObject {
         guard moduleHost.presentBackgroundModule(top) else { return }
         handOffBreadcrumbIfNeeded()
         applyModuleSurfaceDecorations(moduleHost.displayedConfiguration)
+        applySurfaceLook()
+        syncNotchBackdrop()
     }
 
     /// Keeps ``AppState/moduleBreadcrumb`` with the module whose content is on the surface.
@@ -701,6 +708,11 @@ public final class AppCoordinator: ObservableObject {
         let services = moduleHost.displayedServices
         let branding = moduleHost.branding
         let chromeActions = chromeActions
+        let chromeTheme = configuration.effectiveChromeTheme
+        let themeTokens = configuration.effectiveThemeTokens
+        let metrics = configuration.effectiveMetrics
+        let motion = configuration.effectiveMotion
+        let typography = configuration.effectiveTypography
         var seen = Set<String>()
         var surfaces: [NookCompanionSurface] = []
         for companion in companions {
@@ -721,7 +733,7 @@ public final class AppCoordinator: ObservableObject {
                     visibility: companion.visibility,
                     shape: companion.shape,
                     backdrop: companion.backdrop,
-                    style: companion.style ?? configuration.companionStyle,
+                    style: themedCompanionStyle(companion.style ?? configuration.companionStyle, theme: chromeTheme),
                     size: companion.size ?? configuration.companionSize,
                     presence: companion.presence ?? configuration.companionPresence,
                     accessibilityLabel: companion.accessibilityLabel
@@ -732,11 +744,13 @@ public final class AppCoordinator: ObservableObject {
                         theme: configuration.theme,
                         services: services,
                         labels: configuration.labels,
-                        metrics: configuration.metrics,
-                        motion: configuration.motion,
-                        typography: configuration.typography,
+                        metrics: metrics,
+                        motion: motion,
+                        typography: typography,
                         branding: branding,
-                        chromeActions: chromeActions
+                        chromeActions: chromeActions,
+                        chromeTheme: chromeTheme,
+                        themeTokens: themeTokens
                     )
                 }
             )
@@ -771,8 +785,10 @@ public final class AppCoordinator: ObservableObject {
     /// bar, labels, metrics, motion, typography, and width re-render in place; the lifecycle
     /// hooks, file-drop handler, companion surfaces, rim glow style, and scroll edge fade are
     /// projected onto the surface again; and the chrome leaves Settings if the new
-    /// configuration turns Settings off. It also applies ``NookConfiguration/style`` and
-    /// ``NookConfiguration/transitions``, which the chrome otherwise reads only at launch.
+    /// configuration turns Settings off. It also applies the configuration's surface look -
+    /// ``NookConfiguration/style``, ``NookConfiguration/transitions``, and the
+    /// ``NookConfiguration/chromeTheme``'s shape, curves, shadow, wash, and backdrop - which
+    /// the chrome otherwise applies at launch and on a module switch.
     ///
     /// Nothing else changes. The module is not deactivated or activated again, `onReady` does
     /// not fire again, the nook keeps its current state, and SwiftUI state inside content
@@ -796,12 +812,8 @@ public final class AppCoordinator: ObservableObject {
         // A background module presenting over the active one keeps its decorations until
         // its claim ends.
         applyModuleSurfaceDecorations(moduleHost.displayedConfiguration)
-        let style = configuration.style ?? NookConfiguration.defaultStyle
-        // `Nook.style` publishes on every assignment, so skip one that changes nothing.
-        if surface.style != style {
-            surface.style = style
-        }
-        configureNotchAnimations()
+        applySurfaceLook()
+        syncNotchBackdrop()
         leaveSettingsIfDisabled()
     }
 
@@ -872,7 +884,8 @@ public final class AppCoordinator: ObservableObject {
     /// less overshoot. A host can override the whole set via
     /// ``NookConfiguration/transitions``; otherwise these defaults apply.
     func configureNotchAnimations() {
-        surface.transitionConfiguration = configuration.transitions ?? AppCoordinator.defaultTransitions
+        surface.transitionConfiguration =
+            moduleHost.displayedConfiguration.effectiveTransitions ?? AppCoordinator.defaultTransitions
     }
 
     /// The framework's default chrome animation curves, used when a host does not supply
@@ -1107,10 +1120,16 @@ public final class AppCoordinator: ObservableObject {
         surface.presentation = appState.appearancePreferences.presentation
 
         // Pin the window appearance first: the backdrop's visual-effect material resolves
-        // against it, so a forced light/dark theme needs both to agree.
-        surface.chromeAppearance = appState.appearancePreferences.chromeAppearanceOverride
+        // against it, so a forced light/dark theme needs both to agree. A theme that pins the
+        // palette pins the window too.
+        surface.chromeAppearance = effectiveAppearancePreferences.chromeAppearanceOverride
 
         resolveBackdrops(state: surface.state, form: surface.layoutForm)
+        applyThemeColors()
+        // Companions washing in the theme's hover color re-resolve it for the new appearance.
+        if displayedTheme.tokens[.hoverWash] != nil {
+            applyModuleSurfaceDecorations(moduleHost.displayedConfiguration)
+        }
     }
 
     /// Resolves the chrome's backdrop, and the one companions inherit, for the chrome the
@@ -1122,12 +1141,14 @@ public final class AppCoordinator: ObservableObject {
     /// the incoming value instead. Nothing here touches ``NookSurfaceDriving/presentation``,
     /// so a transition can re-resolve without any risk of rebuilding the window under itself.
     private func resolveBackdrops(state: NookState, form: NookChromeForm) {
-        let scheme = appState.appearancePreferences.effectiveColorScheme(systemScheme: currentResolvedSystemScheme())
+        // The person's preferences with the displayed theme's pins: a theme that pins the
+        // surface style or the strength is painted that way, and host resolvers see it too.
+        let preferences = effectiveAppearancePreferences
+        let scheme = preferences.effectiveColorScheme(systemScheme: currentResolvedSystemScheme())
         let reduceTransparency = reduceTransparencyProvider()
         // A host can override the state->backdrop mapping; the framework mapping is
         // the default. See `NookChromeBehavior.backdrop`.
         let behavior = moduleHost.chromeBehavior
-        let preferences = appState.appearancePreferences
         let context = NookBackdropContext(
             preferences: preferences,
             colorScheme: scheme,
