@@ -27,7 +27,10 @@
 //
 // Run with `swift run ShowcaseNook --scene <id>`. `--expand` opens the nook at launch,
 // `--expand-after <seconds>` opens it later, and `--keep-open` holds it open.
+// `--theme <file.json>` paints the chrome with a theme file and follows it as it is saved;
+// Examples/Themes holds a few to start from.
 
+import Foundation
 import NookApp
 
 var host = NookHostConfiguration()
@@ -43,5 +46,8 @@ host.branding = NookHostBranding(
 host.preferenceDefaults = NookPreferenceDefaults(
     appearance: NookAppearancePreferences(chromePalette: .dark, surfaceStyle: .solid)
 )
+if let themePath = LaunchOptions.themePath {
+    host.chromeThemeSource = .watching(fileAt: URL(fileURLWithPath: themePath))
+}
 
 NookApp.main(host)

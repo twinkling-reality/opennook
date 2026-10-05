@@ -332,3 +332,24 @@ final class NookThemeTokenIDTests: XCTestCase {
         XCTAssertEqual(Set(ids).count, ids.count)
     }
 }
+
+/// The theme files in Examples/Themes load cleanly, so a token rename or a stricter check
+/// cannot leave a sample people copy from reporting issues.
+final class NookExampleThemeFilesTests: XCTestCase {
+    func testEveryExampleThemeLoadsWithoutIssues() throws {
+        let folder = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .appendingPathComponent("../../Examples/Themes")
+            .standardizedFileURL
+        let files = try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension == "json" }
+        XCTAssertFalse(files.isEmpty, "no theme files in \(folder.path)")
+        for file in files {
+            let result = try NookThemeCoder.decode(Data(contentsOf: file))
+            XCTAssertEqual(result.issues, [], file.lastPathComponent)
+            XCTAssertNotNil(result.theme.name, file.lastPathComponent)
+            XCTAssertNotNil(result.theme.backdrops.solid, file.lastPathComponent)
+            XCTAssertNotEqual(result.theme, .standard, file.lastPathComponent)
+        }
+    }
+}

@@ -1,0 +1,25 @@
+{
+  "format": "opennook.theme",
+  "version": 1,
+  "name": "Aurora",
+  "accent": "#5CF2C4",
+  "allowsUserAccent": false,
+  "palette": "dark",
+  "fontDesign": "rounded",
+  "tokens": {
+    "color.label.primary": "#EFFFF9",
+    "color.label.secondary": "#C2F2E4D9",
+    "color.label.tertiary": "#94D6C6B3",
+    "color.label.quaternary": "#79BBAE80",
+    "color.fill.subtle": "#FFFFFF14",
+    "color.stroke.subtle": "#FFFFFF24",
+    "shadow.chrome": { "color": "#1FD1A852", "radius": 22, "y": 8 }
+  },
+  "backdrops": {
+    "solid": {
+      "kind": "mesh", "width": 3, "height": 3,
+      "points": [[0, 0], [0.5, 0], [1, 0], [0, 0.55], [0.45, 0.6], [1, 0.5], [0, 1], [0.55, 1], [1, 1]],
+      "colors": ["#020807", "#020807", "#020807", "#06302B", "#0B2A3F", "#1B1840", "#0E5A4A", "#123F63", "#3A2470"]
+    }
+  }
+}

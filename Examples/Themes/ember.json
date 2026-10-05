@@ -1,0 +1,21 @@
+{
+  "format": "opennook.theme",
+  "version": 1,
+  "name": "Ember",
+  "accent": "#FFB35C",
+  "allowsUserAccent": false,
+  "palette": "dark",
+  "fontDesign": "serif",
+  "tokens": {
+    "color.label.primary": "#FFF4EA",
+    "color.label.secondary": "#FFD9BDD9",
+    "color.label.tertiary": "#F0B48FB3",
+    "color.label.quaternary": "#D9977080",
+    "color.fill.subtle": "#FFFFFF14",
+    "color.stroke.subtle": "#FFFFFF24",
+    "shadow.chrome": { "color": "#FF6A2E59", "radius": 24, "y": 10 }
+  },
+  "backdrops": {
+    "solid": { "kind": "radialGradient", "stops": ["#5A1F0C", "#2A0E07", "#080303"], "center": "bottom", "startRadius": 0, "endRadius": 420 }
+  }
+}

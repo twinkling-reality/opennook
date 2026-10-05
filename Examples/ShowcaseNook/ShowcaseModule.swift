@@ -76,6 +76,11 @@ enum LaunchOptions {
         ProcessInfo.processInfo.arguments.contains("--keep-open")
     }
 
+    /// `--theme <file.json>`: a theme file for the chrome, followed as it changes.
+    static var themePath: String? {
+        value(after: "--theme")
+    }
+
     private static func value(after flag: String) -> String? {
         let arguments = ProcessInfo.processInfo.arguments
         guard let index = arguments.firstIndex(of: flag), arguments.indices.contains(index + 1) else {
