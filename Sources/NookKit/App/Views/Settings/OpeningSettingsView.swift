@@ -21,48 +21,59 @@ struct NookOpeningSettingsRows: View {
 
     var body: some View {
         if !appState.hostFixesHoverIntent {
-            VStack(alignment: .leading, spacing: metrics.settingsFieldSpacing) {
-                Text(labels.shortcut.openOnHoverTitle)
-                    .font(typography.settingsFieldLabel)
-                    .foregroundStyle(theme.secondaryLabel)
-                Picker(labels.shortcut.openOnHoverTitle, selection: binding(\.openOnHover)) {
-                    Text(labels.shortcut.openOnHoverImmediately).tag(NookOpenOnHover.immediately)
-                    Text(labels.shortcut.openOnHoverPeekFirst).tag(NookOpenOnHover.peekFirst)
-                    Text(labels.shortcut.openOnHoverOff).tag(NookOpenOnHover.off)
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .controlSize(.small)
-                .accessibilityLabel(labels.shortcut.openOnHoverTitle)
-                Text(detail)
-                    .font(typography.settingsCaption)
-                    .foregroundStyle(theme.tertiaryLabel)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                if preferences.openOnHover != .off {
-                    timingSlider(
-                        labels.shortcut.hoverDelayTitle,
-                        value: binding(\.hoverDelay),
-                        range: NookAppearancePreferences.hoverTimingRange,
-                        zero: labels.shortcut.noDelay
-                    )
-                    timingSlider(
-                        labels.shortcut.externalDisplayHoverDelayTitle,
-                        value: binding(\.externalDisplayHoverDelay),
-                        range: NookAppearancePreferences.hoverTimingRange,
-                        zero: labels.shortcut.noDelay
-                    )
-                }
-                if preferences.openOnHover == .peekFirst {
-                    timingSlider(
-                        labels.shortcut.peekDwellTitle,
-                        value: binding(\.peekDwell),
-                        range: NookAppearancePreferences.peekDwellRange,
-                        zero: labels.shortcut.dwellOff
-                    )
-                }
+            // The same icon column as the group's other rows, so the titles line up.
+            HStack(alignment: .top, spacing: metrics.settingsGroupSpacing) {
+                Image(systemName: "cursorarrow.rays")
+                    .font(typography.settingsEmphasis)
+                    .foregroundStyle(theme.headerInactiveIcon)
+                    .frame(width: metrics.settingsIconWidth)
+                rows
             }
             .padding(.vertical, metrics.settingsRowVerticalPadding)
+        }
+    }
+
+    private var rows: some View {
+        VStack(alignment: .leading, spacing: metrics.settingsFieldSpacing) {
+            Text(labels.shortcut.openOnHoverTitle)
+                .font(typography.settingsRowTitle)
+                .foregroundStyle(theme.primaryLabel.opacity(metrics.settingsTitleEmphasisOpacity))
+            Picker(labels.shortcut.openOnHoverTitle, selection: binding(\.openOnHover)) {
+                Text(labels.shortcut.openOnHoverImmediately).tag(NookOpenOnHover.immediately)
+                Text(labels.shortcut.openOnHoverPeekFirst).tag(NookOpenOnHover.peekFirst)
+                Text(labels.shortcut.openOnHoverOff).tag(NookOpenOnHover.off)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .controlSize(.small)
+            .accessibilityLabel(labels.shortcut.openOnHoverTitle)
+            Text(detail)
+                .font(typography.settingsCaption)
+                .foregroundStyle(theme.tertiaryLabel)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if preferences.openOnHover != .off {
+                timingSlider(
+                    labels.shortcut.hoverDelayTitle,
+                    value: binding(\.hoverDelay),
+                    range: NookAppearancePreferences.hoverTimingRange,
+                    zero: labels.shortcut.noDelay
+                )
+                timingSlider(
+                    labels.shortcut.externalDisplayHoverDelayTitle,
+                    value: binding(\.externalDisplayHoverDelay),
+                    range: NookAppearancePreferences.hoverTimingRange,
+                    zero: labels.shortcut.noDelay
+                )
+            }
+            if preferences.openOnHover == .peekFirst {
+                timingSlider(
+                    labels.shortcut.peekDwellTitle,
+                    value: binding(\.peekDwell),
+                    range: NookAppearancePreferences.peekDwellRange,
+                    zero: labels.shortcut.dwellOff
+                )
+            }
         }
     }
 
@@ -94,11 +105,16 @@ struct NookOpeningSettingsRows: View {
                     .font(typography.settingsCaption.monospacedDigit())
                     .foregroundStyle(theme.tertiaryLabel)
             }
-            Slider(value: value, in: range, step: 0.1)
+            // Rounded to tenths as it moves, rather than stepped, so the track has no tick marks.
+            Slider(value: tenths(value), in: range)
                 .controlSize(.small)
                 .accessibilityLabel(title)
                 .accessibilityValue(shown)
         }
+    }
+
+    private func tenths(_ value: Binding<Double>) -> Binding<Double> {
+        Binding(get: { value.wrappedValue }, set: { value.wrappedValue = ($0 * 10).rounded() / 10 })
     }
 
     private func binding<Value>(_ field: WritableKeyPath<NookAppearancePreferences, Value>) -> Binding<Value> {
