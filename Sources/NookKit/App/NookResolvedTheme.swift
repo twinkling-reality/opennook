@@ -16,7 +16,7 @@ import SwiftUI
 /// whose SwiftUI `colorScheme` environment is unreliable, so an adaptive color could resolve
 /// for the wrong appearance (e.g. white text on the white light-mode panel). Resolving the
 /// appearance once, here, and emitting concrete colors keeps light and dark both correct.
-public struct NookResolvedTheme: Sendable {
+public struct NookResolvedTheme: Equatable, Sendable {
     public var primaryLabel: Color
     public var secondaryLabel: Color
     public var tertiaryLabel: Color
@@ -70,48 +70,52 @@ public struct NookResolvedTheme: Sendable {
         self.fontDesign = fontDesign
     }
 
+    /// The framework's palette for `preferences`: ``NookTheme/standard`` resolved for the
+    /// person's palette, surface, and accent. See
+    /// ``resolve(theme:preferences:effectiveColorScheme:reduceTransparency:)``.
     public static func resolve(
         preferences: NookAppearancePreferences,
         effectiveColorScheme: ColorScheme,
         reduceTransparency: Bool
     ) -> NookResolvedTheme {
-        let isDark: Bool = switch preferences.chromePalette {
-        case .followSystem:
-            effectiveColorScheme == .dark
-        case .dark:
-            true
-        case .light:
-            false
-        }
+        resolve(
+            theme: .standard,
+            preferences: preferences,
+            effectiveColorScheme: effectiveColorScheme,
+            reduceTransparency: reduceTransparency
+        )
+    }
 
-        // `trueSolid` = the user picked the solid surface. `isSolid` = we're painting solid
-        // either way (solid surface, or Reduce Transparency forcing it). Inner fills need a
-        // touch more contrast on a true-solid black/white panel than on a frosted one.
-        let trueSolid = preferences.surfaceStyle == .solid
-        let isSolid = trueSolid || reduceTransparency
-
-        if isDark {
-            return NookResolvedTheme(
-                primaryLabel: Color.white.opacity(0.95),
-                secondaryLabel: Color.white.opacity(0.62),
-                tertiaryLabel: Color.white.opacity(0.46),
-                quaternaryLabel: Color.white.opacity(0.34),
-                subtleFill: Color.white.opacity(isSolid ? (trueSolid ? 0.07 : 0.12) : 0.055),
-                subtleStroke: Color.white.opacity(0.14),
-                headerInactiveIcon: Color.white.opacity(0.42),
-                accent: preferences.accentPreset.color()
-            )
-        }
-
+    /// `theme`'s palette for the person's `preferences`, with the theme's pins applied.
+    ///
+    /// `effectiveColorScheme` is the system's appearance, used when the palette follows the
+    /// system. The colors stay explicit, black or white at an opacity unless the theme says
+    /// otherwise; see the type note on why system-adaptive colors render wrong on the nook's
+    /// panel. ``NookTheme/standard`` gives exactly the framework's palette: white at 0.95,
+    /// 0.62, 0.46, and 0.34 for the labels on dark chrome, black at 0.88, 0.55, 0.42, and 0.32
+    /// on light, and a subtle fill a touch stronger on an opaque surface.
+    public static func resolve(
+        theme: NookTheme,
+        preferences: NookAppearancePreferences,
+        effectiveColorScheme: ColorScheme,
+        reduceTransparency: Bool
+    ) -> NookResolvedTheme {
+        let context = theme.context(
+            preferences: preferences,
+            systemColorScheme: effectiveColorScheme,
+            reduceTransparency: reduceTransparency
+        )
+        let resolver = NookThemeResolver(theme: theme)
         return NookResolvedTheme(
-            primaryLabel: Color.black.opacity(0.88),
-            secondaryLabel: Color.black.opacity(0.55),
-            tertiaryLabel: Color.black.opacity(0.42),
-            quaternaryLabel: Color.black.opacity(0.32),
-            subtleFill: Color.black.opacity(isSolid ? (trueSolid ? 0.045 : 0.055) : 0.030),
-            subtleStroke: Color.black.opacity(0.09),
-            headerInactiveIcon: Color.black.opacity(0.38),
-            accent: preferences.accentPreset.color()
+            primaryLabel: resolver.color(.labelPrimary, in: context),
+            secondaryLabel: resolver.color(.labelSecondary, in: context),
+            tertiaryLabel: resolver.color(.labelTertiary, in: context),
+            quaternaryLabel: resolver.color(.labelQuaternary, in: context),
+            subtleFill: resolver.color(.fillSubtle, in: context),
+            subtleStroke: resolver.color(.strokeSubtle, in: context),
+            headerInactiveIcon: resolver.color(.iconInactive, in: context),
+            accent: resolver.color(.accent, in: context),
+            fontDesign: theme.fontDesign.design
         )
     }
 }
@@ -126,14 +130,14 @@ private struct NookResolvedThemeKey: EnvironmentKey {
     )
 }
 
-public extension EnvironmentValues {
-    var nookResolvedTheme: NookResolvedTheme {
+extension EnvironmentValues {
+    public var nookResolvedTheme: NookResolvedTheme {
         get { self[NookResolvedThemeKey.self] }
         set { self[NookResolvedThemeKey.self] = newValue }
     }
 }
 
-public extension NookResolvedTheme {
+extension NookResolvedTheme {
     /// Resolves chrome using saved prefs, the **application's effective appearance** for
     /// "Match Mac" (SwiftUI's `colorScheme` is unreliable on menu-bar panels), and Reduce
     /// Transparency.
@@ -145,7 +149,7 @@ public extension NookResolvedTheme {
     /// is main-actor state. Chrome theming is resolved during view rendering, so the
     /// isolation matches where it actually runs.
     @MainActor
-    static func live(appState: AppState) -> NookResolvedTheme {
+    public static func live(appState: AppState) -> NookResolvedTheme {
         let systemScheme: ColorScheme =
             NSApplication.shared.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? .dark : .light
         let scheme = appState.appearancePreferences.effectiveColorScheme(systemScheme: systemScheme)
@@ -157,40 +161,40 @@ public extension NookResolvedTheme {
     }
 }
 
-public extension NookAppearancePreferences {
+extension NookAppearancePreferences {
     /// When non-nil, apply as SwiftUI `preferredColorScheme` so Dark/Light chrome overrides stick on panel-hosted UI.
-    var chromeColorSchemeOverride: ColorScheme? {
+    public var chromeColorSchemeOverride: ColorScheme? {
         switch chromePalette {
-        case .followSystem:
-            nil
-        case .dark:
-            .dark
-        case .light:
-            .light
+            case .followSystem:
+                nil
+            case .dark:
+                .dark
+            case .light:
+                .light
         }
     }
 
-    func effectiveColorScheme(systemScheme: ColorScheme) -> ColorScheme {
+    public func effectiveColorScheme(systemScheme: ColorScheme) -> ColorScheme {
         switch chromePalette {
-        case .followSystem:
-            systemScheme
-        case .dark:
-            .dark
-        case .light:
-            .light
+            case .followSystem:
+                systemScheme
+            case .dark:
+                .dark
+            case .light:
+                .light
         }
     }
 
     /// The `NSAppearance` to pin on the chrome window, or `nil` to follow the system.
     /// Drives the backdrop's `NSVisualEffectView` material so a forced theme renders right.
-    var chromeAppearanceOverride: NSAppearance? {
+    public var chromeAppearanceOverride: NSAppearance? {
         switch chromePalette {
-        case .followSystem:
-            nil
-        case .dark:
-            NSAppearance(named: .darkAqua)
-        case .light:
-            NSAppearance(named: .aqua)
+            case .followSystem:
+                nil
+            case .dark:
+                NSAppearance(named: .darkAqua)
+            case .light:
+                NSAppearance(named: .aqua)
         }
     }
 }
