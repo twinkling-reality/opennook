@@ -18,6 +18,9 @@ import SwiftUI
 struct ModuleRouterExpandedView: View {
     @ObservedObject var moduleHost: ModuleHost
     @ObservedObject var appState: AppState
+    /// Read so a presented live activity's expanded view shows in place of home, and goes when
+    /// the activity ends.
+    @ObservedObject var activities: NookActivityCenter
 
     let toggleKeepOpen: () -> Void
     let hide: () -> Void
@@ -40,7 +43,7 @@ struct ModuleRouterExpandedView: View {
             hide: hide,
             resetAllSettings: resetAllSettings,
             theme: configuration.theme,
-            home: configuration.home,
+            home: presentedActivityHome ?? configuration.home,
             settings: configuration.settings,
             settingsSections: configuration.settingsSections,
             settingsGroups: configuration.settingsGroups,
@@ -73,6 +76,12 @@ struct ModuleRouterExpandedView: View {
         )
     }
 
+    /// The expanded view of the live activity the nook opened onto, when there is one.
+    private var presentedActivityHome: (@Sendable @MainActor () -> AnyView)? {
+        guard let id = appState.presentedLiveActivity else { return nil }
+        return activities.activities.first { $0.id == id }?.activity.expanded
+    }
+
     /// The in-surface switcher payload, built only when the host opted into
     /// ``NookModuleSwitcherPlacement/leadingCluster`` and more than one module is
     /// registered. `nil` leaves the top bar's leading cluster the plain module title.
@@ -102,12 +111,20 @@ struct ModuleRouterCompactView: View {
 
     @ObservedObject var moduleHost: ModuleHost
     @ObservedObject var appState: AppState
+    /// Read so the live activity holding the pill takes the slots, and gives them back.
+    @ObservedObject var activities: NookActivityCenter
     let slot: Slot
     var chromeActions: NookChromeActions = .inert
 
     var body: some View {
         let configuration = moduleHost.displayedConfiguration
-        let content = slot == .leading ? configuration.compactLeading : configuration.compactTrailing
+        // The live activity that holds the pill, if any, takes both slots from the module.
+        let primary = activities.primary?.activity
+        let content =
+            switch slot {
+                case .leading: primary?.compactLeading ?? configuration.compactLeading
+                case .trailing: primary?.compactTrailing ?? configuration.compactTrailing
+            }
         // The compact slots render in their own view tree (not under NookExpandedView), so
         // the host gives them the whole chrome environment the expanded content gets.
         NookCompactHost(
@@ -125,5 +142,9 @@ struct ModuleRouterCompactView: View {
             themeTokens: configuration.effectiveThemeTokens,
             content: content
         )
+        // A new holder replaces the slot's content rather than morphing it.
+        .id(activities.primary?.id)
+        .transition(.opacity)
+        .animation(configuration.effectiveThemeTokens[.springDefault], value: activities.primary?.id)
     }
 }

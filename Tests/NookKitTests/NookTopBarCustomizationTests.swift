@@ -127,7 +127,7 @@ final class NookTopBarCustomizationTests: XCTestCase {
         var host = NookHostConfiguration()
         host.register(NookModuleDescriptor(id: "A", displayName: "A")) { configuration }
         let moduleHost = ModuleHost(registry: host.makeRegistry())
-        render(ModuleRouterCompactView(moduleHost: moduleHost, appState: AppState(), slot: .leading))
+        render(ModuleRouterCompactView(moduleHost: moduleHost, appState: AppState(), activities: moduleHost.registry.liveActivities, slot: .leading))
         XCTAssertEqual(try XCTUnwrap(compact.environment).nookChromeSymbols, topBar.symbols)
     }
 

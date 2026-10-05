@@ -277,6 +277,12 @@ public final class AppState: ObservableObject {
         resetTransientStatus()
     }
 
+    /// The live activity whose expanded view the nook shows in place of the home view, by
+    /// ``NookActivityCenter/Entry/id``, or `nil` for the home view. Set when the nook opens from
+    /// an activity's peek or an expand alert; cleared when the nook collapses or the person goes
+    /// back. Kept by `AppCoordinator`.
+    @Published var presentedLiveActivity: String?
+
     /// `true` while the host fixes what hovering the compact pill does
     /// (`NookChromeBehavior.hoverIntent`), so Settings leaves out the rows that would change it.
     /// Kept current by `AppCoordinator.applyHoverIntent()`.

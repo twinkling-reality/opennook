@@ -160,8 +160,10 @@ final class FakeNookSurface: NookSurfaceDriving {
     private func transition(to newState: NookState) {
         guard newState != stateSubject.value else { return }
         if newState != .expanded { hasKeyboardFocus = false }
-        if newState != .compact { isPeeking = false }
+        // Like the real surface, the change is published while the peek still shows, and the
+        // peek ends right after: observers can tell an open from a peek.
         stateSubject.send(newState)
+        if newState != .compact { isPeeking = false }
         transitions.append(newState)
         switch newState {
             case .expanded: onExpand?()

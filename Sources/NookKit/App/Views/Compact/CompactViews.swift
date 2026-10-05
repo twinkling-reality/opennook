@@ -122,6 +122,7 @@ struct NookChromeEnvironment: ViewModifier {
             .environment(\.nookChromeActions, chromeActions)
             .environment(\.nookChromeSymbols, symbols)
             .environment(\.appServices, services)
+            .environment(\.nookLiveActivities, services.resolve(NookLiveActivitiesKey.self))
             .environmentObject(appState)
             // The panel is non-activating, so controls would otherwise paint as inactive
             // until clicked - the same override the expanded surface applies.
