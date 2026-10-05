@@ -8,6 +8,22 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- A peek between the compact pill and the full nook. The pill grows down into a short
+  region under the notch that shows a module's peek view (`NookConfiguration.setPeek(_:)`),
+  and the full nook opens on a click or once the pointer has rested on it. People choose
+  in Settings, in a new "Open on hover" row: at once (the default, as before), peek first,
+  or off, with a wait before anything happens, a separate wait for other displays, and a
+  dwell before the peek opens the nook (`NookAppearancePreferences.openOnHover`,
+  `hoverDelay`, `externalDisplayHoverDelay`, `peekDwell`). `NookChromeBehavior.hoverIntent`
+  fixes the behavior in code and hides those rows. A surface claim can peek instead of
+  opening (`NookSurfaceClaim.presentation`, `.peek`), and
+  `NookSurfacePresenting.endTransientPresentation(_:after:)` ends a claim on a schedule that
+  moves with each call, which is what a HUD needs. The engine has the same pieces
+  (`Nook.peekContent`, `peek(on:)`, `endPeek()`, `isPeeking`, `NookHoverIntent`), and the
+  peek's look is themeable (`shape.peek.*`, `transition.peek`, `motion.peek.enter`,
+  `motion.peek.exit`). With nothing set, the nook opens and looks exactly as before. New site
+  guide: "Hover and peek".
+
 - Companion surfaces - host views floated beside the nook. Register one with
   `NookConfiguration.addCompanion(...)` (`NookCompanion`): anchor it below, leading,
   or trailing the chrome with an alignment and spacing (`NookCompanionAnchor`),

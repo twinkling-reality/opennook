@@ -1,0 +1,131 @@
+---
+title: Hover and peek
+description: How the nook opens on hover, the peek between the compact pill and the full nook, and claims that peek or end on their own.
+---
+
+By default the nook opens the moment the pointer reaches the compact pill, as it
+always has. It can also open in two steps: the pill first grows down into a short
+**peek** under the notch, and the full nook opens on a click, or once the pointer has
+rested on the peek. Something that happens, such as a song changing or the volume
+moving, can show the peek too, without the pointer.
+
+```
+compact  ->  peek  ->  expanded
+       hover       click or dwell
+       or an event
+```
+
+A peek is a way of being compact: `Nook.state` stays `.compact` while
+`Nook.isPeeking` is `true`, and leaving compact ends the peek.
+
+## Giving a module a peek
+
+A module's peek is a view, set like the compact slots. It renders in the chrome
+environment, so it reads the theme, services, and labels the rest of the chrome does.
+
+```swift
+var configuration = NookConfiguration()
+configuration.setHome { PlayerHome(player: player) }
+configuration.setCompactLeading { CoverArt(player: player) }
+configuration.setPeek {
+    VStack(alignment: .leading, spacing: 2) {
+        Text(player.title).font(.system(size: 12, weight: .semibold))
+        ProgressView(value: player.progress)
+    }
+    .frame(width: 220)
+}
+```
+
+A module without a peek never shows an empty one: a peek-first hover opens the nook
+instead.
+
+## How the person chooses
+
+Settings has an **Open on hover** row in the Shortcut & nook group:
+
+| Choice | What resting the pointer on the pill does |
+|---|---|
+| At once (default) | Opens the nook |
+| Peek first | Grows the pill into its peek; a click, or resting on the peek, opens the nook |
+| Off | Nothing; a click on the pill or the shortcut opens the nook |
+
+Under it are the wait before anything happens (0 to 1 s), a separate wait for other
+displays than the Mac's built-in one, and, for Peek first, how long to rest on the
+peek before the nook opens on its own (0 waits for a click). These are
+`NookAppearancePreferences.openOnHover`, `hoverDelay`, `externalDisplayHoverDelay`,
+and `peekDwell`, persisted like every other appearance choice. A host seeds them
+through `NookPreferenceDefaults`, and the person's choice wins.
+
+With anything but the default, a click on the compact pill always opens the nook, so a
+pill that no longer opens on hover is never out of reach.
+
+## Fixing it in code
+
+A host that wants one behavior for everyone sets it on the chrome behavior. Settings
+then leaves the rows out, the way a theme's pins leave out the controls they pin.
+
+```swift
+configuration.chromeBehavior.hoverIntent = NookHoverIntent(
+    action: .peek,
+    delay: .milliseconds(120),
+    externalDisplayDelay: .milliseconds(300),
+    dwellToExpand: .seconds(1)
+)
+```
+
+`NookHoverIntent.standard` is the default behavior: open at once, no delay.
+
+## Peeking from code: claims
+
+A surface claim can ask for the peek instead of the full nook. It follows the same
+rules as any claim: it waits while the person is using the nook, a higher priority
+preempts it, and a background module needs `.urgent`.
+
+```swift
+let claim = NookSurfaceClaim(moduleID: descriptor.id, priority: .ambient, presentation: .peek)
+guard let token = await coordinator.beginTransientPresentation(claim) else { return }
+```
+
+When the module has no peek, or the nook is already open, a peek claim opens or
+keeps the full nook, so it is always seen.
+
+For a HUD, schedule the end instead of tracking it yourself. Calling it again moves
+the end, so the peek stays up until a moment after the last change:
+
+```swift
+// On every volume change while the claim is held:
+await coordinator.endTransientPresentation(token, after: .milliseconds(1600))
+```
+
+When the last claim ends, the pill shrinks back to compact.
+
+## The engine
+
+`NookSurface` has the same pieces for a host that drives `Nook` directly:
+
+- `peekContent: AnyView?`, the view under the slots; `nil` means no peek.
+- `peek(on:)` and `endPeek()`, both awaited until the pill has arrived.
+- `isPeeking`, published.
+- `hoverIntent: NookHoverIntent`.
+
+A peek started with `peek(on:)` lasts until `endPeek()`; one the pointer started ends
+when the pointer leaves.
+
+## Look
+
+The peek's shape and motion are theme tokens:
+
+| Token | Default |
+|---|---|
+| `shape.peek.bottomRadius` | 22 |
+| `shape.peek.maxHeight` | 120; taller content is clipped |
+| `shape.peek.insets.top`, `.bottom`, `.leading`, `.trailing` | 2, 10, 14, 14 |
+| `transition.peek` | `{spring.snappy}` |
+| `motion.peek.enter` | fade, blur 4, vertical scale 0.9 from the top |
+| `motion.peek.exit` | `motion.peek.enter` in reverse, unless written |
+
+`NookStyle.peekBottomCornerRadius`, `peekContentInsets`, and `peekMaxHeight`, and
+`NookTransitionConfiguration.peekContentTransition`, `peekContentRemoval`, and
+`peekAnimation` override them, as `configuration.style` and
+`configuration.transitions` do for the rest of the chrome. See
+[Theming](/guides/theming/#chrome-shape-motion-and-surface).

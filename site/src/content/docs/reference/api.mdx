@@ -46,6 +46,15 @@ The app chrome layered over `NookSurface`.
   [Chrome customization](/guides/chrome-customization/#replacing-the-top-bar). Source:
   `Sources/NookKit/App/NookChromeSymbols.swift`,
   `Sources/NookKit/App/NookTopBarContext.swift`.
+- **Opening** - `NookAppearancePreferences.openOnHover` (`NookOpenOnHover`),
+  `hoverDelay`, `externalDisplayHoverDelay`, and `peekDwell`, offered in Settings and
+  mapped to `hoverIntent`; `NookChromeBehavior.hoverIntent` fixes them in code;
+  `NookConfiguration.setPeek(_:)` gives a module a peek; and
+  `NookSurfaceClaim.presentation` (`NookSurfacePresentation`) with
+  `NookSurfacePresenting.endTransientPresentation(_:after:)` for claims that peek or
+  end on a schedule. See [Hover and peek](/guides/hover-and-peek/). Source:
+  `Sources/NookKit/App/NookAppearancePreferences.swift`,
+  `Sources/NookKit/App/NookSurfacePresenting.swift`.
 - **Chrome strings and motion** - `NookChromeLabels` (`NookConfiguration.labels`,
   `\.nookChromeLabels`) holds every string the framework draws, grouped as
   `NookChromeLabels.TopBar`, `.Settings`, `.Appearance`, `.Display`, `.Shortcut`,
@@ -212,6 +221,10 @@ these through `NookKit` rather than directly; the host-facing knobs are:
   [Chrome customization](/guides/chrome-customization/#engine-level-shape-and-motion-nooksurface).
 - `NookChromeShadow` (`Nook.chromeShadow`), `NookFeedbackStyle`, and `NookAmbientWash`
   (`Nook.ambientWash`). See [Rim glow and edge fade](/guides/panel-effects/#chrome-shadow).
+- `Nook.peekContent`, `peek(on:)`, `endPeek()`, `isPeeking`, and `NookHoverIntent`
+  (`Nook.hoverIntent`) - the compact pill's peek and what hovering it does, with the
+  peek's `NookStyle` and `NookTransitionConfiguration` fields. See
+  [Hover and peek](/guides/hover-and-peek/).
 
 Both `NookStyle` and `NookTransitionConfiguration` are surfaced on
 `NookConfiguration`; see
