@@ -152,7 +152,9 @@ struct ThemePage: View {
 
     private typealias Role = PlaygroundSettings.Theme.ColorRole
     private static let mainRoles: [Role] = [.accent, .primaryLabel, .secondaryLabel, .tertiaryLabel]
-    private static let moreRoles: [Role] = [.quaternaryLabel, .subtleFill, .subtleStroke, .headerInactiveIcon]
+    private static let moreRoles: [Role] = [
+        .quaternaryLabel, .subtleFill, .subtleStroke, .headerInactiveIcon, .hoverWash, .destructive, .warning, .success,
+    ]
 
     var body: some View {
         PlaygroundPageView(page: .theme) {
@@ -167,6 +169,38 @@ struct ThemePage: View {
                         Choice(.monospaced, "Mono"),
                     ],
                     help: "The design of the chrome's own text: the top bar, the banner, and Settings."
+                )
+            }
+
+            SectionCard(
+                title: "Shape and Motion",
+                help: "Theme knobs: each one moves every value of its kind in the chrome together.",
+                isModified: theme.radius != nil || theme.scale != nil || theme.motion != nil,
+                reset: resetKnobs
+            ) {
+                SliderRow(
+                    title: "Corners",
+                    value: knob(\.radius),
+                    range: 0...2,
+                    step: 0.05,
+                    defaultValue: 1,
+                    format: .number,
+                    help: "Multiplies every corner radius the theme draws, the panel's included."
+                )
+                SliderRow(
+                    title: "Scale",
+                    value: knob(\.scale),
+                    range: 0.8...1.4,
+                    step: 0.05,
+                    defaultValue: 1,
+                    format: .number,
+                    help: "Multiplies the chrome's spacing and text sizes."
+                )
+                SegmentedRow(
+                    title: "Motion",
+                    selection: motionBinding,
+                    choices: [Choice(.standard, "Standard"), Choice(.calm, "Calm"), Choice(.expressive, "Expressive")],
+                    help: "How springy the chrome's animations are."
                 )
             }
 
@@ -205,6 +239,30 @@ struct ThemePage: View {
         )
     }
 
+    /// A knob as a slider value: `nil` reads as 1, and 1 writes back as `nil` so an untouched
+    /// knob stays out of presets and exports.
+    private func knob(_ keyPath: WritableKeyPath<PlaygroundSettings.Theme, Double?>) -> Binding<Double> {
+        Binding(
+            get: { model.settings.theme[keyPath: keyPath] ?? 1 },
+            set: { model.settings.theme[keyPath: keyPath] = abs($0 - 1) < 0.0005 ? nil : $0 }
+        )
+    }
+
+    private var motionBinding: Binding<NookMotionScheme> {
+        Binding(
+            get: { model.settings.theme.motion ?? .standard },
+            set: { model.settings.theme.motion = $0 == .standard ? nil : $0 }
+        )
+    }
+
+    private func resetKnobs() {
+        var theme = theme
+        theme.radius = nil
+        theme.scale = nil
+        theme.motion = nil
+        model.settings.theme = theme
+    }
+
     private func reset(_ roles: [Role]) {
         var theme = theme
         for role in roles {
@@ -219,9 +277,7 @@ struct ThemePage: View {
     }
 
     private var previewPalette: NookResolvedTheme {
-        var palette = livePalette
-        theme.apply(to: &palette)
-        return palette
+        NookResolvedTheme.live(appState: appState, theme: theme.nookTheme)
     }
 
     private var previewIsDark: Bool {
@@ -245,6 +301,10 @@ extension PlaygroundSettings.Theme.ColorRole {
             case .subtleFill: "The hover background of header icons and Settings controls."
             case .subtleStroke: "The hover outline of header icons, and Settings dividers."
             case .headerInactiveIcon: "Header icons and Settings glyphs at rest."
+            case .hoverWash: "The wash over a hovered glyph button or companion."
+            case .destructive: "Destructive commands, such as resetting Settings."
+            case .warning: "Warnings, such as a shortcut that could not be registered."
+            case .success: "Success, for host content and banners."
         }
     }
 }

@@ -44,8 +44,9 @@ public struct PlaygroundSettings: Equatable, Sendable {
 // MARK: - Groups
 
 extension PlaygroundSettings {
-    /// Overrides on top of the live palette (`NookResolvedTheme.live(appState:)`). `nil` keeps
-    /// the live color, which follows the user's palette and accent preferences.
+    /// The chrome theme, as overrides of ``NookTheme/standard``: knobs, and colors that replace
+    /// a palette role. `nil` keeps the framework's value; a color left `nil` follows the user's
+    /// palette, and the accent follows the user's accent choice. See ``nookTheme``.
     public struct Theme: Equatable, Sendable {
         public var accent: PlaygroundColor?
         public var fontDesign: FontDesign = .default
@@ -56,8 +57,33 @@ extension PlaygroundSettings {
         public var subtleFill: PlaygroundColor?
         public var subtleStroke: PlaygroundColor?
         public var headerInactiveIcon: PlaygroundColor?
+        public var hoverWash: PlaygroundColor?
+        public var destructive: PlaygroundColor?
+        public var warning: PlaygroundColor?
+        public var success: PlaygroundColor?
+        /// `NookTheme.radius` as a factor on every corner radius. `nil` is 1.
+        public var radius: Double?
+        /// `NookTheme.scale` on spacing and type. `nil` is 1.
+        public var scale: Double?
+        /// `NookTheme.motion`. `nil` is `.standard`.
+        public var motion: NookMotionScheme?
 
         public init() {}
+
+        /// The theme these settings describe. ``NookTheme/standard`` when nothing is set.
+        public var nookTheme: NookTheme {
+            var theme = NookTheme(
+                radius: radius.map { .factor($0) } ?? .standard,
+                scale: scale ?? 1,
+                fontDesign: fontDesign,
+                motion: motion ?? .standard
+            )
+            if let accent { theme.accent = .hex(accent) }
+            for role in ColorRole.allCases where role != .accent {
+                if let color = self[role] { theme.tokens[role.tokenID] = .hex(color) }
+            }
+            return theme
+        }
 
         /// One overridable `NookResolvedTheme` color. The raw value is the property name, on
         /// both `Theme` and `NookResolvedTheme`; the cases are in the order the playground lists
@@ -71,8 +97,48 @@ extension PlaygroundSettings {
             case subtleFill
             case subtleStroke
             case headerInactiveIcon
+            case hoverWash
+            case destructive
+            case warning
+            case success
 
             public var id: String { rawValue }
+
+            /// The Swift name of ``tokenID``'s constant on `NookColorID`, for the Swift export.
+            public var tokenName: String {
+                switch self {
+                    case .accent: "accent"
+                    case .primaryLabel: "labelPrimary"
+                    case .secondaryLabel: "labelSecondary"
+                    case .tertiaryLabel: "labelTertiary"
+                    case .quaternaryLabel: "labelQuaternary"
+                    case .subtleFill: "fillSubtle"
+                    case .subtleStroke: "strokeSubtle"
+                    case .headerInactiveIcon: "iconInactive"
+                    case .hoverWash: "hoverWash"
+                    case .destructive: "destructive"
+                    case .warning: "warning"
+                    case .success: "success"
+                }
+            }
+
+            /// The theme token this role overrides.
+            public var tokenID: NookColorID {
+                switch self {
+                    case .accent: .accent
+                    case .primaryLabel: .labelPrimary
+                    case .secondaryLabel: .labelSecondary
+                    case .tertiaryLabel: .labelTertiary
+                    case .quaternaryLabel: .labelQuaternary
+                    case .subtleFill: .fillSubtle
+                    case .subtleStroke: .strokeSubtle
+                    case .headerInactiveIcon: .iconInactive
+                    case .hoverWash: .hoverWash
+                    case .destructive: .destructive
+                    case .warning: .warning
+                    case .success: .success
+                }
+            }
 
             public var title: String {
                 switch self {
@@ -84,6 +150,10 @@ extension PlaygroundSettings {
                     case .subtleFill: "Subtle fill"
                     case .subtleStroke: "Subtle stroke"
                     case .headerInactiveIcon: "Inactive header icon"
+                    case .hoverWash: "Hover wash"
+                    case .destructive: "Destructive"
+                    case .warning: "Warning"
+                    case .success: "Success"
                 }
             }
 
@@ -98,6 +168,10 @@ extension PlaygroundSettings {
                     case .subtleFill: theme.subtleFill
                     case .subtleStroke: theme.subtleStroke
                     case .headerInactiveIcon: theme.headerInactiveIcon
+                    case .hoverWash: theme.hoverWash
+                    case .destructive: theme.destructive
+                    case .warning: theme.warning
+                    case .success: theme.success
                 }
             }
 
@@ -111,6 +185,10 @@ extension PlaygroundSettings {
                     case .subtleFill: theme.subtleFill = color
                     case .subtleStroke: theme.subtleStroke = color
                     case .headerInactiveIcon: theme.headerInactiveIcon = color
+                    case .hoverWash: theme.hoverWash = color
+                    case .destructive: theme.destructive = color
+                    case .warning: theme.warning = color
+                    case .success: theme.success = color
                 }
             }
         }
@@ -127,6 +205,10 @@ extension PlaygroundSettings {
                     case .subtleFill: subtleFill
                     case .subtleStroke: subtleStroke
                     case .headerInactiveIcon: headerInactiveIcon
+                    case .hoverWash: hoverWash
+                    case .destructive: destructive
+                    case .warning: warning
+                    case .success: success
                 }
             }
             set {
@@ -139,6 +221,10 @@ extension PlaygroundSettings {
                     case .subtleFill: subtleFill = newValue
                     case .subtleStroke: subtleStroke = newValue
                     case .headerInactiveIcon: headerInactiveIcon = newValue
+                    case .hoverWash: hoverWash = newValue
+                    case .destructive: destructive = newValue
+                    case .warning: warning = newValue
+                    case .success: success = newValue
                 }
             }
         }
@@ -154,21 +240,8 @@ extension PlaygroundSettings {
         }
     }
 
-    public enum FontDesign: String, Codable, CaseIterable, Sendable {
-        case `default`
-        case rounded
-        case serif
-        case monospaced
-
-        public var design: Font.Design {
-            switch self {
-                case .default: .default
-                case .rounded: .rounded
-                case .serif: .serif
-                case .monospaced: .monospaced
-            }
-        }
-    }
+    /// The framework's `NookFontDesign`: same cases, same JSON.
+    public typealias FontDesign = NookFontDesign
 
     /// The panel's width and shape: `NookConfiguration.expandedWidth` and
     /// `NookConfiguration.style`.
@@ -291,33 +364,13 @@ extension PlaygroundSettings {
         }
 
         public var font: Font { .system(size: size, weight: weight.weight) }
+
+        /// The framework's description of this font.
+        public var nookSpec: NookFontSpec { NookFontSpec(size: .points(size), weight: weight) }
     }
 
-    public enum FontWeight: String, Codable, CaseIterable, Sendable {
-        case ultraLight
-        case thin
-        case light
-        case regular
-        case medium
-        case semibold
-        case bold
-        case heavy
-        case black
-
-        public var weight: Font.Weight {
-            switch self {
-                case .ultraLight: .ultraLight
-                case .thin: .thin
-                case .light: .light
-                case .regular: .regular
-                case .medium: .medium
-                case .semibold: .semibold
-                case .bold: .bold
-                case .heavy: .heavy
-                case .black: .black
-            }
-        }
-    }
+    /// The framework's `NookFontWeight`: same cases, same JSON.
+    public typealias FontWeight = NookFontWeight
 
     /// Two `NookChromeMotion` springs. Like ``Typography``, the defaults restate the
     /// framework's, and the tests keep them honest.
@@ -369,6 +422,9 @@ extension PlaygroundSettings {
         public var animation: Animation {
             .spring(response: response, dampingFraction: dampingFraction)
         }
+
+        /// The framework's description of this spring.
+        public var nookSpec: NookAnimationSpec { .spring(response: response, dampingFraction: dampingFraction) }
     }
 
     /// `NookChromeLabels`, all four strings.
@@ -1066,6 +1122,9 @@ extension PlaygroundSettings {
         settings.panel.insetLeading = max(panel.insetLeading, 0)
         settings.panel.insetTrailing = max(panel.insetTrailing, 0)
 
+        settings.theme.radius = theme.radius.map { $0.isFinite ? min(max($0, 0), 4) : 1 }
+        settings.theme.scale = theme.scale.map { $0.isFinite ? min(max($0, 0.5), 2) : 1 }
+
         settings.metrics.edgePadding = max(metrics.edgePadding, 0)
         settings.metrics.expandedColumnSpacing = max(metrics.expandedColumnSpacing, 0)
         settings.metrics.topBarHeight = max(metrics.topBarHeight, 0)
@@ -1181,6 +1240,13 @@ extension PlaygroundSettings.Theme: Codable {
         subtleFill = try container.decodeIfPresent(PlaygroundColor.self, forKey: .subtleFill)
         subtleStroke = try container.decodeIfPresent(PlaygroundColor.self, forKey: .subtleStroke)
         headerInactiveIcon = try container.decodeIfPresent(PlaygroundColor.self, forKey: .headerInactiveIcon)
+        hoverWash = try container.decodeIfPresent(PlaygroundColor.self, forKey: .hoverWash)
+        destructive = try container.decodeIfPresent(PlaygroundColor.self, forKey: .destructive)
+        warning = try container.decodeIfPresent(PlaygroundColor.self, forKey: .warning)
+        success = try container.decodeIfPresent(PlaygroundColor.self, forKey: .success)
+        radius = try container.decodeIfPresent(Double.self, forKey: .radius)
+        scale = try container.decodeIfPresent(Double.self, forKey: .scale)
+        motion = try container.decodeIfPresent(NookMotionScheme.self, forKey: .motion)
     }
 }
 

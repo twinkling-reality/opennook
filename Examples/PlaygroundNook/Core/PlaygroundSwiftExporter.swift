@@ -113,26 +113,35 @@ public enum PlaygroundSwiftExporter {
     }
 
     static func themeLines(_ theme: PlaygroundSettings.Theme) -> [String] {
-        var body: [String] = []
-        for role in PlaygroundSettings.Theme.ColorRole.allCases {
-            if let color = theme[role] {
-                body.append("    theme.\(role.rawValue) = \(literal(color))")
-            }
+        guard theme != PlaygroundSettings.Theme() else { return [] }
+        var arguments: [String] = []
+        if let radius = theme.radius, differs(radius, 1) {
+            arguments.append("radius: .factor(\(number(radius)))")
+        }
+        if let scale = theme.scale, differs(scale, 1) {
+            arguments.append("scale: \(number(scale))")
         }
         if theme.fontDesign != .default {
-            body.append("    theme.fontDesign = \(literal(theme.fontDesign))")
+            arguments.append("fontDesign: \(literal(theme.fontDesign))")
         }
-        guard !body.isEmpty else { return [] }
+        if let motion = theme.motion, motion != .standard {
+            arguments.append("motion: .\(motion.rawValue)")
+        }
+        var body = call("var theme = NookTheme", arguments: arguments)
+        if let accent = theme.accent {
+            body.append("theme.accent = \(stringLiteral(accent.hex))")
+        }
+        for role in PlaygroundSettings.Theme.ColorRole.allCases where role != .accent {
+            if let color = theme[role] {
+                body.append("theme.tokens[.\(role.tokenName)] = \(stringLiteral(color.hex))")
+            }
+        }
         return [
-            "// The live palette, which follows the user's palette and accent, with overrides.",
-            "configuration.theme = { appState in",
-            "    var theme = NookResolvedTheme.live(appState: appState)",
+            "// The chrome theme. A color left out follows the user's palette, and the accent follows",
+            "// the user's accent choice when they make one.",
         ]
             + body
-            + [
-                "    return theme",
-                "}",
-            ]
+            + ["configuration.chromeTheme = theme"]
     }
 
     static func panelLines(_ panel: PlaygroundSettings.Panel) -> [String] {

@@ -75,6 +75,7 @@ final class AssistantCatalogCoverageTests: XCTestCase {
         try assertChoices("appearance.presentation", NookPresentation.allCases.map(\.rawValue))
         try assertChoices("appearance.accentPreset", NookAccentPreset.allCases.map(\.rawValue))
         try assertChoices("settings.theme.fontDesign", PlaygroundSettings.FontDesign.allCases.map(\.rawValue))
+        try assertChoices("settings.theme.motion", NookMotionScheme.allCases.map(\.rawValue))
         try assertChoices("settings.topBar.width", PlaygroundSettings.TopBar.Width.allCases.map(\.rawValue))
         try assertChoices(
             "settings.topBar.notchClearance",
@@ -231,6 +232,9 @@ final class AssistantCatalogCoverageTests: XCTestCase {
         for role in PlaygroundSettings.Theme.ColorRole.allCases {
             settings.theme[role] = PlaygroundColor(red: 0.5, green: 0.5, blue: 0.5)
         }
+        settings.theme.radius = 1.2
+        settings.theme.scale = 1.1
+        settings.theme.motion = .calm
         settings.topBar.leadingIcon = "music.note"
         var item = PlaygroundSettings.Item(symbol: "moon.fill", title: "Sleep")
         item.tint = PlaygroundColor(red: 1, green: 1, blue: 1)

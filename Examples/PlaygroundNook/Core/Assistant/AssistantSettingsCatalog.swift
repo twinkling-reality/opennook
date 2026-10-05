@@ -130,6 +130,31 @@ public enum AssistantSettingsCatalog {
                 "The type family for all chrome text. Only these four system designs exist."
             )
         )
+        fields += [
+            number(
+                "settings.theme.radius",
+                nullable: true,
+                0,
+                2,
+                .none,
+                "Multiplies every corner radius the chrome draws, the panel's included; 1 is the framework's, "
+                    + "null leaves it at 1."
+            ),
+            number(
+                "settings.theme.scale",
+                nullable: true,
+                0.8,
+                1.4,
+                .none,
+                "Multiplies the chrome's spacing and text sizes; 1 is the framework's, null leaves it at 1."
+            ),
+            choice(
+                "settings.theme.motion",
+                of: NookMotionScheme.self,
+                nullable: true,
+                "How springy the chrome's animations are: calm has no overshoot, expressive has more; null is standard."
+            ),
+        ]
         return fields
     }
 
@@ -151,6 +176,14 @@ public enum AssistantSettingsCatalog {
                 "The hairline around small controls and chips."
             case .headerInactiveIcon:
                 "The color of a top bar icon that is not active."
+            case .hoverWash:
+                "The wash over a hovered glyph button or companion."
+            case .destructive:
+                "The color of destructive commands, such as resetting Settings."
+            case .warning:
+                "The color of warnings, such as a shortcut that could not be registered."
+            case .success:
+                "The color of success, for host content and banners."
         }
     }
 

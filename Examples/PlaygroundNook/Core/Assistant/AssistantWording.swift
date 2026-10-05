@@ -75,6 +75,9 @@ extension AssistantField {
             case "appearance.backdropStrength": return "Backdrop"
 
             case "settings.theme.fontDesign": return "Type design"
+            case "settings.theme.radius": return "Corner scale"
+            case "settings.theme.scale": return "Scale"
+            case "settings.theme.motion": return "Motion"
 
             case "settings.panel.expandedWidth": return "Width"
             case "settings.panel.topCornerRadius": return "Top corners"
