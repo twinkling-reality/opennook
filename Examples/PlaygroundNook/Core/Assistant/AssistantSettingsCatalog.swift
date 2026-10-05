@@ -109,6 +109,36 @@ public enum AssistantSettingsCatalog {
                 .fraction,
                 "How much a frosted backdrop darkens behind the content. Lower shows more wallpaper."
             ),
+            choice(
+                "appearance.openOnHover",
+                of: NookOpenOnHover.self,
+                default: defaults.openOnHover.rawValue,
+                "What resting the pointer on the compact pill does: open at once, peek first, or nothing."
+            ),
+            number(
+                "appearance.hoverDelay",
+                default: defaults.hoverDelay,
+                0,
+                1,
+                .seconds,
+                "How long the pointer rests on the pill before it opens or peeks, on the built-in display."
+            ),
+            number(
+                "appearance.externalDisplayHoverDelay",
+                default: defaults.externalDisplayHoverDelay,
+                0,
+                1,
+                .seconds,
+                "The same wait on any other display."
+            ),
+            number(
+                "appearance.peekDwell",
+                default: defaults.peekDwell,
+                0,
+                3,
+                .seconds,
+                "How long the pointer rests on a peek before the nook opens on its own. 0 waits for a click."
+            ),
         ]
     }
 
