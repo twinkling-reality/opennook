@@ -65,6 +65,13 @@ live from the running app; see [`docs/images/`](docs/images/README.md) for how t
 </p>
 
 <p align="center">
+  <img src="docs/images/nook-themes.gif" width="840" alt="The ShowcaseNook agenda scene re-themed live, cutting from the standard black chrome to Dusk (a violet gradient with a soft glow), Aurora (a green and indigo mesh with a mint accent) and Ember (a warm radial glow with serif type)">
+  <br><sub><b>Themes.</b> One running nook, re-themed from a JSON file on every save:
+  the standard look, then Dusk, Aurora and Ember from <code>Examples/Themes</code>.
+  <code>swift run ShowcaseNook --scene agenda --theme Examples/Themes/dusk.json</code></sub>
+</p>
+
+<p align="center">
   <img src="docs/images/nook-playground.gif" width="840" alt="PlaygroundNook: the controls window below the expanded nook, with the material changing and the nook following it live">
   <br><sub><b>Playground.</b> Change the running nook from a controls window,
   then copy the result as Swift or a JSON preset.
@@ -183,6 +190,7 @@ swift run MultiNook     # multiple interchangeable modules sharing one surface
 swift run CompanionNook # companion surfaces beside the nook, rim glow, scroll edge fade
 swift run PlaygroundNook # change the running nook live, then export Swift or a JSON preset
 swift run ShowcaseNook --scene player # finished-looking scenes: player, agenda, timer, progress, shelf, hud, compact
+swift run ShowcaseNook --scene agenda --theme Examples/Themes/aurora.json # the chrome painted by a theme file, reloaded on save
 ```
 
 Each one, grouped and explained:

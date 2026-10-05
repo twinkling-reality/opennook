@@ -274,6 +274,14 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   keep format version 1), and Copy Theme. The assistant can propose token overrides
   by id, checked against the registry, and theme backdrops.
 
+- Sample theme files in `Examples/Themes`: Dusk (a linear gradient), Aurora (a mesh
+  gradient), and Ember (a radial glow), each with its own accent, labels, type, and
+  chrome shadow. `ShowcaseNook --theme <file>` paints any scene with one and follows
+  the file as it is saved, and the agenda's day takes a theme's accent. A test loads
+  every sample, so none can drift into reporting issues. The README and the Theming
+  guide show the agenda scene in each, recorded live by
+  `docs/images/record-themes.sh`.
+
 ### Changed
 
 - Framework strings no longer use em dashes; each became " - ": the "Stay expanded" and
