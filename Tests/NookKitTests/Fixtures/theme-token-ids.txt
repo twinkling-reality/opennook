@@ -66,6 +66,8 @@ motion.header.delay
 motion.leadingClusterBack
 motion.leadingClusterHover
 motion.moduleSwitch
+motion.peek.enter
+motion.peek.exit
 motion.settingsDisclosure
 motion.stagger
 motion.statusBanner
@@ -135,6 +137,12 @@ shape.chrome.topRadius
 shape.compact.bottomRadius
 shape.compact.topRadius
 shape.floating.expandedRadius
+shape.peek.bottomRadius
+shape.peek.insets.bottom
+shape.peek.insets.leading
+shape.peek.insets.top
+shape.peek.insets.trailing
+shape.peek.maxHeight
 shelf.caption.font
 shelf.chip.cornerRadius
 shelf.chip.label.font
@@ -189,6 +197,7 @@ topBar.trailingCluster.spacing
 transition.close
 transition.convert
 transition.open
+transition.peek
 type.body
 type.caption
 type.glyph

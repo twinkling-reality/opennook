@@ -210,7 +210,15 @@ public struct NookResolvedTokens: Sendable {
             // The surface's own fallback for the floating card is the expanded bottom radius,
             // which is also this token's default; leave it to the fallback unless it differs.
             floatingExpandedTopCornerRadius: floating == bottom ? nil : floating,
-            floatingExpandedBottomCornerRadius: floating == bottom ? nil : floating
+            floatingExpandedBottomCornerRadius: floating == bottom ? nil : floating,
+            peekBottomCornerRadius: self[.peekBottomRadius],
+            peekContentInsets: NookEdgeInsets(
+                top: self[.peekInsetTop],
+                bottom: self[.peekInsetBottom],
+                leading: self[.peekInsetLeading],
+                trailing: self[.peekInsetTrailing]
+            ),
+            peekMaxHeight: self[.peekMaxHeight]
         )
     }
 
@@ -231,6 +239,8 @@ public struct NookResolvedTokens: Sendable {
         let compact = transition(.compactContent)
         let removal: NookContentTransition? =
             writtenTransitions.contains(.contentExit) ? Self.expandedContentTransition(transition(.contentExit)) : nil
+        let peekRemoval: NookContentTransition? =
+            writtenTransitions.contains(.peekExit) ? Self.expandedContentTransition(transition(.peekExit)) : nil
         return NookTransitionConfiguration(
             openingAnimation: self[.transitionOpen],
             closingAnimation: self[.transitionClose],
@@ -245,7 +255,11 @@ public struct NookResolvedTokens: Sendable {
             expandedContentRemoval: removal,
             // The top bar holds back for `motion.header.delay` after the content arrives; an
             // awaited expand waits for it. Staggered rows are open-ended and are not waited for.
-            expandedEntranceDuration: Double(self[.headerDelay])
+            expandedEntranceDuration: Double(self[.headerDelay]),
+            // The peek unfolds from the slots like the expanded content does: scaled vertically.
+            peekContentTransition: Self.expandedContentTransition(transition(.peekEnter)),
+            peekContentRemoval: peekRemoval,
+            peekAnimation: self[.transitionPeek]
         )
     }
 

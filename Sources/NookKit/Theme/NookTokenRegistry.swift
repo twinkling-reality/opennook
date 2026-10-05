@@ -200,6 +200,12 @@ enum NookTokenRegistry {
         NookDimensionToken(.chromeInsetTrailing, .semantic, .none, 8, .length),
         NookDimensionToken(.compactTopRadius, .semantic, .none, 6, .length),
         NookDimensionToken(.compactBottomRadius, .semantic, .none, 14, .length),
+        NookDimensionToken(.peekBottomRadius, .semantic, .none, 22, .length),
+        NookDimensionToken(.peekMaxHeight, .semantic, .none, 120, .length),
+        NookDimensionToken(.peekInsetTop, .semantic, .none, 2, .length),
+        NookDimensionToken(.peekInsetBottom, .semantic, .none, 10, .length),
+        NookDimensionToken(.peekInsetLeading, .semantic, .none, 14, .length),
+        NookDimensionToken(.peekInsetTrailing, .semantic, .none, 14, .length),
         NookDimensionToken(.floatingExpandedRadius, .semantic, .radius, .token(.chromeBottomRadius), .length),
         NookDimensionToken(.contentEnterDelay, .semantic, .none, 0, .duration),
         NookDimensionToken(.headerDelay, .semantic, .none, 0, .duration),
@@ -245,6 +251,7 @@ enum NookTokenRegistry {
             .semantic,
             .spring(response: 0.54, dampingFraction: 0.86, blendDuration: 0.12)
         ),
+        NookAnimationToken(.transitionPeek, .semantic, .reference(.springSnappy)),
         NookAnimationToken(.viewModeChange, .component, .reference(.springGentle)),
         NookAnimationToken(.leadingClusterBack, .component, .spring(response: 0.34, dampingFraction: 0.85)),
         NookAnimationToken(.leadingClusterHover, .component, .reference(.springSnappy)),
@@ -261,6 +268,8 @@ enum NookTokenRegistry {
         (.contentExit, .expandedContentDefault),
         (.contentEnter, .expandedContentDefault),
         (.compactContent, .compactContentDefault),
+        (.peekEnter, .peekContentDefault),
+        (.peekExit, .peekContentDefault),
     ]
 
     /// Sound events. Every one defaults to no sound.

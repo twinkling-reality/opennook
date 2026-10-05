@@ -107,6 +107,18 @@ extension NookDimensionID {
     public static let compactTopRadius: NookDimensionID = "shape.compact.topRadius"
     /// The compact pill's lower corner. Default 14, the chrome's fixed value today.
     public static let compactBottomRadius: NookDimensionID = "shape.compact.bottomRadius"
+    /// The bottom corner of the compact pill while it peeks. Default 22.
+    public static let peekBottomRadius: NookDimensionID = "shape.peek.bottomRadius"
+    /// The tallest the peek content makes the pill grow below its slots. Default 120.
+    public static let peekMaxHeight: NookDimensionID = "shape.peek.maxHeight"
+    /// The peek content's top margin inside the grown pill. Default 2.
+    public static let peekInsetTop: NookDimensionID = "shape.peek.insets.top"
+    /// The peek content's bottom margin. Default 10.
+    public static let peekInsetBottom: NookDimensionID = "shape.peek.insets.bottom"
+    /// The peek content's leading margin. Default 14.
+    public static let peekInsetLeading: NookDimensionID = "shape.peek.insets.leading"
+    /// The peek content's trailing margin. Default 14.
+    public static let peekInsetTrailing: NookDimensionID = "shape.peek.insets.trailing"
     /// The floating panel's corner radius. Default the expanded chrome's bottom radius, as today.
     public static let floatingExpandedRadius: NookDimensionID = "shape.floating.expandedRadius"
     /// Seconds the expanded content waits, after the chrome starts growing, before entering.
@@ -396,6 +408,8 @@ extension NookAnimationID {
     public static let transitionClose: NookAnimationID = "transition.close"
     /// The surface's compact and expanded conversion: response 0.54, damping 0.86, blend 0.12.
     public static let transitionConvert: NookAnimationID = "transition.convert"
+    /// The compact pill growing into its peek and back. Default `{spring.snappy}`.
+    public static let transitionPeek: NookAnimationID = "transition.peek"
 
     // MARK: Chrome motion (one per `NookChromeMotion` field)
 
@@ -426,6 +440,12 @@ extension NookTransitionID {
     /// How compact slot content enters and leaves. Default fade, blur 6, and a horizontal scale
     /// from 0, on the surface's curve.
     public static let compactContent: NookTransitionID = "motion.compact.transition"
+    /// How the peek content enters, and leaves unless `motion.peek.exit` is written. Default
+    /// fade, blur 4, and a vertical scale from 0.9 at the top, on the peek curve.
+    public static let peekEnter: NookTransitionID = "motion.peek.enter"
+    /// How the peek content leaves. A theme that does not write it leaves with
+    /// `motion.peek.enter` in reverse.
+    public static let peekExit: NookTransitionID = "motion.peek.exit"
 }
 
 extension NookSoundID {
