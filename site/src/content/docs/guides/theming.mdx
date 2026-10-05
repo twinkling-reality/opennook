@@ -43,7 +43,7 @@ var theme = NookTheme(
     fontWidth: .condensed,
     motion: .calm               // .standard, .calm (no overshoot), .expressive
 )
-theme.soundVolume = 0.6         // sounds are described by tokens; nothing plays them yet
+theme.soundVolume = 0.6         // multiplies every sound's volume; see Sounds below
 ```
 
 Four knobs pin a choice the person would otherwise make in Settings; see
@@ -266,9 +266,8 @@ the ear into the notch arch, not scaled), `shape.chrome.bottomRadius` (24),
 expand, collapse, and conversion curves are `transition.open`, `transition.close`,
 and `transition.convert`, and the content that enters and leaves with them is
 `motion.content.enter` (expanded content) and `motion.compact.transition` (the
-compact slots). `motion.content.exit`, `motion.content.enterDelay`,
-`motion.header.delay`, and `motion.stagger` describe a staggered entrance; the
-surface does not play them yet.
+compact slots). How content leaves, and the timing of its entrance, are in
+[Choreography](#choreography).
 
 `ambient.wash.top`, `.upper`, `.lower`, and `.bottom` shape the wash that
 `nookAmbientColor(_:)` lights behind expanded content, and `shadow.chrome` gives the
@@ -286,6 +285,126 @@ configuration.style = style
 For how `expandedWidth`, `expandedContentInsets`, `metrics.edgePadding`, and
 `nookContentInsets` compose into usable content width, see
 [Layout and content insets](/guides/layout-and-insets/).
+
+## Choreography
+
+By default the expanded content arrives and leaves with one transition, played on
+the surface's curve as the chrome changes shape, and everything in it arrives at
+once. Five tokens choreograph it instead:
+
+| Token | What it does | Default |
+|---|---|---|
+| `motion.content.enter` | How the expanded content arrives: opacity, blur, scale, and its own curve | fade, blur 6, vertical scale 0.72, the surface's curve |
+| `motion.content.exit` | How it leaves, when the theme writes it | `motion.content.enter` in reverse |
+| `motion.content.enterDelay` | Seconds the content waits after the chrome starts growing | 0 |
+| `motion.header.delay` | Seconds the top bar waits after the content starts arriving | 0 |
+| `motion.stagger` | Seconds between rows marked with `nookStaggered(index:)` | 0 |
+
+While it waits, content is held at the start of `motion.content.enter`: faded,
+blurred, and scaled. Leaving never waits. A transition with no `animation` plays on
+the surface's curve, and a delay with no curve of its own waits and then plays on
+it. The surface scales expanded content vertically from the top edge, so it draws
+a transition's `scaleY` (a `scale` sets both); anchors and offsets are fixed by
+where the content sits.
+
+The top bar and staggered rows arrive with `motion.content.enter` too. Their waits
+count from the moment the content starts arriving, so the header in the example
+below shows 0.46 s after the nook starts opening. A view that appears after its
+turn has passed (the top bar of a module switched to later, a lazily built row
+scrolled into view) shows at once.
+
+Mark the rows of a list in your own content:
+
+```swift
+ForEach(Array(sessions.enumerated()), id: \.element.id) { index, session in
+    SessionRow(session)
+        .nookStaggered(index: index)
+}
+```
+
+`nookStaggered(index:)` reads the theme from the environment, so the theme decides
+the timing, and it does nothing while `motion.stagger` is 0. Outside the expanded
+content (a compact slot, a companion) its turns count from the row's own
+appearance. The framework's own chrome uses it nowhere.
+
+A theme with a quick exit, an entrance that waits for the chrome to grow, a late
+header, and a cascading list:
+
+```json
+{
+  "format": "opennook.theme",
+  "version": 1,
+  "name": "Cascade",
+  "tokens": {
+    "motion.content.exit": { "opacity": 0, "blur": 8, "scale": 0.97, "animation": { "curve": "easeOut", "duration": 0.16 } },
+    "motion.content.enter": { "opacity": 0, "blur": 8, "scale": 0.97, "animation": { "curve": "easeOut", "duration": 0.3 } },
+    "motion.content.enterDelay": 0.16,
+    "motion.header.delay": 0.3,
+    "motion.stagger": 0.035,
+    "sound.open": { "system": "Pop", "volume": 0.5 },
+    "sound.close": { "system": "Bottle", "volume": 0.4 },
+    "sound.peek": { "system": "Tink", "volume": 0.4 },
+    "sound.alert": { "system": "Sosumi" },
+    "sound.finish": { "system": "Glass", "volume": 0.6 },
+    "sound.hover": { "system": "Morse", "volume": 0.2 }
+  },
+  "soundVolume": 0.8
+}
+```
+
+Without a theme file, set the same values on
+`configuration.transitions` (`NookTransitionConfiguration`):
+`expandedContentTransition` takes a `NookContentTransition` with an `animation` and
+a `delay`, and `expandedContentRemoval` (and `compactContentRemoval`) how the
+content leaves. `nil`, the default, leaves the way it arrived.
+
+## Sounds
+
+A theme can play a sound for each chrome event. Every sound is off by default, and a
+theme without sounds plays nothing and loads nothing.
+
+| Token | Plays when |
+|---|---|
+| `sound.open` | the nook expands, from the compact pill or from hidden |
+| `sound.close` | the nook leaves the expanded state |
+| `sound.hover` | the pointer reaches the nook (the chrome or a companion) |
+| `sound.feedback` | a peripheral cue plays: `coordinator.playFeedback(_:)` or the launch shimmer |
+| `sound.alert` | a status of `.error` or `.warning` severity is posted, or an `.urgent` surface claim is granted (a `.high` priority activity, for example) |
+| `sound.finish` | a status of `.success` severity is posted |
+| `sound.peek` | only when you play it: the framework has no peek of its own |
+
+A sound is a system sound by name (`NSSound(named:)`, such as `"Pop"` or
+`"Glass"`), a resource in your app's bundle, or a file:
+
+```swift
+var theme = NookTheme(soundVolume: 0.8)
+theme.tokens[.open] = .system("Pop", volume: 0.5)
+theme.tokens[.finish] = NookSoundSpec(.resource("done.caf"))
+theme.tokens[.alert] = NookSoundSpec(.file(alertURL), volume: 0.7)
+```
+
+Each sound plays at its own `volume` times the theme's `soundVolume`. The sounds are
+loaded when the theme is applied, and a sound asked for again while it is still
+playing plays over itself.
+
+For an event only your code knows about (a task that finished, a peek you draw),
+play the theme's sound yourself. Nothing plays when the theme has no sound for it:
+
+```swift
+coordinator.playSound(.finish)
+
+// In your views:
+@Environment(\.nookChromeActions) private var chromeActions
+chromeActions.playSound(.peek)
+```
+
+The person can turn sounds off. While the theme has sounds and
+`allowsUserSoundToggle` is `true` (the default), Settings shows a "Sounds" row in
+its Shortcut & nook group (`NookChromeLabels.shortcut.soundsTitle`, `soundsOn`, and
+`soundsOff`). The choice is saved as `NookAppearancePreferences.soundsEnabled`, on
+by default, and while it is off nothing plays, whatever the theme says. A theme
+with `allowsUserSoundToggle` set to `false` hides the row, except while sounds are
+off, so the person can always turn them back on.
 
 ## Custom Settings surface
 
@@ -315,6 +434,7 @@ public struct NookAppearancePreferences: Equatable, Codable, Sendable {
     public var keepNookOpen: Bool
     public var accentPreset: NookAccentPreset     // .system / .teal / .blue / .violet / .orange / .rose
     public var backdropStrength: Double           // 0.15...1, default 1
+    public var soundsEnabled: Bool                // the theme's sounds; default true
 }
 ```
 
@@ -327,6 +447,7 @@ public struct NookAppearancePreferences: Equatable, Codable, Sendable {
 - `accentPreset` is the accent swatch; `.system` means the theme's accent.
 - `backdropStrength` scales the translucent and Liquid Glass backdrops' legibility
   pass. Solid ignores it.
+- `soundsEnabled` is the "Sounds" switch; see [Sounds](#sounds).
 
 `theme.effectivePreferences(_:)` gives the preferences with a theme's pins applied,
 which is what the chrome paints with.

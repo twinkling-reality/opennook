@@ -181,6 +181,10 @@ nook.playFeedback(.shimmer, style: NookFeedbackStyle(
 `NookFeedbackStyle.standard` is the built-in look in the system accent color, and the
 `tint:` overload is that look in another color.
 
+Through NookKit, `coordinator.playFeedback(_:duration:repeats:)` plays the cue in the
+theme's `feedback.tint` and, when the theme has one, its `sound.feedback`; see
+[Sounds](/guides/theming/#sounds).
+
 ## Ambient wash
 
 Content that publishes `nookAmbientColor(_:)` gets a wash of that color behind the
