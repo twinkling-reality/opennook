@@ -55,6 +55,14 @@ The app chrome layered over `NookSurface`.
   end on a schedule. See [Hover and peek](/guides/hover-and-peek/). Source:
   `Sources/NookKit/App/NookAppearancePreferences.swift`,
   `Sources/NookKit/App/NookSurfacePresenting.swift`.
+- **Live activities** - `NookLiveActivity` (with `Priority`, `Lifetime`, and
+  `Alert`), started through a module's `NookLiveActivities` (`NookLiveActivitiesKey`,
+  `\.nookLiveActivities`); `NookActivityCenter` (`NookModuleRegistry.liveActivities`)
+  orders them for the pill; `NookActivityPolicy`
+  (`NookHostConfiguration.activityPolicy`) sets the capsules; and
+  `NookModuleDescriptor.loadsAtLaunch` starts a resident module at launch. See
+  [Live activities](/guides/live-activities/). Source:
+  `Sources/NookKit/App/Activities/`.
 - **Chrome strings and motion** - `NookChromeLabels` (`NookConfiguration.labels`,
   `\.nookChromeLabels`) holds every string the framework draws, grouped as
   `NookChromeLabels.TopBar`, `.Settings`, `.Appearance`, `.Display`, `.Shortcut`,

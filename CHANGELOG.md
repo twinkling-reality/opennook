@@ -8,6 +8,21 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Live activities, modeled on the Dynamic Island. Any loaded module starts a
+  `NookLiveActivity` (compact leading and trailing views, a minimal view, and optionally a
+  peek and an expanded view) through its own `NookLiveActivities`
+  (`NookLiveActivitiesKey`, `\.nookLiveActivities`). The host's `NookActivityCenter` orders
+  them by priority, alert, and recency: the first holds the pill's compact slots, and the
+  next show their minimal views in capsules beside it (`NookActivityPolicy`, one capsule by
+  default, `NookHostConfiguration.activityPolicy`). An activity can alert by peeking or
+  opening the nook (`NookLiveActivity.Alert`), as a surface claim, so it never interrupts
+  someone using the nook; from a background module only a high priority alert takes the
+  surface. Opening from an activity's peek shows its expanded view under a breadcrumb.
+  Activities are transient or ongoing, update in place as their views read module state,
+  and end when their module unloads. `NookModuleDescriptor.loadsAtLaunch` builds a resident
+  module at launch so it can run activities before it is shown. ShowcaseNook's `compact`
+  scene now runs as two activities. New site guide: "Live activities".
+
 - A peek between the compact pill and the full nook. The pill grows down into a short
   region under the notch that shows a module's peek view (`NookConfiguration.setPeek(_:)`),
   and the full nook opens on a click or once the pointer has rested on it. People choose
