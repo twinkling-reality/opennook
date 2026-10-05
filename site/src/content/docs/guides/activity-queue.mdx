@@ -216,11 +216,12 @@ A few details that matter:
   async seam when you need to *join* in-flight work, the sync seam for cheap
   cleanup (timers, observers). `prepareForSwitchAway` runs first, for both
   background policies, while the module is still loaded; `onDeactivate` and any
-  unload follow once it returns.
-- The framework bounds `prepareForSwitchAway` to a 2-second timeout. The
-  surface arbiter already treats the outgoing module's claims as stale, so a
-  misbehaving drain can't strand the user-visible switch - but you should not
-  rely on this in normal code.
+  unload follow once it returns, or at the timeout below.
+- The framework bounds `prepareForSwitchAway` to a 2-second timeout. Past it the
+  drain is cancelled and the switch carries on without waiting for it, even if it
+  ignores cancellation. The surface arbiter already treats the outgoing module's
+  claims as stale, so a misbehaving drain can't strand the user-visible switch -
+  but you should not rely on this in normal code.
 
 See the [Multiple modules guide](/guides/multiple-modules/#the-module-switch-lifecycle)
 for the full switch sequence.
