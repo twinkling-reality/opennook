@@ -164,15 +164,15 @@ final class NookPeekTests: XCTestCase {
         let nook = makeNook()
         nook.hoverIntent = NookHoverIntent(
             action: .peek,
-            delay: .milliseconds(150),
-            externalDisplayDelay: .milliseconds(150)
+            delay: .milliseconds(900),
+            externalDisplayDelay: .milliseconds(900)
         )
         await nook.compact(on: screen)
 
         nook.updateHoverState(true)
-        try await Task.sleep(for: .milliseconds(60))
+        try await Task.sleep(for: .milliseconds(20))
         XCTAssertFalse(nook.isPeeking, "still inside the delay")
-        await waitUntil { nook.isPeeking }
+        await waitUntil(timeout: .seconds(4)) { nook.isPeeking }
         XCTAssertTrue(nook.peekStartedByHover)
         XCTAssertEqual(nook.state, .compact)
         await nook.hide()
@@ -183,15 +183,15 @@ final class NookPeekTests: XCTestCase {
         let nook = makeNook()
         nook.hoverIntent = NookHoverIntent(
             action: .peek,
-            delay: .milliseconds(120),
-            externalDisplayDelay: .milliseconds(120)
+            delay: .milliseconds(900),
+            externalDisplayDelay: .milliseconds(900)
         )
         await nook.compact(on: screen)
 
         nook.updateHoverState(true)
-        try await Task.sleep(for: .milliseconds(40))
+        try await Task.sleep(for: .milliseconds(20))
         nook.updateHoverState(false)
-        try await Task.sleep(for: .milliseconds(250))
+        try await Task.sleep(for: .milliseconds(1200))
         XCTAssertFalse(nook.isPeeking)
         XCTAssertEqual(nook.state, .compact)
         await nook.hide()
@@ -219,13 +219,13 @@ final class NookPeekTests: XCTestCase {
     func testDwellingOnAPeekOpensTheNook() async throws {
         let screen = try screen()
         let nook = makeNook()
-        nook.hoverIntent = NookHoverIntent(action: .peek, dwellToExpand: .milliseconds(200))
+        nook.hoverIntent = NookHoverIntent(action: .peek, dwellToExpand: .milliseconds(900))
         await nook.compact(on: screen)
 
         nook.updateHoverState(true)
         await waitUntil { nook.isPeeking }
         XCTAssertEqual(nook.state, .compact)
-        await waitUntil { nook.state == .expanded }
+        await waitUntil(timeout: .seconds(4)) { nook.state == .expanded }
         XCTAssertFalse(nook.isPeeking)
         await nook.hide()
     }

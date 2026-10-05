@@ -178,17 +178,19 @@ final class NookOpeningTests: XCTestCase {
         )
         let token = try XCTUnwrap(grant)
 
-        let scheduled = await coordinator.endTransientPresentation(token, after: .milliseconds(150))
+        // Far off, then moved close: the claim ending long before the first end proves the move,
+        // without leaning on how fast the machine runs.
+        let scheduled = await coordinator.endTransientPresentation(token, after: .seconds(10))
         XCTAssertTrue(scheduled)
-        try await Task.sleep(for: .milliseconds(100))
-        let moved = await coordinator.endTransientPresentation(token, after: .milliseconds(150))
+        let moved = await coordinator.endTransientPresentation(token, after: .milliseconds(100))
         XCTAssertTrue(moved)
-        try await Task.sleep(for: .milliseconds(100))
-        XCTAssertTrue(surface.isPeeking, "the end moved, so the claim still holds")
 
-        let deadline = ContinuousClock.now + .seconds(2)
-        while surface.isPeeking, ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(10)) }
-        XCTAssertFalse(surface.isPeeking)
+        let started = ContinuousClock.now
+        while surface.isPeeking, ContinuousClock.now - started < .seconds(5) {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        XCTAssertFalse(surface.isPeeking, "the moved end released the claim")
+        XCTAssertLessThan(ContinuousClock.now - started, .seconds(5))
 
         let stale = await coordinator.endTransientPresentation(token, after: .milliseconds(10))
         XCTAssertFalse(stale, "an ended claim cannot be scheduled")
