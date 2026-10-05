@@ -67,6 +67,9 @@ public struct NookGlyphButtonStyle: ButtonStyle {
     public var fade: NookStandardCompanionStyle.Fade?
     /// What changes under the pointer. The wash is drawn in the button's shape.
     public var hover: NookStandardCompanionStyle.Hover
+    /// The color of the hover wash, drawn at ``hover``'s wash opacity. `nil` uses the
+    /// palette's `hoverWash`, which is white unless a theme changes it.
+    public var washColor: Color?
     /// The button's scale while it is pressed.
     public var pressedScale: CGFloat
     /// The curve hover and press animate on.
@@ -81,6 +84,7 @@ public struct NookGlyphButtonStyle: ButtonStyle {
         fill: Fill = .none,
         fade: NookStandardCompanionStyle.Fade? = nil,
         hover: NookStandardCompanionStyle.Hover = .highlight,
+        washColor: Color? = nil,
         pressedScale: CGFloat = 0.92,
         animation: Animation = .snappy(duration: 0.18)
     ) {
@@ -92,6 +96,7 @@ public struct NookGlyphButtonStyle: ButtonStyle {
         self.fill = fill
         self.fade = fade
         self.hover = hover
+        self.washColor = washColor
         self.pressedScale = pressedScale
         self.animation = animation
     }
@@ -134,6 +139,7 @@ extension ButtonStyle where Self == NookGlyphButtonStyle {
         fill: NookGlyphButtonStyle.Fill = .none,
         fade: NookStandardCompanionStyle.Fade? = nil,
         hover: NookStandardCompanionStyle.Hover = .highlight,
+        washColor: Color? = nil,
         pressedScale: CGFloat = 0.92,
         animation: Animation = .snappy(duration: 0.18)
     ) -> NookGlyphButtonStyle {
@@ -146,6 +152,7 @@ extension ButtonStyle where Self == NookGlyphButtonStyle {
             fill: fill,
             fade: fade,
             hover: hover,
+            washColor: washColor,
             pressedScale: pressedScale,
             animation: animation
         )
@@ -182,7 +189,7 @@ private struct NookGlyphButtonBody: View {
             }
             .overlay {
                 outline
-                    .fill(Color.white.opacity(isHovered && isEnabled ? style.hover.wash : 0))
+                    .fill((style.washColor ?? theme.hoverWash).opacity(isHovered && isEnabled ? style.hover.wash : 0))
                     .allowsHitTesting(false)
             }
             .contentShape(outline)

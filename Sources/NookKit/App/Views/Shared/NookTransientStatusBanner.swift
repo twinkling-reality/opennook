@@ -16,6 +16,7 @@ struct NookTransientStatusBanner: View {
     let theme: NookResolvedTheme
 
     @Environment(\.nookChromeLabels) private var labels
+    @Environment(\.nookChromeColors) private var chromeColors
     @Environment(\.nookChromeTypography) private var typography
     @Environment(\.nookChromeMetrics) private var metrics
 
@@ -24,7 +25,7 @@ struct NookTransientStatusBanner: View {
             HStack(alignment: .top, spacing: metrics.bannerRowSpacing) {
                 Image(systemName: status.severity.systemImage)
                     .font(typography.bannerSeverityGlyph)
-                    .foregroundStyle(theme.accent)
+                    .foregroundStyle(chromeColors.bannerSeverity(status.severity) ?? theme.accent)
                     .padding(.top, metrics.bannerSeverityGlyphTopInset)
 
                 Text(status.message)

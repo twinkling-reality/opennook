@@ -21,6 +21,10 @@ banner.message.opacity
 banner.padding.horizontal
 banner.padding.vertical
 banner.rowSpacing
+banner.severity.error.color
+banner.severity.info.color
+banner.severity.success.color
+banner.severity.warning.color
 banner.severityGlyph.font
 banner.severityGlyph.topInset
 banner.stroke.opacity

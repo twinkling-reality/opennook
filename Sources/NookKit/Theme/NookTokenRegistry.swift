@@ -163,6 +163,10 @@ enum NookTokenRegistry {
         NookColorToken(.warning, .semantic, .system(.orange)),
         NookColorToken(.success, .semantic, .system(.green)),
         NookColorToken(.feedbackTint, .semantic, .systemAccent),
+        NookColorToken(.bannerSeverityError, .component, .accent),
+        NookColorToken(.bannerSeverityWarning, .component, .accent),
+        NookColorToken(.bannerSeverityInfo, .component, .accent),
+        NookColorToken(.bannerSeveritySuccess, .component, .accent),
     ]
 
     // MARK: Numbers

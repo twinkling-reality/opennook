@@ -65,7 +65,7 @@ struct SettingsDataCommandRow: View {
             case .standard:
                 isHovering ? theme.accent : theme.headerInactiveIcon
             case .destructive:
-                Color.red.opacity(0.92)
+                theme.destructive.opacity(0.92)
         }
     }
 
@@ -74,7 +74,7 @@ struct SettingsDataCommandRow: View {
             case .standard:
                 isHovering ? theme.accent : theme.primaryLabel
             case .destructive:
-                Color.red.opacity(0.95)
+                theme.destructive.opacity(0.95)
         }
     }
 }
