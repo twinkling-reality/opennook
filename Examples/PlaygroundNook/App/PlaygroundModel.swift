@@ -303,7 +303,7 @@ final class PlaygroundModel: ObservableObject {
                 settings.behavior = .init()
             case .tokens:
                 settings.theme.tokens = .init()
-            case .presets:
+            case .activities, .presets:
                 return
         }
         self.settings = settings

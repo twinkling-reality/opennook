@@ -56,6 +56,47 @@ struct AppearancePage: View {
                 }
             }
 
+            SectionCard(title: "Opening", isModified: openingIsModified, reset: resetOpening) {
+                SegmentedRow(
+                    title: "On hover",
+                    selection: binding(\.openOnHover),
+                    choices: [Choice(.immediately, "Open"), Choice(.peekFirst, "Peek first"), Choice(.off, "Off")],
+                    help: "What resting the pointer on the compact pill does. Peek first grows the pill into "
+                        + "a peek; start an activity on the Activities page to see one."
+                )
+                if preferences.openOnHover != .off {
+                    SliderRow(
+                        title: "Wait",
+                        value: binding(\.hoverDelay),
+                        range: NookAppearancePreferences.hoverTimingRange,
+                        step: 0.1,
+                        defaultValue: 0,
+                        format: .seconds,
+                        help: "How long the pointer rests on the pill first, on the built-in display."
+                    )
+                    SliderRow(
+                        title: "Wait elsewhere",
+                        value: binding(\.externalDisplayHoverDelay),
+                        range: NookAppearancePreferences.hoverTimingRange,
+                        step: 0.1,
+                        defaultValue: 0,
+                        format: .seconds,
+                        help: "The same wait on any other display."
+                    )
+                }
+                if preferences.openOnHover == .peekFirst {
+                    SliderRow(
+                        title: "Open after",
+                        value: binding(\.peekDwell),
+                        range: NookAppearancePreferences.peekDwellRange,
+                        step: 0.1,
+                        defaultValue: 0,
+                        format: .seconds,
+                        help: "How long the pointer rests on a peek before the nook opens. 0 waits for a click."
+                    )
+                }
+            }
+
             SectionCard(title: "Feedback") {
                 SwitchRow(
                     title: "Haptics",
@@ -74,6 +115,7 @@ struct AppearancePage: View {
         var style = preferences
         style.keepNookOpen = NookAppearancePreferences.default.keepNookOpen
         style.hapticFeedbackEnabled = NookAppearancePreferences.default.hapticFeedbackEnabled
+        Self.copyOpening(from: .default, to: &style)
         return style != .default
     }
 
@@ -82,8 +124,27 @@ struct AppearancePage: View {
             var reset = NookAppearancePreferences.default
             reset.keepNookOpen = preferences.keepNookOpen
             reset.hapticFeedbackEnabled = preferences.hapticFeedbackEnabled
+            Self.copyOpening(from: preferences, to: &reset)
             preferences = reset
         }
+    }
+
+    private var openingIsModified: Bool {
+        preferences.hoverIntent != NookAppearancePreferences.default.hoverIntent
+            || preferences.openOnHover != NookAppearancePreferences.default.openOnHover
+    }
+
+    private func resetOpening() {
+        model.updateAppearance { Self.copyOpening(from: .default, to: &$0) }
+    }
+
+    /// The Opening card's fields, which the Style card leaves alone.
+    private static func copyOpening(from source: NookAppearancePreferences, to target: inout NookAppearancePreferences)
+    {
+        target.openOnHover = source.openOnHover
+        target.hoverDelay = source.hoverDelay
+        target.externalDisplayHoverDelay = source.externalDisplayHoverDelay
+        target.peekDwell = source.peekDwell
     }
 
     private func binding<Value>(
