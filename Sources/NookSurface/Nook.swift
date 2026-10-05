@@ -954,6 +954,7 @@ extension Nook {
             withAnimation(effectiveOpeningAnimation) { state = .expanded }
             showWindow()
             try? await Task.sleep(for: openSettleDuration)
+            await awaitContentArrival(for: .expanded)
             // A screen-parameter change during the settle could have rebuilt the
             // window underneath us; bail rather than return success on a defunct view.
             // `Task.isCancelled` belt-and-suspenders matches `_hide`'s pattern - a
@@ -970,6 +971,7 @@ extension Nook {
             }
             withAnimation(effectiveConversionAnimation) { state = .expanded }
             try? await Task.sleep(for: conversionSettleDuration)
+            await awaitContentArrival(for: .expanded)
             guard isCurrent(generation), !Task.isCancelled else { return }
         }
     }
@@ -1000,6 +1002,7 @@ extension Nook {
             withAnimation(effectiveOpeningAnimation) { state = .compact }
             showWindow()
             try? await Task.sleep(for: openSettleDuration)
+            await awaitContentArrival(for: .compact)
             guard isCurrent(generation), !Task.isCancelled else { return }
         } else {
             if !skipHide {
@@ -1009,6 +1012,7 @@ extension Nook {
             }
             withAnimation(effectiveConversionAnimation) { state = .compact }
             try? await Task.sleep(for: conversionSettleDuration)
+            await awaitContentArrival(for: .compact)
             guard isCurrent(generation), !Task.isCancelled else { return }
         }
     }
@@ -1136,6 +1140,29 @@ extension Nook {
     /// into "let the spring settle."
     var conversionSettleDuration: Duration {
         .seconds(settleAnimationDuration)
+    }
+
+    /// How long content that arrives late keeps an awaited transition toward `state` from
+    /// returning, after the chrome's own settle: the content transition's enter delay, plus the
+    /// host's ``NookTransitionConfiguration/expandedEntranceDuration`` for expanded content.
+    /// Zero by default, and never part of the visible timing: only the `await` waits for it.
+    func contentArrivalDuration(for state: NookState) -> Duration {
+        let seconds: TimeInterval =
+            switch state {
+                case .expanded:
+                    transitionConfiguration.expandedContentTransition.delay
+                        + max(transitionConfiguration.expandedEntranceDuration, 0)
+                case .compact: transitionConfiguration.compactContentTransition.delay
+                case .hidden: 0
+            }
+        return .seconds(seconds)
+    }
+
+    /// Waits out ``contentArrivalDuration(for:)`` for `state`, when it is not zero.
+    func awaitContentArrival(for state: NookState) async {
+        let duration = contentArrivalDuration(for: state)
+        guard duration > .zero else { return }
+        try? await Task.sleep(for: duration)
     }
 
     /// Dwell at `.hidden` between a close animation and the following conversion (or

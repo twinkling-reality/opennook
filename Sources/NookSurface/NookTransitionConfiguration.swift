@@ -76,6 +76,13 @@ public struct NookTransitionConfiguration: Sendable {
     /// Its ``NookContentTransition/delay`` is ignored: leaving never waits.
     public var expandedContentRemoval: NookContentTransition?
 
+    /// Seconds after the expanded content starts arriving that the host's own entrances keep
+    /// holding views back, such as a top bar that waits before it appears. An awaited
+    /// `expand()` waits for this too, on top of the chrome's settle and
+    /// ``expandedContentTransition``'s ``NookContentTransition/delay``, so it returns once the
+    /// last held-back view has started arriving. 0, the default, adds nothing.
+    public var expandedEntranceDuration: TimeInterval
+
     public init(
         openingAnimation: Animation? = nil,
         closingAnimation: Animation? = nil,
@@ -86,7 +93,8 @@ public struct NookTransitionConfiguration: Sendable {
         compactContentTransition: NookContentTransition = .standardCompact,
         expandedContentTransition: NookContentTransition = .standardExpanded,
         compactContentRemoval: NookContentTransition? = nil,
-        expandedContentRemoval: NookContentTransition? = nil
+        expandedContentRemoval: NookContentTransition? = nil,
+        expandedEntranceDuration: TimeInterval = 0
     ) {
         self.openingAnimation = openingAnimation
         self.closingAnimation = closingAnimation
@@ -98,6 +106,7 @@ public struct NookTransitionConfiguration: Sendable {
         self.expandedContentTransition = expandedContentTransition
         self.compactContentRemoval = compactContentRemoval
         self.expandedContentRemoval = expandedContentRemoval
+        self.expandedEntranceDuration = expandedEntranceDuration.isFinite ? max(expandedEntranceDuration, 0) : 0
     }
 }
 

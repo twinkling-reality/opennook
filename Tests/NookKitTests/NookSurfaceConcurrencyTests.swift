@@ -219,6 +219,59 @@ final class NookSurfaceConcurrencyTests: XCTestCase {
         return nook
     }
 
+    // MARK: - Content arrival in the awaited settle
+
+    /// With the default transitions nothing arrives late, so an awaited transition settles
+    /// exactly as it did before content could be held back.
+    func testContentArrivalIsZeroByDefault() {
+        let nook = makeNook()
+        XCTAssertEqual(nook.contentArrivalDuration(for: .expanded), .zero)
+        XCTAssertEqual(nook.contentArrivalDuration(for: .compact), .zero)
+        XCTAssertEqual(nook.contentArrivalDuration(for: .hidden), .zero)
+    }
+
+    /// Expanded content waits for its enter delay plus the host's entrance; compact slots for
+    /// their own enter delay. The hide dwell between transitions is not lengthened by either.
+    func testContentArrivalAddsEachStatesDelays() {
+        let nook = makeNook()
+        let hideDwell = nook.intermediateHideDuration
+        nook.transitionConfiguration.expandedContentTransition = NookContentTransition(blurRadius: 6, scale: 0.72, delay: 0.2)
+        nook.transitionConfiguration.expandedEntranceDuration = 0.3
+        nook.transitionConfiguration.compactContentTransition = NookContentTransition(blurRadius: 6, scale: 0, delay: 0.1)
+
+        XCTAssertEqual(nook.contentArrivalDuration(for: .expanded), .seconds(0.5))
+        XCTAssertEqual(nook.contentArrivalDuration(for: .compact), .seconds(0.1))
+        XCTAssertEqual(nook.intermediateHideDuration, hideDwell)
+    }
+
+    /// A negative or non-finite entrance is read as none.
+    func testEntranceDurationIsNeverNegative() {
+        XCTAssertEqual(NookTransitionConfiguration(expandedEntranceDuration: -1).expandedEntranceDuration, 0)
+        XCTAssertEqual(NookTransitionConfiguration(expandedEntranceDuration: .infinity).expandedEntranceDuration, 0)
+    }
+
+    /// An awaited expand returns only after content held back by its enter delay and the
+    /// host's entrance has started arriving, not after the chrome's settle alone.
+    func testAwaitedExpandWaitsForDelayedContent() async throws {
+        guard let screen = NSScreen.main else { throw XCTSkip("No main display attached") }
+
+        let nook = makeSlowNook()
+        await nook.compact(on: screen)
+        nook.transitionConfiguration.skipIntermediateHides = true
+        nook.transitionConfiguration.expandedContentTransition = NookContentTransition(blurRadius: 6, scale: 0.72, delay: 0.25)
+        nook.transitionConfiguration.expandedEntranceDuration = 0.25
+
+        let clock = ContinuousClock()
+        let started = clock.now
+        await nook.expand(on: screen)
+        let elapsed = clock.now - started
+
+        XCTAssertEqual(nook.state, .expanded)
+        XCTAssertGreaterThanOrEqual(elapsed, nook.conversionSettleDuration + .seconds(0.5))
+
+        await nook.hide()
+    }
+
     /// A compact -> expanded conversion parks at `.hidden` for `intermediateHideDuration`
     /// before animating the expanded chrome in. The screen-parameter observer used to read
     /// that `.hidden` as "settled, nothing to keep", cancel the in-flight conversion and
