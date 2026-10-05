@@ -604,8 +604,7 @@ final class MediaModule: NookModule {
     nonisolated static let moduleDescriptor = NookModuleDescriptor(
         id: "com.opennook.example.companion",
         displayName: "Music",
-        icon: "music.note",
-        accent: .pink
+        icon: "music.note"
     )
 
     let descriptor = MediaModule.moduleDescriptor

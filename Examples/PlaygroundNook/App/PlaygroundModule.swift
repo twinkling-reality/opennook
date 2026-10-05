@@ -19,8 +19,7 @@ final class PlaygroundModule: NookModule {
     nonisolated static let moduleDescriptor = NookModuleDescriptor(
         id: "com.opennook.example.playground",
         displayName: "Playground",
-        icon: "slider.horizontal.3",
-        accent: .purple
+        icon: "slider.horizontal.3"
     )
 
     let descriptor = PlaygroundModule.moduleDescriptor
