@@ -12,6 +12,14 @@ enum AgendaPalette {
     static let today = Color(red: 1.00, green: 0.62, blue: 0.30)
 }
 
+extension NookResolvedTheme {
+    /// The day's color: the host theme's accent when it sets one (`--theme`), otherwise the
+    /// scene's own orange.
+    func agendaToday(in chromeTheme: NookTheme) -> Color {
+        chromeTheme.accent == NookTheme.standard.accent ? AgendaPalette.today : accent
+    }
+}
+
 /// A month at a glance beside today's schedule. The calendar is the real current month; the
 /// events are sample data drawn at a fixed time of day (`SampleAgenda.now`).
 struct AgendaHome: View {
@@ -102,6 +110,7 @@ private struct DayCell: View {
     let isToday: Bool
     let isWeekend: Bool
     @Environment(\.nookResolvedTheme) private var theme
+    @Environment(\.nookTheme) private var chromeTheme
 
     var body: some View {
         VStack(spacing: 1) {
@@ -114,7 +123,7 @@ private struct DayCell: View {
                     .frame(width: 21, height: 21)
                     .background {
                         if isToday {
-                            Circle().fill(AgendaPalette.today)
+                            Circle().fill(theme.agendaToday(in: chromeTheme))
                         }
                     }
                 Circle()

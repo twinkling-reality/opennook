@@ -1,0 +1,21 @@
+{
+  "format": "opennook.theme",
+  "version": 1,
+  "name": "Dusk",
+  "accent": "#FF8A65",
+  "allowsUserAccent": false,
+  "palette": "dark",
+  "radius": "large",
+  "tokens": {
+    "color.label.primary": "#F7F1FF",
+    "color.label.secondary": "#D9CCF5D9",
+    "color.label.tertiary": "#B7A6E0B3",
+    "color.label.quaternary": "#9C88CC80",
+    "color.fill.subtle": "#FFFFFF14",
+    "color.stroke.subtle": "#FFFFFF24",
+    "shadow.chrome": { "color": "#6E4BFF59", "radius": 24, "y": 10 }
+  },
+  "backdrops": {
+    "solid": { "kind": "linearGradient", "stops": ["#05040A", "#1A1233", "#33205C"], "start": "top", "end": "bottom" }
+  }
+}
