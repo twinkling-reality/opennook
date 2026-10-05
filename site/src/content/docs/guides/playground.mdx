@@ -6,9 +6,10 @@ description: Change the nook's look and behavior while it runs in PlaygroundNook
 `Examples/PlaygroundNook` is a live customization playground. A controls window
 beside the running nook changes its appearance, theme, size and shape, type and
 motion, top bar, companion surfaces, rim glow, scroll edge fade, and hover
-behavior, and the real nook - not a mock - updates as you go. When it looks right,
-copy the result as Swift that sets only what you changed, or save it as a JSON
-preset to share or open later.
+behavior - and, on the Tokens page, any single theme token - and the real nook - not
+a mock - updates as you go. When it looks right, copy the result as Swift that sets
+only what you changed, save it as a JSON preset to share or open later, or copy the
+theme alone as a theme file.
 
 ```sh
 swift run PlaygroundNook
@@ -56,13 +57,14 @@ swift run PlaygroundNook --hide-controls           # skip the controls window
 | Page | Changes | Lands on |
 |---|---|---|
 | Appearance | layout, palette, material, backdrop strength, accent, haptics | `AppState.appearancePreferences` |
-| Theme | font design; accent, label, fill, stroke, and inactive icon colors | `NookConfiguration.theme` |
+| Theme | font design and width; corner, scale, and motion knobs; accent, label, fill, stroke, hover, status, and inactive icon colors; the backdrop of each material (framework, solid, frosted, Liquid Glass with its variant, linear, radial, elliptical, and angular gradients, mesh) and the theme's glass shading; under **Theme File**, the name, pins, sound volume, and what the person may change | `NookConfiguration.chromeTheme` |
 | Panel | expanded width, corner radii, content insets, a few metrics | `expandedWidth`, `style`, `metrics` |
 | Type and Motion | four typography roles, the Settings and banner springs | `typography`, `motion` |
-| Top Bar | top bar and Settings switches, width, leading title and icon, notch clearance, labels | `topBar`, `labels` |
+| Top Bar | top bar and Settings switches, width, leading title and icon, notch clearance, labels and the Settings group titles, the lock, gear, separator, and back symbols | `topBar`, `topBar.symbols`, `labels` |
 | Companions | the size, look, and entrance every companion shares; add, duplicate, remove, and reorder companions; the selected one's items, placement, style, and details | `companionSize`, `companionStyle`, `companionPresence`, `addCompanion(...)` |
-| Effects | rim style, scroll edge fade edges and length | `rimGlow`, `scrollEdgeFade` |
+| Effects | rim style, scroll edge fade edges and length, the chrome's shadow | `rimGlow`, `scrollEdgeFade`, the theme's `shadow.chrome` |
 | Behavior | hover keeps visible, hover haptics, glass shading | `chromeBehavior.hoverBehavior`, `chromeBehavior.glassShading` |
+| Tokens | any theme token by id: colors, numbers, fonts, animations, content transitions, sounds, shadows | `NookConfiguration.chromeTheme` tokens |
 
 Some controls exist only to show a setting off. **Preview** on the Top Bar page posts
 a status banner, and on the Type and Motion page switches between home and Settings.
@@ -72,6 +74,37 @@ band beside the notch with `nookNotchAccessories(leading:trailing:)`; with the t
 off, it shows what [clearing the notch](/guides/layout-and-insets/#clearing-the-notch)
 does. The theme colors start as **Live** - the palette the chrome resolves from the
 user's preferences - until you pick a color.
+
+The **Theme File** card on the Theme page holds what a theme says beyond its look. Its
+pins replace the person's palette, material, or backdrop strength while the theme is
+on, so a pinned value wins over the Appearance page, as it would in any host.
+
+### The Tokens page
+
+Every value a [chrome theme](/guides/theming/) can set has a stable dotted id, such
+as `banner.cornerRadius` or `motion.content.enter`. The **Tokens** page, under
+Advanced, lists them all, grouped by the first part of the id, and the list comes from
+the framework itself (`NookTokenDescriptor.all`), so a token the framework adds shows
+up with no change to the playground.
+
+- **Search** filters by id; **Changed only** shows the tokens you have overridden.
+- Each row shows what the token resolves to now - with the theme's knobs applied and
+  any reference followed - and a dot and a reset arrow when it is overridden.
+- Opening a row shows an editor for its kind: a color as one color, a pair for dark
+  and light chrome, the accent at an opacity, or another color token; a number as a
+  value or another number token times a factor; a font's role, size, weight, design,
+  width, family, and digits; a spring, a named spring, a timing curve, a Bezier curve,
+  or another animation; a transition's opacity, blur, scale, anchor, offset, and
+  curve; a system, bundled, or file sound and its volume, with a button to hear it;
+  and a shadow's color, radius, and offset.
+
+An override is stored as a token override in the theme, so it reaches the nook, the
+Swift export, the preset, and the theme file exactly as the Theme page's values do.
+A color one of the Theme page's roles sets is the same value on both pages. Where a
+hand-built page sets the same thing - the Panel page's metrics and shape, or the
+fonts and springs on Type and Motion - that page's value wins while it is changed
+there, as `NookConfiguration` documents for `metrics`, `typography`, `motion`, and
+`style`, and the token's row says so.
 
 ### Composing companions
 
@@ -226,6 +259,17 @@ struct ControlsCompanion: View {
   you moved appear.
 - A changed rim glow style comes with a reminder that the rim only shows while some
   content lights it with `nookRimGlow(_:)`.
+- The theme becomes a `NookTheme` with its knobs as initializer arguments, then one
+  line per color, token override, and backdrop:
+
+  ```swift
+  var theme = NookTheme(fontDesign: .rounded, motion: .calm)
+  theme.accent = "#FF8000"
+  theme.tokens[NookDimensionID("banner.cornerRadius")] = 12
+  theme.tokens[NookShadowID("shadow.chrome")] = NookShadowSpec(radius: 10, y: 4)
+  theme.backdrops.liquidGlass = .liquidGlass(.init(tint: .accent, variant: .clear))
+  configuration.chromeTheme = theme
+  ```
 
 In a multi-module host, the configuration lines go in a module's
 `makeConfiguration()`, and `preferenceDefaults` and `chromeBehavior` go on
@@ -294,6 +338,47 @@ Presets are read leniently:
 Keep Open is never part of a preset, and neither are the demo switches - the lit
 rim, the scrolling demo, the banner message - which the playground remembers
 separately.
+
+Token overrides sit under `settings.theme.tokens`, one member per id in the form a
+theme file writes it, and theme backdrops under `settings.theme.backdrops`. A key the
+playground added after a preset was written is left out until you change it, so
+every older preset still opens and writes back with the keys it had:
+
+```json
+"theme" : {
+  "fontDesign" : "rounded",
+  "tokens" : {
+    "banner.cornerRadius" : 12,
+    "color.label.tertiary" : { "dark" : { "white" : 0.5 }, "light" : "accent" },
+    "motion.statusBanner" : "{spring.snappy}",
+    "shadow.chrome" : { "radius" : 10, "y" : 4 }
+  }
+}
+```
+
+A token id the framework does not define is skipped, and a value of the wrong kind
+for its token is an error that names it, such as
+`settings.theme.tokens.space.md: expected a number or a token such as "{space.md}"`.
+
+## Theme files
+
+**Theme** under Share on the Presets page copies the theme alone - the Theme page,
+the token overrides, and the chrome's shadow - as a framework theme file
+(`{"format": "opennook.theme", "version": 1, ...}`), which any host loads with
+`NookTheme(contentsOf:)` or follows live with `NookThemeSource.watching(fileAt:)`. It
+lists only what differs from `NookTheme.standard`: semantic tokens under `tokens`, the
+chrome's own fields under `components`. The appearance preferences, companions, top
+bar, and the other pages are not part of a theme, so they stay in the preset and the
+Swift export.
+
+## The assistant
+
+The assistant proposes changes to the same settings the pages edit, including token
+overrides by id under `settings.theme.tokens` and theme backdrops. Its schema lists
+every token id from the framework's registry, and an id the registry does not define
+is sent back to the model to correct rather than dropped. Each token it changes is a
+row of its own under **Tokens** in the proposal, which you can switch off before
+applying.
 
 Under `swift run` the playground is an unbundled, unsandboxed binary, so the save
 and open panels cannot enter the folders macOS protects (Desktop, Documents,

@@ -252,6 +252,27 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   motion knobs and the new color roles, exports the theme as Swift
   (`configuration.chromeTheme`) or as a theme file, and the assistant can propose the
   new fields. Presets keep format version 1.
+- A read-only view of the theme token registry for tools: `NookTokenDescriptor`
+  (`all`, `named(_:)`; each token's `kind`, `tier`, `defaultValue`, `scaling`, `unit`,
+  and `group`), `NookTokenValue` with `NookThemeTokens.value(for:)` and
+  `setValue(_:for:)` to read and write an override by id, `NookThemeTokens: Codable`
+  as one flat object keyed by id, and `NookTheme.resolvedValue(for:in:)`
+  (`NookResolvedTokenValue`) for what a token resolves to.
+- The playground edits everything a theme can express. A new Tokens page under
+  Advanced lists every token from the registry, grouped by id prefix and searchable,
+  with its resolved value, whether it is overridden, an editor for its kind (colors
+  as one color, a dark and light pair, the accent, or another token; numbers;
+  fonts; animations; content transitions; sounds; shadows), and a reset per token.
+  The Theme page adds the font width, a backdrop per material (solid, frosted,
+  Liquid Glass with its variant, fallback material, highlight, and rim, and linear,
+  radial, elliptical, angular, and mesh gradients with a stop editor), the theme's
+  glass shading, and a Theme File card for the name, pins, sound volume, and what
+  the person may change. The Effects page casts the chrome's shadow, and the Top Bar
+  page sets the lock, gear, separator, and back symbols and the Settings group
+  titles. Overrides are stored as theme token overrides, so they reach the nook, the
+  Swift export, the preset (`settings.theme.tokens`, left out when empty; presets
+  keep format version 1), and Copy Theme. The assistant can propose token overrides
+  by id, checked against the registry, and theme backdrops.
 
 ### Changed
 
