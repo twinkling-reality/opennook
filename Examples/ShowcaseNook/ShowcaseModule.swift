@@ -76,6 +76,11 @@ enum LaunchOptions {
         ProcessInfo.processInfo.arguments.contains("--keep-open")
     }
 
+    /// `--peek`: the player shows its peek shortly after launch and holds it, for a recording.
+    static var peeks: Bool {
+        ProcessInfo.processInfo.arguments.contains("--peek")
+    }
+
     /// `--theme <file.json>`: a theme file for the chrome, followed as it changes.
     static var themePath: String? {
         value(after: "--theme")
@@ -117,6 +122,9 @@ final class ShowcaseModule: NookModule {
 
     private var keepOpenPin: NookPresentationPinHandle?
     private var volumeObservation: AnyCancellable?
+    private var trackObservation: AnyCancellable?
+    private var trackPeek: NookSurfaceToken?
+    private var trackPeekGeneration = 0
     private var hudTask: Task<Void, Never>?
     private var hudDeadline = ContinuousClock.now
 
@@ -203,6 +211,7 @@ final class ShowcaseModule: NookModule {
             configuration.setCompactTrailing { CompactTimer(timer: timer, lightsRim: true) }
         } else {
             configuration.setCompactTrailing { CompactEqualizer(player: player) }
+            configuration.setPeek { PlayerPeek(player: player) }
             configuration.addCompanion(id: "player-actions", spacing: 10, accessibilityLabel: "Playback") {
                 PlayerCompanion(player: player)
             }
@@ -260,6 +269,21 @@ final class ShowcaseModule: NookModule {
                         )
                     )
                 }
+            case .player:
+                // A new song peeks under the notch for a moment, unless the person is using the
+                // nook. Another change while it shows moves its end rather than peeking again.
+                trackObservation = player.$index
+                    .dropFirst()
+                    .removeDuplicates()
+                    .sink { [weak self] _ in
+                        MainActor.assumeIsolated { self?.peekTrackChange(on: coordinator) }
+                    }
+                if LaunchOptions.peeks {
+                    Task { @MainActor [weak self] in
+                        try? await Task.sleep(for: .milliseconds(800))
+                        self?.peekTrackChange(on: coordinator, holding: true)
+                    }
+                }
             case .hud:
                 // `@Published` sends the new value before storing it, so a change is passed
                 // along rather than read back.
@@ -283,6 +307,37 @@ final class ShowcaseModule: NookModule {
                         .pin(reason: "showcase-keep-open")
                 }
             }
+        }
+    }
+
+    /// Shows the song in the pill's peek for a few seconds. Each change moves the end, so a
+    /// quick run of skips shows one peek. `holding` keeps it up until the person opens the
+    /// nook, for `--peek`.
+    private func peekTrackChange(on coordinator: AppCoordinator, holding: Bool = false) {
+        trackPeekGeneration += 1
+        let generation = trackPeekGeneration
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            for _ in 0..<2 {
+                if self.trackPeek == nil {
+                    let claim = NookSurfaceClaim(
+                        moduleID: self.descriptor.id,
+                        priority: .ambient,
+                        maxDuration: holding ? nil : .seconds(10),
+                        presentation: .peek
+                    )
+                    // A claim denied because another change's claim got there first leaves
+                    // that one in place.
+                    if let token = await coordinator.beginTransientPresentation(claim) { self.trackPeek = token }
+                }
+                guard let token = self.trackPeek, !holding else { return }
+                if await coordinator.endTransientPresentation(token, after: .milliseconds(2600)) { break }
+                // The claim already ended (the person opened the nook, say): peek afresh once.
+                self.trackPeek = nil
+            }
+            try? await Task.sleep(for: .milliseconds(2700))
+            // No later change moved the end, so the claim is over.
+            if generation == self.trackPeekGeneration { self.trackPeek = nil }
         }
     }
 

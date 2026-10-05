@@ -226,6 +226,35 @@ struct PlayerCompanion: View {
     }
 }
 
+// MARK: - Peek
+
+/// The song at a glance, in the pill's peek under the notch: shown on a track change, and on
+/// hover when the person picks "Peek first".
+struct PlayerPeek: View {
+    @ObservedObject var player: PlayerModel
+    @Environment(\.nookResolvedTheme) private var theme
+
+    /// The cover and the bars are already in the compact slots just above, so the peek adds
+    /// only what they leave out: the song, the artist, and how far along it is.
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(player.track.title)
+                    .font(.system(size: 12.5, weight: .semibold))
+                    .foregroundStyle(theme.primaryLabel)
+                Text(player.track.artist)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(theme.secondaryLabel)
+            }
+            .lineLimit(1)
+            ProgressTrack(value: player.elapsed / player.track.duration, tint: theme.primaryLabel, height: 3)
+                .animation(.linear(duration: 1), value: player.elapsed)
+        }
+        .frame(width: 236, alignment: .leading)
+        .animation(.snappy(duration: 0.3), value: player.index)
+    }
+}
+
 // MARK: - Compact
 
 /// The cover beside the notch.
