@@ -69,6 +69,9 @@ final class SurfaceArbiter {
     private let currentState: @MainActor () -> NookState
     private let runSerial: @MainActor (@escaping @Sendable @MainActor () async -> Void) async -> Void
     private let expand: @MainActor () async -> Void
+    /// Grows the pill into the presented module's peek; `false` when there is none to show.
+    private let peek: @MainActor () async -> Bool
+    private let endPeek: @MainActor () async -> Void
     private let compact: @MainActor () async -> Void
     private let hide: @MainActor () async -> Void
     private let topClaimChanged: @MainActor () -> Void
@@ -84,6 +87,8 @@ final class SurfaceArbiter {
         currentState: @escaping @MainActor () -> NookState,
         runSerial: @escaping @MainActor (@escaping @Sendable @MainActor () async -> Void) async -> Void,
         expand: @escaping @MainActor () async -> Void,
+        peek: @escaping @MainActor () async -> Bool = { false },
+        endPeek: @escaping @MainActor () async -> Void = {},
         compact: @escaping @MainActor () async -> Void,
         hide: @escaping @MainActor () async -> Void,
         topClaimChanged: @escaping @MainActor () -> Void = {}
@@ -93,6 +98,8 @@ final class SurfaceArbiter {
         self.currentState = currentState
         self.runSerial = runSerial
         self.expand = expand
+        self.peek = peek
+        self.endPeek = endPeek
         self.compact = compact
         self.hide = hide
         self.topClaimChanged = topClaimChanged
@@ -139,7 +146,10 @@ final class SurfaceArbiter {
             armWatchdog(for: token, claim: claim)
             // Content first, so the surface opens onto the claiming module's views.
             topClaimChanged()
-            await expand()
+            // A peek claim grows the pill when the module has a peek; otherwise, and for every
+            // other claim, the surface opens.
+            let peeked = claim.presentation == .peek ? await peek() : false
+            if !peeked { await expand() }
             granted = token
         }
         return granted
@@ -171,6 +181,23 @@ final class SurfaceArbiter {
             )
             await self.end(token)
         }
+    }
+
+    /// Ends the claim for `token` `delay` from now, replacing its watchdog (or a previous
+    /// scheduled end), so calling it again moves the end. A scheduled end is the presenter's
+    /// intent, not a leak, so it logs nothing. Returns `false` for a stale token.
+    func end(_ token: NookSurfaceToken, after delay: Duration) async -> Bool {
+        var isLive = false
+        await runSerial { [self] in
+            guard liveTokens.contains(token) else { return }
+            isLive = true
+            cancelWatchdog(for: token)
+            watchdogs[token] = Task { [weak self] in
+                guard (try? await Task.sleep(for: delay)) != nil, let self else { return }
+                await self.end(token)
+            }
+        }
+        return isLive
     }
 
     /// Cancels a granted claim's watchdog and forgets it. Called from the only two
@@ -228,7 +255,10 @@ final class SurfaceArbiter {
             defer { topClaimChanged() }
             guard !isUserEngaged() else { return }
             switch restoreTo {
-                case .compact: await compact()
+                case .compact:
+                    // A peek claim left the pill compact but grown; the restore shrinks it.
+                    await endPeek()
+                    await compact()
                 case .hidden: await hide()
                 case .expanded: break
             }

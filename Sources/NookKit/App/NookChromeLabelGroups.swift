@@ -204,7 +204,39 @@ extension NookChromeLabels {
         /// The sounds row's detail while off.
         public var soundsOff = "Off - the nook stays quiet"
 
+        /// The "Open on hover" picker's title.
+        public var openOnHoverTitle = "Open on hover"
+        /// The picker's choice that opens the nook at once.
+        public var openOnHoverImmediately = "At once"
+        /// The picker's choice that grows the pill into its peek first.
+        public var openOnHoverPeekFirst = "Peek first"
+        /// The picker's choice that leaves the pill alone.
+        public var openOnHoverOff = "Off"
+        /// The caption under the picker while the nook opens at once.
+        public var openOnHoverImmediatelyDetail = "The nook opens when the pointer reaches the pill."
+        /// The caption under the picker while the pill peeks first.
+        public var openOnHoverPeekFirstDetail = "The pill grows into a peek. Click it, or rest on it, to open."
+        /// The caption under the picker while hovering does nothing.
+        public var openOnHoverOffDetail = "Hovering does nothing. Click the pill or use the shortcut."
+        /// The hover delay slider's title.
+        public var hoverDelayTitle = "Wait before opening"
+        /// The other displays' hover delay slider's title.
+        public var externalDisplayHoverDelayTitle = "Wait on other displays"
+        /// The peek dwell slider's title.
+        public var peekDwellTitle = "Open after resting on the peek"
+        /// A slider's value in seconds. Placeholder: `{seconds}`.
+        public var secondsFormat = "{seconds} s"
+        /// A delay slider at zero.
+        public var noDelay = "None"
+        /// The peek dwell slider at zero: the peek waits for a click.
+        public var dwellOff = "Click only"
+
         public init() {}
+
+        /// ``secondsFormat`` for `seconds`, to one decimal place.
+        public func seconds(_ seconds: Double) -> String {
+            NookChromeLabels.fill(secondsFormat, ["seconds": String(format: "%.1f", seconds)])
+        }
 
         /// ``showHostFormat`` for `host`.
         public func showHost(_ host: String) -> String {

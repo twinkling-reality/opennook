@@ -51,6 +51,12 @@ public struct NookConfiguration: Sendable {
     /// ``setCompactTrailing(_:)`` to set it from a `@ViewBuilder`.
     public var compactTrailing: @Sendable @MainActor () -> AnyView
 
+    /// Content the compact pill grows to show below its slots when it peeks: a song's title and
+    /// progress, a timer's time left. `nil` (the default) means this module has no peek, so a
+    /// peek-first hover opens the nook instead. Use ``setPeek(_:)`` to set it from a
+    /// `@ViewBuilder`. It renders in the chrome environment, like the compact slots.
+    public var peek: (@Sendable @MainActor () -> AnyView)?
+
     /// Resolves the chrome palette. Defaults to ``chromeTheme``'s palette for the person's
     /// preferences (``NookResolvedTheme/live(appState:theme:)``), which with no theme is the
     /// framework's own; supply a closure returning a host-built ``NookResolvedTheme`` to
@@ -359,6 +365,13 @@ public struct NookConfiguration: Sendable {
         @ViewBuilder _ content: @escaping @Sendable @MainActor () -> Content
     ) {
         compactTrailing = { AnyView(content()) }
+    }
+
+    /// Registers the view the compact pill grows to show when it peeks. See ``peek``.
+    public mutating func setPeek<Content: View & Sendable>(
+        @ViewBuilder _ content: @escaping @Sendable @MainActor () -> Content
+    ) {
+        peek = { AnyView(content()) }
     }
 
     /// Registers a custom Settings surface from a `@ViewBuilder` closure, replacing the

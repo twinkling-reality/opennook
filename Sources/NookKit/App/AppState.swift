@@ -277,6 +277,11 @@ public final class AppState: ObservableObject {
         resetTransientStatus()
     }
 
+    /// `true` while the host fixes what hovering the compact pill does
+    /// (`NookChromeBehavior.hoverIntent`), so Settings leaves out the rows that would change it.
+    /// Kept current by `AppCoordinator.applyHoverIntent()`.
+    @Published var hostFixesHoverIntent = false
+
     /// `true` while Settings is set aside for a surface claim: the claim's content took the
     /// expanded view Settings had, and Settings comes back when the last claim ends unless the
     /// person changes the view before then.

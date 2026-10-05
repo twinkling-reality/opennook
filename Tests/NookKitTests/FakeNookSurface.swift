@@ -100,6 +100,14 @@ final class FakeNookSurface: NookSurfaceDriving {
     var transitionConfiguration = NookTransitionConfiguration()
     var style = NookConfiguration.defaultStyle
     var hoverBehavior: NookHoverBehavior = []
+    var hoverIntent: NookHoverIntent = .standard
+    var peekContent: AnyView? {
+        didSet { if peekContent == nil { isPeeking = false } }
+    }
+    /// Mirrors the real surface: a peek is a way of being compact.
+    private(set) var isPeeking = false
+    /// Every `peek` and `endPeek` request, in order: `true` for a peek.
+    private(set) var peekRequests: [Bool] = []
     var companions: [NookCompanionSurface] = []
     var rimGlowStyle: NookRimGlowStyle = .standard
     var scrollEdgeFade: NookScrollEdgeFade?
@@ -117,6 +125,20 @@ final class FakeNookSurface: NookSurfaceDriving {
     func expand(on screen: NSScreen?) async { transition(to: .expanded) }
     func compact(on screen: NSScreen?) async { transition(to: .compact) }
     func hide() async { transition(to: .hidden) }
+
+    /// Like the real surface: no peek content, or an expanded surface, means no peek; a hidden
+    /// surface shows its compact pill first.
+    func peek(on screen: NSScreen?) async {
+        peekRequests.append(true)
+        guard peekContent != nil, stateSubject.value != .expanded else { return }
+        if stateSubject.value == .hidden { transition(to: .compact) }
+        isPeeking = true
+    }
+
+    func endPeek() async {
+        peekRequests.append(false)
+        isPeeking = false
+    }
 
     /// The style of the last `playFeedback` request, as a color for a tint request.
     private(set) var lastFeedbackStyle: NookFeedbackStyle?
@@ -138,6 +160,7 @@ final class FakeNookSurface: NookSurfaceDriving {
     private func transition(to newState: NookState) {
         guard newState != stateSubject.value else { return }
         if newState != .expanded { hasKeyboardFocus = false }
+        if newState != .compact { isPeeking = false }
         stateSubject.send(newState)
         transitions.append(newState)
         switch newState {

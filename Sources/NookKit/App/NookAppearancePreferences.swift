@@ -48,6 +48,54 @@ public struct NookAppearancePreferences: Equatable, Codable, Sendable {
     /// nothing plays, whatever the theme says.
     public var soundsEnabled: Bool
 
+    /// What resting the pointer on the compact pill does: open the nook at once (the default,
+    /// as before this setting existed), grow the pill into its peek first, or nothing, so the
+    /// nook opens on a click or the shortcut.
+    public var openOnHover: NookOpenOnHover
+
+    /// Seconds the pointer rests on the pill before ``openOnHover`` acts, on the Mac's built-in
+    /// display. 0 by default. Settings offers ``hoverTimingRange``.
+    public var hoverDelay: Double
+
+    /// ``hoverDelay`` on any other display, where the pointer crosses the top of the screen more
+    /// often. 0 by default.
+    public var externalDisplayHoverDelay: Double
+
+    /// Seconds the pointer rests on a peek before the nook opens on its own. 0 (the default)
+    /// waits for a click. Settings offers ``peekDwellRange``.
+    public var peekDwell: Double
+
+    /// The range Settings offers for ``hoverDelay`` and ``externalDisplayHoverDelay``.
+    public static let hoverTimingRange: ClosedRange<Double> = 0...1
+
+    /// The range Settings offers for ``peekDwell``.
+    public static let peekDwellRange: ClosedRange<Double> = 0...3
+
+    /// The surface's hover intent for these choices. ``NookHoverIntent/standard`` for the
+    /// defaults, so a person who changed nothing gets the chrome as it always was.
+    public var hoverIntent: NookHoverIntent {
+        let action: NookHoverIntent.Action =
+            switch openOnHover {
+                case .immediately: .expand
+                case .peekFirst: .peek
+                case .off: .none
+            }
+        let delay = Self.duration(hoverDelay)
+        let external = Self.duration(externalDisplayHoverDelay)
+        return NookHoverIntent(
+            action: action,
+            delay: delay,
+            // Only a different delay is a separate one, so equal delays keep the intent standard.
+            externalDisplayDelay: external == delay ? nil : external,
+            dwellToExpand: peekDwell > 0 ? Self.duration(peekDwell) : nil
+        )
+    }
+
+    /// `seconds` as a duration, never negative or non-finite.
+    private static func duration(_ seconds: Double) -> Duration {
+        seconds.isFinite && seconds > 0 ? .milliseconds(Int((seconds * 1000).rounded())) : .zero
+    }
+
     /// The range the framework mapping clamps ``backdropStrength`` to, and the range the
     /// built-in Settings slider offers - one value, so the two cannot disagree.
     static let backdropStrengthRange: ClosedRange<Double> = 0.15...1
@@ -65,7 +113,11 @@ public struct NookAppearancePreferences: Equatable, Codable, Sendable {
         keepNookOpen: Bool = false,
         accentPreset: NookAccentPreset = .system,
         backdropStrength: Double = 1,
-        soundsEnabled: Bool = true
+        soundsEnabled: Bool = true,
+        openOnHover: NookOpenOnHover = .immediately,
+        hoverDelay: Double = 0,
+        externalDisplayHoverDelay: Double = 0,
+        peekDwell: Double = 0
     ) {
         self.chromePalette = chromePalette
         self.surfaceStyle = surfaceStyle
@@ -75,6 +127,10 @@ public struct NookAppearancePreferences: Equatable, Codable, Sendable {
         self.accentPreset = accentPreset
         self.backdropStrength = backdropStrength
         self.soundsEnabled = soundsEnabled
+        self.openOnHover = openOnHover
+        self.hoverDelay = hoverDelay
+        self.externalDisplayHoverDelay = externalDisplayHoverDelay
+        self.peekDwell = peekDwell
     }
 
     /// Framework defaults - what `NookApp.main()` ships if the host has never written
@@ -90,6 +146,10 @@ public struct NookAppearancePreferences: Equatable, Codable, Sendable {
         case accentPreset
         case backdropStrength
         case soundsEnabled
+        case openOnHover
+        case hoverDelay
+        case externalDisplayHoverDelay
+        case peekDwell
     }
 
     // Custom decode so JSON written by an older build (missing a later-added field)
@@ -107,6 +167,11 @@ public struct NookAppearancePreferences: Equatable, Codable, Sendable {
         self.accentPreset = try container.decodeIfPresent(NookAccentPreset.self, forKey: .accentPreset) ?? .system
         self.backdropStrength = try container.decodeIfPresent(Double.self, forKey: .backdropStrength) ?? 1
         self.soundsEnabled = try container.decodeIfPresent(Bool.self, forKey: .soundsEnabled) ?? true
+        self.openOnHover = try container.decodeIfPresent(NookOpenOnHover.self, forKey: .openOnHover) ?? .immediately
+        self.hoverDelay = try container.decodeIfPresent(Double.self, forKey: .hoverDelay) ?? 0
+        self.externalDisplayHoverDelay =
+            try container.decodeIfPresent(Double.self, forKey: .externalDisplayHoverDelay) ?? 0
+        self.peekDwell = try container.decodeIfPresent(Double.self, forKey: .peekDwell) ?? 0
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -119,7 +184,22 @@ public struct NookAppearancePreferences: Equatable, Codable, Sendable {
         try container.encode(accentPreset, forKey: .accentPreset)
         try container.encode(backdropStrength, forKey: .backdropStrength)
         try container.encode(soundsEnabled, forKey: .soundsEnabled)
+        try container.encode(openOnHover, forKey: .openOnHover)
+        try container.encode(hoverDelay, forKey: .hoverDelay)
+        try container.encode(externalDisplayHoverDelay, forKey: .externalDisplayHoverDelay)
+        try container.encode(peekDwell, forKey: .peekDwell)
     }
+}
+
+/// What resting the pointer on the compact pill does. See
+/// ``NookAppearancePreferences/openOnHover``.
+public enum NookOpenOnHover: String, Codable, Sendable, CaseIterable {
+    /// Opens the nook at once.
+    case immediately
+    /// Grows the pill into its peek first; a click, or resting on the peek, opens the nook.
+    case peekFirst
+    /// Nothing: the nook opens on a click or the shortcut.
+    case off
 }
 
 /// Pins the chrome palette to follow macOS or to a fixed light/dark - independent of
@@ -158,6 +238,10 @@ struct NookAppearanceChoices: Codable, Equatable, Sendable {
     var accentPreset: NookAccentPreset?
     var backdropStrength: Double?
     var soundsEnabled: Bool?
+    var openOnHover: NookOpenOnHover?
+    var hoverDelay: Double?
+    var externalDisplayHoverDelay: Double?
+    var peekDwell: Double?
 
     init() {}
 
@@ -215,6 +299,10 @@ struct NookAppearanceChoices: Codable, Equatable, Sendable {
             Field(\.accentPreset, \.accentPreset),
             Field(\.backdropStrength, \.backdropStrength),
             Field(\.soundsEnabled, \.soundsEnabled),
+            Field(\.openOnHover, \.openOnHover),
+            Field(\.hoverDelay, \.hoverDelay),
+            Field(\.externalDisplayHoverDelay, \.externalDisplayHoverDelay),
+            Field(\.peekDwell, \.peekDwell),
         ]
     }
 
@@ -227,6 +315,10 @@ struct NookAppearanceChoices: Codable, Equatable, Sendable {
         case accentPreset
         case backdropStrength
         case soundsEnabled
+        case openOnHover
+        case hoverDelay
+        case externalDisplayHoverDelay
+        case peekDwell
     }
 
     // Each field decodes on its own, so a value a newer build wrote that this one cannot read
@@ -241,6 +333,10 @@ struct NookAppearanceChoices: Codable, Equatable, Sendable {
         accentPreset = try? container.decodeIfPresent(NookAccentPreset.self, forKey: .accentPreset)
         backdropStrength = try? container.decodeIfPresent(Double.self, forKey: .backdropStrength)
         soundsEnabled = try? container.decodeIfPresent(Bool.self, forKey: .soundsEnabled)
+        openOnHover = try? container.decodeIfPresent(NookOpenOnHover.self, forKey: .openOnHover)
+        hoverDelay = try? container.decodeIfPresent(Double.self, forKey: .hoverDelay)
+        externalDisplayHoverDelay = try? container.decodeIfPresent(Double.self, forKey: .externalDisplayHoverDelay)
+        peekDwell = try? container.decodeIfPresent(Double.self, forKey: .peekDwell)
     }
 }
 
