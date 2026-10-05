@@ -315,6 +315,14 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- `NookActivityQueue` keeps the nook open between consecutive cards: the next card takes
+  over the same surface claim when the presenter can move a claim's end
+  (`NookSurfacePresenting.endTransientPresentation(_:after:)`, which `AppCoordinator`
+  does), where it used to collapse and reopen between cards. Enqueuing a card with the
+  same `coalescingKey` as the one on screen now updates that card in place, for the rest
+  of its dwell, instead of queueing behind it. A presenter that cannot move an end gets
+  the old behavior.
+
 - Framework strings no longer use em dashes; each became " - ": the "Stay expanded" and
   "Haptic feedback" details in Settings ("On - nook stays open after hover ends",
   "Off - closes when the pointer leaves", "On - trackpad pulse on confirmation",
