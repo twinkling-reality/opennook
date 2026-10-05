@@ -146,6 +146,33 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `Nook.layoutForm` (`NookChromeForm`, previously internal) is readable and published:
   the layout `presentation` resolved to on the current screen, since `.auto` lands on
   the notch form or the floating one depending on the display.
+- Engine-level visual seams in `NookSurface`, every one defaulting to the look it
+  replaces:
+  - Backdrops: `NookBackdrop.gradient(_:)` (`NookBackdrop.GradientFill`: linear,
+    radial, elliptical, angular), `.meshGradient(_:)` (a SwiftUI `MeshGradient`), and
+    `.custom(_:)` (`NookBackdrop.Custom`, a host view identified by an id). Under
+    Reduce Transparency gradients and meshes paint every color opaque, and a custom
+    backdrop is told through its context. `Vibrancy.darkenColor`, and on
+    `LiquidGlass` the `variant` (`.regular` or `.clear` glass on macOS 26),
+    `fallbackMaterial`, `highlightColor`, and `rimWidth` of the pre-Tahoe
+    approximation.
+  - Shape: `NookStyle` gains `compactTopCornerRadius` / `compactBottomCornerRadius`
+    (6 and 14), `floatingExpandedTopCornerRadius` /
+    `floatingExpandedBottomCornerRadius` / `floatingCompactCornerRadius` (`nil` for
+    the historical floating radii), and `outline` (`NookOutline`), which draws the
+    chrome's path from its form and animated radii. `NookShape` is public, and chrome
+    content reads the live one as `\.nookChromeShape`.
+  - Transitions: `NookTransitionConfiguration.compactContentTransition` and
+    `expandedContentTransition` (`NookContentTransition`: blur, scale, fade).
+  - `Nook.chromeShadow` (`NookChromeShadow`): a shadow cast by the chrome's outline,
+    off by default.
+  - Feedback: `NookFeedbackStyle` (color, band gradient, line widths, glow, blend
+    mode) through `Nook.playFeedback(_:style:duration:repeats:)`, and a
+    `NookFeedback.pulse` effect.
+  - `Nook.ambientWash` (`NookAmbientWash`) shapes the ambient color wash;
+    `NookAmbientColorBackground(color:wash:)` paints it.
+  - `NookStandardCompanionStyle.Hover.washColor` (white by default).
+  - `Nook.hoverHaptic` (`NookHoverHaptic`) picks the hover haptic pattern.
 
 ### Changed
 
