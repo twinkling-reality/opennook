@@ -139,6 +139,35 @@ final class ShowcaseModule: NookModule {
         // The host calls `onActivate()` only when the user switches *to* a module, not for
         // the module it launches with, so the clocks also start here.
         onActivate()
+        if scene == .compact { startCompactActivities() }
+    }
+
+    /// The `compact` scene's two live things as live activities: the focus session first,
+    /// then the song, so the song (started last) holds the pill and the session sits in the
+    /// capsule beside it. Their views read the models, so they tick in place.
+    private func startCompactActivities() {
+        let activities = context.services.resolve(NookLiveActivitiesKey.self)
+        let timer = timer
+        let player = player
+        activities.start(
+            NookLiveActivity(id: "focus", accessibilityLabel: "Focus session") {
+                CompactGlyph(symbol: "flame.fill", tint: FocusPalette.warm)
+            } compactTrailing: {
+                CompactTimer(timer: timer, lightsRim: true)
+            } minimal: {
+                FocusMinimal(timer: timer)
+            }
+        )
+        var song = NookLiveActivity(id: "song", accessibilityLabel: "Now playing") {
+            CompactCover(player: player)
+        } compactTrailing: {
+            CompactEqualizer(player: player)
+        } minimal: {
+            CoverArt(design: player.track.cover, size: 16, cornerRadius: 4)
+        }
+        song.setPeek { PlayerPeek(player: player) }
+        song.setExpanded { PlayerHome(player: player) }
+        activities.start(song)
     }
 
     func makeConfiguration() -> NookConfiguration {
@@ -205,10 +234,9 @@ final class ShowcaseModule: NookModule {
         configuration.setHome { PlayerHome(player: player) }
         configuration.setCompactLeading { CompactCover(player: player) }
         if scene == .compact {
-            // The collapsed pill carries two live things: the song on the left, the focus
-            // session on the right, and the rim glows while the session runs.
-            let timer = timer
-            configuration.setCompactTrailing { CompactTimer(timer: timer, lightsRim: true) }
+            // The song and the focus session run as live activities that hold the pill (see
+            // `startCompactActivities()`); these slots show only once both have ended.
+            configuration.setCompactTrailing { CompactEqualizer(player: player) }
         } else {
             configuration.setCompactTrailing { CompactEqualizer(player: player) }
             configuration.setPeek { PlayerPeek(player: player) }

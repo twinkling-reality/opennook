@@ -229,6 +229,27 @@ struct TimerPresetsCompanion: View {
 
 /// The time left beside the notch, with a small ring. With `lightsRim`, it keeps the rim lit
 /// while the session runs and the nook is collapsed.
+/// The focus session in its capsule beside the pill: the progress ring around the flame.
+struct FocusMinimal: View {
+    @ObservedObject var timer: FocusTimerModel
+    @Environment(\.nookResolvedTheme) private var theme
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(theme.primaryLabel.opacity(0.18), lineWidth: 2)
+            Circle()
+                .trim(from: 0, to: timer.progress)
+                .stroke(FocusPalette.warm, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+            Image(systemName: "flame.fill")
+                .font(.system(size: 7, weight: .bold))
+                .foregroundStyle(FocusPalette.warm)
+        }
+        .frame(width: 16, height: 16)
+    }
+}
+
 struct CompactTimer: View {
     @ObservedObject var timer: FocusTimerModel
     var lightsRim = false
