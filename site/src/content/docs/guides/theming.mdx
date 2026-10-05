@@ -77,6 +77,26 @@ banner's `banner.severity.error.color` (and `warning`, `info`, `success`). Every
 the framework defines, with its default, is listed in
 `Sources/NookKit/Theme/NookTokenCatalog.swift`.
 
+A tool that lists or edits tokens - an editor, an inspector, a model choosing values -
+can read the same list at run time instead of keeping its own.
+`NookTokenDescriptor.all` describes every token: its id, kind, tier, default, and for a
+number the knob that scales it and its unit. `NookThemeTokens.value(for:)` and
+`setValue(_:for:)` read and write an override by id as a `NookTokenValue`, and
+`NookTheme.resolvedValue(for:in:)` says what a token comes to, with references
+followed and the knobs applied. `NookThemeTokens` is also `Codable`, as one flat
+object keyed by id. The [playground's Tokens page](/guides/playground/#the-tokens-page)
+is built on these.
+
+```swift
+for token in NookTokenDescriptor.all where token.kind == .dimension {
+    print(token.id, token.unit as Any, token.defaultValue as Any)
+}
+var tokens = NookThemeTokens()
+tokens.setValue(.dimension(12), for: "banner.cornerRadius")    // false for a wrong kind or id
+let context = NookThemeContext(isDark: true)
+let radius = NookTheme(tokens: tokens).resolvedValue(for: "banner.cornerRadius", in: context)
+```
+
 ## Using a theme
 
 Set it on the configuration, or on the host for every module:
