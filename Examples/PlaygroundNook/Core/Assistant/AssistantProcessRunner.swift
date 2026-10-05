@@ -6,6 +6,7 @@
 // A copy is included at /LICENSE in the repository root.
 
 import Foundation
+import os
 
 /// One command to run: what to launch, with what arguments, and what to feed it.
 public struct AssistantProcessInvocation: Sendable, Equatable {
@@ -70,33 +71,35 @@ public struct AssistantProcessLauncher: AssistantProcessRunner {
             process.standardError = diagnostics
             process.standardInput = input
 
+            // Each pipe's handler yields what it reads and, at the pipe's end, says so; the stream
+            // finishes only once both pipes have ended and the tool has exited. Finishing on exit
+            // alone dropped whatever a handler was still delivering, such as a complaint written
+            // just before the tool exited.
+            let completion = Completion(continuation)
             output.fileHandleForReading.readabilityHandler = { handle in
                 let data = handle.availableData
-                guard !data.isEmpty else { return }
+                guard !data.isEmpty else {
+                    handle.readabilityHandler = nil
+                    completion.pipeEnded()
+                    return
+                }
                 continuation.yield(.output(data))
             }
             diagnostics.fileHandleForReading.readabilityHandler = { handle in
                 let data = handle.availableData
-                guard !data.isEmpty, let text = String(data: data, encoding: .utf8) else { return }
-                continuation.yield(.diagnostic(text))
+                guard !data.isEmpty else {
+                    handle.readabilityHandler = nil
+                    completion.pipeEnded()
+                    return
+                }
+                if let text = String(data: data, encoding: .utf8) {
+                    continuation.yield(.diagnostic(text))
+                }
             }
 
             let box = Box(process)
             process.terminationHandler = { process in
-                output.fileHandleForReading.readabilityHandler = nil
-                diagnostics.fileHandleForReading.readabilityHandler = nil
-                // Whatever landed between the last handler call and exit, on both pipes: a
-                // tool that complains just before it exits must not lose the complaint.
-                if let rest = try? output.fileHandleForReading.readToEnd(), !rest.isEmpty {
-                    continuation.yield(.output(rest))
-                }
-                if let rest = try? diagnostics.fileHandleForReading.readToEnd(), !rest.isEmpty,
-                    let text = String(data: rest, encoding: .utf8)
-                {
-                    continuation.yield(.diagnostic(text))
-                }
-                continuation.yield(.finished(status: process.terminationStatus))
-                continuation.finish()
+                completion.exited(status: process.terminationStatus)
             }
 
             do {
@@ -124,6 +127,48 @@ public struct AssistantProcessLauncher: AssistantProcessRunner {
             }
 
             continuation.onTermination = { _ in box.terminate() }
+        }
+    }
+
+    /// Finishes the stream once the tool has exited and both of its pipes have ended, so nothing
+    /// the tool wrote can arrive after the stream is finished. A tool that leaves a pipe open
+    /// after it exits (a child process still holding it, say) is finished a second later anyway.
+    private final class Completion: Sendable {
+        private struct State: Sendable {
+            var openPipes = 2
+            var status: Int32?
+            var isFinished = false
+        }
+
+        private let state = OSAllocatedUnfairLock(initialState: State())
+        private let continuation: AsyncThrowingStream<AssistantProcessEvent, any Error>.Continuation
+
+        init(_ continuation: AsyncThrowingStream<AssistantProcessEvent, any Error>.Continuation) {
+            self.continuation = continuation
+        }
+
+        func pipeEnded() {
+            finish(when: { $0.openPipes -= 1 })
+        }
+
+        func exited(status: Int32) {
+            finish(when: { $0.status = status })
+            DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 1) { [self] in
+                finish(when: { $0.openPipes = 0 })
+            }
+        }
+
+        /// Applies `change`, then finishes the stream if that left nothing to wait for.
+        private func finish(when change: @Sendable (inout State) -> Void) {
+            let status: Int32? = state.withLock { state in
+                change(&state)
+                guard state.openPipes <= 0, let status = state.status, !state.isFinished else { return nil }
+                state.isFinished = true
+                return status
+            }
+            guard let status else { return }
+            continuation.yield(.finished(status: status))
+            continuation.finish()
         }
     }
 
