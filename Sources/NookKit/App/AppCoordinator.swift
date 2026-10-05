@@ -93,7 +93,7 @@ public final class AppCoordinator: ObservableObject {
             expand: { [weak self] in await self?.surface.expand(on: nil) },
             compact: { [weak self] in await self?.surface.compact(on: nil) },
             hide: { [weak self] in await self?.surface.hide() },
-            topClaimChanged: { [weak self] in self?.syncPresentedModule() }
+            topClaimChanged: { [weak self] in self?.surfaceClaimChanged() }
         )
     }()
 
@@ -621,6 +621,19 @@ public final class AppCoordinator: ObservableObject {
             parkedBreadcrumbs[outgoingID] = nil
         }
         arbiter.retiringModuleIDs.remove(outgoingID)
+    }
+
+    /// Called by the arbiter whenever the top claim changes hands. A claim opens onto its
+    /// content even when Settings was showing: Settings is set aside while any claim holds the
+    /// surface, and comes back after the last one ends (once the surface has collapsed, so it
+    /// never flashes) if the module on screen still offers it.
+    private func surfaceClaimChanged() {
+        if arbiter.isPresenting {
+            appState.setSettingsAsideForClaim()
+        } else {
+            appState.endSettingsSetAsideForClaim(restoring: moduleHost.configuration.topBar.showsSettings)
+        }
+        syncPresentedModule()
     }
 
     /// Puts the top surface claim's module on the surface: a background module's content

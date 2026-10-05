@@ -264,6 +264,7 @@ public final class AppState: ObservableObject {
     /// Switches the chrome to the home view and clears ``errorMessage``.
     public func showHome() {
         viewMode = .home
+        settingsSetAsideForClaim = false
         resetTransientStatus()
     }
 
@@ -272,7 +273,29 @@ public final class AppState: ObservableObject {
     /// ``AppCoordinator/showSettings()``, not here.
     public func showSettings() {
         viewMode = .settings
+        settingsSetAsideForClaim = false
         resetTransientStatus()
+    }
+
+    /// `true` while Settings is set aside for a surface claim: the claim's content took the
+    /// expanded view Settings had, and Settings comes back when the last claim ends unless the
+    /// person changes the view before then.
+    private(set) var settingsSetAsideForClaim = false
+
+    /// Shows home in place of Settings while a surface claim holds the expanded view, so the
+    /// claim's content is what opens. Does nothing outside Settings.
+    func setSettingsAsideForClaim() {
+        guard viewMode == .settings else { return }
+        viewMode = .home
+        settingsSetAsideForClaim = true
+    }
+
+    /// Ends a set-aside started by ``setSettingsAsideForClaim()``: Settings comes back when
+    /// `restoring` is `true`, and is dropped otherwise.
+    func endSettingsSetAsideForClaim(restoring: Bool) {
+        guard settingsSetAsideForClaim else { return }
+        settingsSetAsideForClaim = false
+        if restoring { viewMode = .settings }
     }
 
     /// Clears the transient ``status``. Called on every show/toggle so a stale transient
