@@ -162,7 +162,11 @@ final class NookPeekTests: XCTestCase {
     func testAPeekIntentWaitsItsDelayThenPeeks() async throws {
         let screen = try screen()
         let nook = makeNook()
-        nook.hoverIntent = NookHoverIntent(action: .peek, delay: .milliseconds(150), externalDisplayDelay: .milliseconds(150))
+        nook.hoverIntent = NookHoverIntent(
+            action: .peek,
+            delay: .milliseconds(150),
+            externalDisplayDelay: .milliseconds(150)
+        )
         await nook.compact(on: screen)
 
         nook.updateHoverState(true)
@@ -177,7 +181,11 @@ final class NookPeekTests: XCTestCase {
     func testLeavingDuringTheDelayCancelsIt() async throws {
         let screen = try screen()
         let nook = makeNook()
-        nook.hoverIntent = NookHoverIntent(action: .peek, delay: .milliseconds(120), externalDisplayDelay: .milliseconds(120))
+        nook.hoverIntent = NookHoverIntent(
+            action: .peek,
+            delay: .milliseconds(120),
+            externalDisplayDelay: .milliseconds(120)
+        )
         await nook.compact(on: screen)
 
         nook.updateHoverState(true)
