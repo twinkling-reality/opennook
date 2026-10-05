@@ -63,6 +63,7 @@ struct NookCompactHost<Content: View>: View {
     let typography: NookChromeTypography
     let branding: NookHostBranding
     let chromeActions: NookChromeActions
+    var symbols: NookChromeSymbols = .default
     let content: () -> Content
 
     var body: some View {
@@ -77,7 +78,8 @@ struct NookCompactHost<Content: View>: View {
                     motion: motion,
                     typography: typography,
                     branding: branding,
-                    chromeActions: chromeActions
+                    chromeActions: chromeActions,
+                    symbols: symbols
                 )
             )
     }
@@ -96,6 +98,9 @@ struct NookChromeEnvironment: ViewModifier {
     let typography: NookChromeTypography
     let branding: NookHostBranding
     let chromeActions: NookChromeActions
+    /// The top bar's glyphs, for ``NookKeepOpenButton`` and ``NookSettingsButton`` placed
+    /// here. See ``NookTopBarConfiguration/symbols``.
+    var symbols: NookChromeSymbols = .default
 
     func body(content: Content) -> some View {
         content
@@ -106,6 +111,7 @@ struct NookChromeEnvironment: ViewModifier {
             .environment(\.nookChromeTypography, typography)
             .environment(\.nookHostBranding, branding)
             .environment(\.nookChromeActions, chromeActions)
+            .environment(\.nookChromeSymbols, symbols)
             .environment(\.appServices, services)
             .environmentObject(appState)
             // The panel is non-activating, so controls would otherwise paint as inactive

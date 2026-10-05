@@ -498,6 +498,30 @@ public struct NookTopBarConfiguration: Sendable {
     /// shrink-wrapped, centered bar.
     public var width: Width
 
+    /// The SF Symbols the bar draws: the lock in both states, the gear, the breadcrumb
+    /// separator, the back control, and the module switcher's glyphs. Defaults reproduce
+    /// today's. ``NookKeepOpenButton`` and ``NookSettingsButton`` draw the same glyphs.
+    public var symbols: NookChromeSymbols = .default
+
+    /// A view for the leading cluster's icon, in place of ``leadingIcon`` and the brand mark.
+    /// `nil` (the default) keeps them. The closure receives the color to draw in: the idle
+    /// icon color (``NookResolvedTheme/headerInactiveIcon``) beside the title, or the back
+    /// control's idle, hover, or active color in Settings and under a breadcrumb. Use
+    /// ``setLeadingIcon(_:)`` to set it from a `@ViewBuilder`.
+    ///
+    /// `@Sendable @MainActor`, like the other view closures.
+    public var leadingIconView: (@Sendable @MainActor (Color) -> AnyView)? = nil
+
+    /// Replaces the whole bar with a host view. `nil` (the default) draws the framework bar.
+    /// The closure receives a ``NookTopBarContext`` carrying the bar's state and actions -
+    /// the title, keep-open, Settings, back, and module switching - so a host bar keeps the
+    /// framework's behavior. Use ``setContent(_:)``, or ``NookConfiguration/setTopBar(_:)``.
+    ///
+    /// ``showsTopBar`` and ``showsStatusBanner`` still apply; the visibility flags for the
+    /// lock and gear, ``leadingIcon``, ``trailingItems``, and ``width`` describe the
+    /// framework bar and are the host bar's to honor or ignore.
+    public var content: (@Sendable @MainActor (NookTopBarContext) -> AnyView)? = nil
+
     public init(
         showsTopBar: Bool = true,
         showsSettings: Bool = true,

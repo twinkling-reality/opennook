@@ -24,6 +24,10 @@ struct NookTopBar: View {
     let leadingTitle: (AppState) -> String
     let leadingIcon: String?
 
+    /// Host view for the leading icon, drawn in the given color; wins over `leadingIcon`.
+    /// See ``NookTopBarConfiguration/leadingIconView``.
+    var leadingIconView: (@Sendable @MainActor (Color) -> AnyView)? = nil
+
     /// Whether the gear (and thus the Settings breadcrumb) is part of the bar. When
     /// `false` the gear is omitted; `viewMode` never reaches `.settings` so the
     /// breadcrumb is moot. See ``NookConfiguration/showsSettings``.
@@ -64,6 +68,10 @@ struct NookTopBar: View {
     @Environment(\.nookChromeMetrics) private var metrics
     @Environment(\.nookChromeMotion) private var motion
     @Environment(\.nookChromeTypography) private var typography
+
+    /// The bar's glyphs. Injected by ``NookExpandedView`` from
+    /// ``NookTopBarConfiguration/symbols``.
+    @Environment(\.nookChromeSymbols) private var symbols
 
     /// Host branding - used for the leading-cluster brand mark when no `leadingIcon` is
     /// configured. Injected by the expanded router. See ``NookHostBranding``.
@@ -114,7 +122,7 @@ struct NookTopBar: View {
                 .padding(.leading, contentInsets.leading)
 
             if appState.isSettingsView {
-                Image(systemName: "chevron.right")
+                Image(systemName: symbols.breadcrumbSeparator)
                     .font(typography.breadcrumbChevron)
                     .foregroundStyle(resolvedTheme.quaternaryLabel)
 
@@ -122,7 +130,7 @@ struct NookTopBar: View {
                     .font(typography.topBarLabel)
                     .foregroundStyle(resolvedTheme.secondaryLabel)
             } else if let breadcrumb = appState.moduleBreadcrumb, !breadcrumb.isEmpty {
-                Image(systemName: "chevron.right")
+                Image(systemName: symbols.breadcrumbSeparator)
                     .font(typography.breadcrumbChevron)
                     .foregroundStyle(resolvedTheme.quaternaryLabel)
 
@@ -158,7 +166,7 @@ struct NookTopBar: View {
 
             if showsKeepOpenButton {
                 HeaderIcon(
-                    systemName: appState.keepNookOpen ? "lock.fill" : "lock.open",
+                    systemName: symbols.keepOpen(appState.keepNookOpen),
                     isActive: appState.keepNookOpen,
                     activeColor: chromeInteractionAccent,
                     help: labels.keepOpenHelp
@@ -169,18 +177,12 @@ struct NookTopBar: View {
 
             if showsSettings && showsSettingsButton {
                 HeaderIcon(
-                    systemName: "gearshape",
+                    systemName: symbols.settings,
                     isActive: appState.isSettingsView,
                     activeColor: chromeInteractionAccent,
                     help: labels.settingsHelp
                 ) {
-                    withAnimation(motion.viewModeChange) {
-                        if appState.isSettingsView {
-                            appState.showHome()
-                        } else {
-                            appState.showSettings()
-                        }
-                    }
+                    NookTopBarCommands.toggleSettings(appState, animation: motion.viewModeChange)
                 }
             }
         }
@@ -197,7 +199,8 @@ struct NookTopBar: View {
     /// the brand mark when none is set - rather than swapping to a bare back chevron.
     /// A `chevron.left` here would sit beside the breadcrumb's `chevron.right`
     /// separator and misread as browser back/forward buttons; keeping the mark makes
-    /// the bar read as the breadcrumb it is: `[mark] > Settings`.
+    /// the bar read as the breadcrumb it is: `[mark] > Settings`. A host that wants a
+    /// back glyph anyway sets ``NookChromeSymbols/back``.
     private var homeLeadingCluster: some View {
         let hasBreadcrumb = (appState.moduleBreadcrumb?.isEmpty == false)
         let showPersistentHomeTitle = appState.isHomeView && !appState.isSettingsView && !hasBreadcrumb
@@ -211,12 +214,15 @@ struct NookTopBar: View {
                 ModuleSwitcherMenu(
                     switcher: moduleSwitcher,
                     fallbackIcon: leadingIcon,
+                    fallbackIconView: leadingIconView,
                     fallbackTitle: title,
                     theme: resolvedTheme,
                     branding: branding
                 )
             } else if showPersistentHomeTitle {
-                if let leadingIcon {
+                if let leadingIconView {
+                    leadingIconView(resolvedTheme.headerInactiveIcon)
+                } else if let leadingIcon {
                     StaticHeaderIcon(systemName: leadingIcon)
                 } else {
                     branding.markView(
@@ -235,18 +241,16 @@ struct NookTopBar: View {
                     activeColor: chromeInteractionAccent,
                     help: title,
                     action: {
-                        withAnimation(motion.leadingClusterBack) {
-                            if appState.isSettingsView {
-                                appState.showHome()
-                            } else if hasBreadcrumb {
-                                appState.moduleBreadcrumb = nil
-                            } else {
-                                appState.showHome()
-                            }
-                        }
+                        NookTopBarCommands.goBack(appState, animation: motion.leadingClusterBack)
                     }
                 ) { color in
-                    if let leadingIcon {
+                    if let back = symbols.back {
+                        Image(systemName: back)
+                            .font(typography.headerIcon)
+                            .foregroundStyle(color)
+                    } else if let leadingIconView {
+                        leadingIconView(color)
+                    } else if let leadingIcon {
                         Image(systemName: leadingIcon)
                             .font(typography.headerIcon)
                             .foregroundStyle(color)
@@ -287,12 +291,15 @@ struct NookTopBar: View {
 private struct ModuleSwitcherMenu: View {
     let switcher: NookModuleSwitcher
     let fallbackIcon: String?
+    let fallbackIconView: (@Sendable @MainActor (Color) -> AnyView)?
     let fallbackTitle: String
     let theme: NookResolvedTheme
     let branding: NookHostBranding
 
     @Environment(\.nookChromeTypography) private var typography
     @Environment(\.nookChromeMetrics) private var metrics
+    @Environment(\.nookChromeLabels) private var labels
+    @Environment(\.nookChromeSymbols) private var symbols
 
     var body: some View {
         Menu {
@@ -301,9 +308,9 @@ private struct ModuleSwitcherMenu: View {
                     switcher.switchTo(descriptor.id)
                 } label: {
                     if descriptor.id == switcher.activeID {
-                        Label(descriptor.displayName, systemImage: "checkmark")
+                        Label(descriptor.displayName, systemImage: symbols.moduleSwitcherActive)
                     } else if switcher.attentionIDs.contains(descriptor.id) {
-                        Label("\(descriptor.displayName)  •", systemImage: descriptor.icon)
+                        Label(labels.topBar.moduleAttention(descriptor.displayName), systemImage: descriptor.icon)
                     } else {
                         Label(descriptor.displayName, systemImage: descriptor.icon)
                     }
@@ -316,7 +323,7 @@ private struct ModuleSwitcherMenu: View {
                     .font(typography.topBarLabel)
                     .foregroundStyle(theme.secondaryLabel)
                     .lineLimit(1)
-                Image(systemName: "chevron.down")
+                Image(systemName: symbols.moduleSwitcherIndicator)
                     .font(typography.switcherChevron)
                     .foregroundStyle(theme.tertiaryLabel)
             }
@@ -324,7 +331,7 @@ private struct ModuleSwitcherMenu: View {
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .fixedSize()
-        .help("Switch module")
+        .help(labels.topBar.switchModuleHelp)
     }
 
     private var activeTitle: String {
@@ -332,8 +339,12 @@ private struct ModuleSwitcherMenu: View {
     }
 
     @ViewBuilder private var icon: some View {
-        if let symbol = switcher.activeDescriptor?.icon ?? fallbackIcon {
+        if let symbol = switcher.activeDescriptor?.icon {
             StaticHeaderIcon(systemName: symbol)
+        } else if let fallbackIconView {
+            fallbackIconView(theme.headerInactiveIcon)
+        } else if let fallbackIcon {
+            StaticHeaderIcon(systemName: fallbackIcon)
         } else {
             branding.markView(
                 size: metrics.brandMarkSize,
