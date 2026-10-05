@@ -115,7 +115,7 @@ struct CounterHome: View {
         let count = services.resolve(LaunchTrackerKey.self).launchCount
         ModuleHome(
             headline: "Counter module",
-            detail: "Opened \(count) time\(count == 1 ? "" : "s") — count resolved from this module's AppServices.",
+            detail: "Opened \(count) time\(count == 1 ? "" : "s") - count resolved from this module's AppServices.",
             symbol: "number"
         )
     }

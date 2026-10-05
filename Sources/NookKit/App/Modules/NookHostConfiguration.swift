@@ -96,7 +96,7 @@ public struct NookHostConfiguration: Sendable {
         precondition(
             !entries.contains(where: { $0.descriptor.id == descriptor.id }),
             "NookHostConfiguration: duplicate module id '\(descriptor.id)'. "
-                + "Module ids must be unique within a host — they key persistence, the "
+                + "Module ids must be unique within a host - they key persistence, the "
                 + "switcher entry, the per-module hotkey, and the arbiter's claim invalidation."
         )
         entries.append(NookModuleRegistry.Registration(descriptor: descriptor, factory: factory))
