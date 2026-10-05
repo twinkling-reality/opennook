@@ -106,6 +106,7 @@ struct ModuleRouterCompactView: View {
             typography: configuration.typography,
             branding: moduleHost.branding,
             chromeActions: chromeActions,
+            symbols: configuration.topBar.symbols,
             content: content
         )
     }

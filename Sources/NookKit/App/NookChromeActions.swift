@@ -87,8 +87,9 @@ extension EnvironmentValues {
 
 /// The chrome's keep-open control - the lock the top bar shows - as a standalone view, for
 /// placing it outside the top bar (see ``NookChromeActions``). It behaves exactly like the top
-/// bar's lock, in the chrome's palette; inside a companion it takes the companion's control
-/// size (`\.nookCompanionSize`), so it lines up with the controls beside it.
+/// bar's lock, with its glyphs (``NookChromeSymbols``), in the chrome's palette; inside a
+/// companion it takes the companion's control size (`\.nookCompanionSize`), so it lines up
+/// with the controls beside it.
 ///
 /// Use it inside chrome content - home, compact, or companion - which supplies ``AppState``
 /// as an environment object.
@@ -97,13 +98,14 @@ public struct NookKeepOpenButton: View {
     @Environment(\.nookChromeActions) private var actions
     @Environment(\.nookResolvedTheme) private var theme
     @Environment(\.nookChromeLabels) private var labels
+    @Environment(\.nookChromeSymbols) private var symbols
     @Environment(\.nookCompanionSize) private var companionSize
 
     public init() {}
 
     public var body: some View {
         HeaderIcon(
-            systemName: appState.keepNookOpen ? "lock.fill" : "lock.open",
+            systemName: symbols.keepOpen(appState.keepNookOpen),
             isActive: appState.keepNookOpen,
             activeColor: theme.accent,
             help: labels.keepOpenHelp,
@@ -118,8 +120,9 @@ public struct NookKeepOpenButton: View {
 
 /// The chrome's Settings control - the gear the top bar shows - as a standalone view, for
 /// placing it outside the top bar (see ``NookChromeActions``). It behaves exactly like the top
-/// bar's gear, in the chrome's palette; inside a companion it takes the companion's control
-/// size (`\.nookCompanionSize`), so it lines up with the controls beside it.
+/// bar's gear, with its glyph (``NookChromeSymbols``), in the chrome's palette; inside a
+/// companion it takes the companion's control size (`\.nookCompanionSize`), so it lines up
+/// with the controls beside it.
 ///
 /// Use it inside chrome content - home, compact, or companion - which supplies ``AppState``
 /// as an environment object. A companion hosting it should pass `hidesInSettings: false`,
@@ -129,13 +132,14 @@ public struct NookSettingsButton: View {
     @Environment(\.nookChromeActions) private var actions
     @Environment(\.nookResolvedTheme) private var theme
     @Environment(\.nookChromeLabels) private var labels
+    @Environment(\.nookChromeSymbols) private var symbols
     @Environment(\.nookCompanionSize) private var companionSize
 
     public init() {}
 
     public var body: some View {
         HeaderIcon(
-            systemName: "gearshape",
+            systemName: symbols.settings,
             isActive: appState.isSettingsView,
             activeColor: theme.accent,
             help: labels.settingsHelp,

@@ -193,6 +193,7 @@ public struct NookExpandedView: View {
             .environment(\.nookChromeMetrics, metrics)
             .environment(\.nookChromeMotion, motion)
             .environment(\.nookChromeTypography, typography)
+            .environment(\.nookChromeSymbols, topBar.symbols)
             .environment(\.appServices, services)
             // Expose `AppState` to the host-registered `home` surface so it can observe
             // chrome-level state (e.g. `isDragInFlight`) without each closure needing a
@@ -270,7 +271,20 @@ public struct NookExpandedView: View {
 
     @ViewBuilder
     private var topBarRow: some View {
-        if topBar.width == .intrinsic {
+        if let content = topBar.content {
+            // A host bar: it gets the state and actions the framework bar works from, and
+            // at least the framework bar's height, which the notch clearance below assumes.
+            content(
+                NookTopBarContext.live(
+                    appState: appState,
+                    topBar: topBar,
+                    motion: motion,
+                    moduleSwitcher: moduleSwitcher,
+                    toggleKeepOpen: toggleKeepOpen
+                )
+            )
+            .frame(maxWidth: .infinity, minHeight: metrics.topBarHeight, alignment: .leading)
+        } else if topBar.width == .intrinsic {
             NookTopBar(
                 appState: appState,
                 chromeInteractionAccent: chromeInteractionAccent,
@@ -278,6 +292,7 @@ public struct NookExpandedView: View {
                 toggleKeepOpen: toggleKeepOpen,
                 leadingTitle: topBar.leadingTitle,
                 leadingIcon: topBar.leadingIcon,
+                leadingIconView: topBar.leadingIconView,
                 showsSettings: topBar.showsSettings,
                 showsKeepOpenButton: topBar.showsKeepOpenButton,
                 showsSettingsButton: topBar.showsSettingsButton,
@@ -294,6 +309,7 @@ public struct NookExpandedView: View {
                 toggleKeepOpen: toggleKeepOpen,
                 leadingTitle: topBar.leadingTitle,
                 leadingIcon: topBar.leadingIcon,
+                leadingIconView: topBar.leadingIconView,
                 showsSettings: topBar.showsSettings,
                 showsKeepOpenButton: topBar.showsKeepOpenButton,
                 showsSettingsButton: topBar.showsSettingsButton,
