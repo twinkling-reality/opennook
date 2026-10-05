@@ -143,9 +143,15 @@ queue.enqueue(NookActivity(
 ```
 
 Enqueueing an activity with a non-`nil` key removes any **pending** peer that
-shares the key first. Coalescing only affects what is queued - an activity
-already on screen finishes its dwell and is replaced by the new one
-afterwards. `nil` (the default) means "never coalesce".
+shares the key first. When the card **on screen** has the same key, it is
+updated in place instead: its title, subtitle, symbol, and tint change for the
+rest of its dwell, and the card does not leave and come back. That suits
+progress: enqueue `"Downloading 40%"`, then `"Downloading 80%"` with the same
+key. `nil` (the default) means "never coalesce".
+
+Consecutive cards share one surface claim when the presenter can move a claim's
+end (`AppCoordinator` can), so the nook stays open from one card to the next
+instead of collapsing and opening again between them.
 
 Common shapes for the key:
 
@@ -231,7 +237,8 @@ for the full switch sequence.
 ### Don't preempt an in-flight activity by priority
 
 `.high` does not interrupt a `.normal` that is already on screen - priority
-orders only what is still pending. If you absolutely need to replace what's
+orders only what is still pending (and the next card in a run shares the
+claim of the first). If you absolutely need to replace what's
 showing, cancel via id and let the drain pick the new one, or build a
 short-`dwell` activity so it ends quickly.
 

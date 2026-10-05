@@ -44,6 +44,17 @@ private final class FakePresenter: NookSurfacePresenting {
 
     func endTransientPresentation(_ token: NookSurfaceToken) async { endCount += 1 }
 
+    /// When `true`, the presenter schedules ends the way `AppCoordinator` does; when `false`
+    /// (the default), it is a presenter written before scheduled ends existed.
+    var schedulesEnds = false
+    private(set) var scheduledEnds: [Duration] = []
+
+    func endTransientPresentation(_ token: NookSurfaceToken, after delay: Duration) async -> Bool {
+        guard schedulesEnds else { return false }
+        scheduledEnds.append(delay)
+        return true
+    }
+
     func setEngaged(_ value: Bool) { engagement.send(value) }
 }
 
@@ -70,6 +81,48 @@ final class NookActivityQueueTests: XCTestCase {
     @MainActor
     private func instantQueue() -> NookActivityQueue {
         NookActivityQueue(sleep: { _ in })
+    }
+
+    /// With a presenter that can move a claim's end, consecutive cards share one claim, so the
+    /// nook stays open between them.
+    @MainActor
+    func testConsecutiveCardsShareOneClaim() async {
+        let queue = instantQueue()
+        let presenter = FakePresenter()
+        presenter.schedulesEnds = true
+        queue.bind(to: presenter)
+
+        queue.enqueue(NookActivity(title: "A"))
+        queue.enqueue(NookActivity(title: "B"))
+        queue.enqueue(NookActivity(title: "C"))
+        await queue.drainTask?.value
+
+        XCTAssertEqual(presenter.beginCount, 1, "one claim for the run of cards")
+        XCTAssertEqual(presenter.endCount, 1)
+        XCTAssertEqual(presenter.scheduledEnds.count, 2, "the end moved once per chained card")
+        XCTAssertNil(queue.current)
+        XCTAssertTrue(queue.pending.isEmpty)
+    }
+
+    /// A card with the same coalescing key as the one on screen updates it in place: the text
+    /// changes, the card keeps its id, and nothing more is queued.
+    @MainActor
+    func testACardWithTheSameKeyUpdatesTheOneOnScreen() async {
+        let queue = NookActivityQueue(sleep: { _ in try? await Task.sleep(for: .milliseconds(300)) })
+        let presenter = FakePresenter()
+        queue.bind(to: presenter)
+
+        let first = NookActivity(coalescingKey: "download", title: "Downloading 40%")
+        queue.enqueue(first)
+        await waitUntil { queue.current != nil }
+
+        queue.enqueue(NookActivity(coalescingKey: "download", title: "Downloading 80%"))
+        XCTAssertEqual(queue.current?.title, "Downloading 80%")
+        XCTAssertEqual(queue.current?.id, first.id, "the card stays; only its content changes")
+        XCTAssertTrue(queue.pending.isEmpty)
+
+        await queue.drainTask?.value
+        XCTAssertEqual(presenter.beginCount, 1)
     }
 
     @MainActor
