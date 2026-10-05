@@ -42,6 +42,12 @@ public struct NookAppearancePreferences: Equatable, Codable, Sendable {
     /// it to `0.15...1`, the range the Settings slider offers.
     public var backdropStrength: Double
 
+    /// Whether the chrome theme's sounds play. On by default; a theme with no sounds plays
+    /// nothing either way. Settings offers it as the "Sounds" row while the theme has sounds
+    /// and allows the person to turn them off (``NookTheme/allowsUserSoundToggle``). When off,
+    /// nothing plays, whatever the theme says.
+    public var soundsEnabled: Bool
+
     /// The range the framework mapping clamps ``backdropStrength`` to, and the range the
     /// built-in Settings slider offers - one value, so the two cannot disagree.
     static let backdropStrengthRange: ClosedRange<Double> = 0.15...1
@@ -58,7 +64,8 @@ public struct NookAppearancePreferences: Equatable, Codable, Sendable {
         hapticFeedbackEnabled: Bool = false,
         keepNookOpen: Bool = false,
         accentPreset: NookAccentPreset = .system,
-        backdropStrength: Double = 1
+        backdropStrength: Double = 1,
+        soundsEnabled: Bool = true
     ) {
         self.chromePalette = chromePalette
         self.surfaceStyle = surfaceStyle
@@ -67,6 +74,7 @@ public struct NookAppearancePreferences: Equatable, Codable, Sendable {
         self.keepNookOpen = keepNookOpen
         self.accentPreset = accentPreset
         self.backdropStrength = backdropStrength
+        self.soundsEnabled = soundsEnabled
     }
 
     /// Framework defaults - what `NookApp.main()` ships if the host has never written
@@ -81,6 +89,7 @@ public struct NookAppearancePreferences: Equatable, Codable, Sendable {
         case keepNookOpen
         case accentPreset
         case backdropStrength
+        case soundsEnabled
     }
 
     // Custom decode so JSON written by an older build (missing a later-added field)
@@ -97,6 +106,7 @@ public struct NookAppearancePreferences: Equatable, Codable, Sendable {
         self.keepNookOpen = try container.decodeIfPresent(Bool.self, forKey: .keepNookOpen) ?? false
         self.accentPreset = try container.decodeIfPresent(NookAccentPreset.self, forKey: .accentPreset) ?? .system
         self.backdropStrength = try container.decodeIfPresent(Double.self, forKey: .backdropStrength) ?? 1
+        self.soundsEnabled = try container.decodeIfPresent(Bool.self, forKey: .soundsEnabled) ?? true
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -108,6 +118,7 @@ public struct NookAppearancePreferences: Equatable, Codable, Sendable {
         try container.encode(keepNookOpen, forKey: .keepNookOpen)
         try container.encode(accentPreset, forKey: .accentPreset)
         try container.encode(backdropStrength, forKey: .backdropStrength)
+        try container.encode(soundsEnabled, forKey: .soundsEnabled)
     }
 }
 
@@ -146,6 +157,7 @@ struct NookAppearanceChoices: Codable, Equatable, Sendable {
     var keepNookOpen: Bool?
     var accentPreset: NookAccentPreset?
     var backdropStrength: Double?
+    var soundsEnabled: Bool?
 
     init() {}
 
@@ -202,6 +214,7 @@ struct NookAppearanceChoices: Codable, Equatable, Sendable {
             Field(\.keepNookOpen, \.keepNookOpen),
             Field(\.accentPreset, \.accentPreset),
             Field(\.backdropStrength, \.backdropStrength),
+            Field(\.soundsEnabled, \.soundsEnabled),
         ]
     }
 
@@ -213,6 +226,7 @@ struct NookAppearanceChoices: Codable, Equatable, Sendable {
         case keepNookOpen
         case accentPreset
         case backdropStrength
+        case soundsEnabled
     }
 
     // Each field decodes on its own, so a value a newer build wrote that this one cannot read
@@ -226,6 +240,7 @@ struct NookAppearanceChoices: Codable, Equatable, Sendable {
         keepNookOpen = try? container.decodeIfPresent(Bool.self, forKey: .keepNookOpen)
         accentPreset = try? container.decodeIfPresent(NookAccentPreset.self, forKey: .accentPreset)
         backdropStrength = try? container.decodeIfPresent(Double.self, forKey: .backdropStrength)
+        soundsEnabled = try? container.decodeIfPresent(Bool.self, forKey: .soundsEnabled)
     }
 }
 

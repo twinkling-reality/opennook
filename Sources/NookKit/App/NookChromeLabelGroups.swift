@@ -196,6 +196,13 @@ extension NookChromeLabels {
         public var hapticOn = "On - trackpad pulse on confirmation"
         /// The haptic feedback row's detail while off.
         public var hapticOff = "Off - silent confirmation"
+        /// The sounds row's title. The row shows while the chrome theme has sounds and lets
+        /// the person turn them off.
+        public var soundsTitle = "Sounds"
+        /// The sounds row's detail while on.
+        public var soundsOn = "On - the nook plays its sounds"
+        /// The sounds row's detail while off.
+        public var soundsOff = "Off - the nook stays quiet"
 
         public init() {}
 

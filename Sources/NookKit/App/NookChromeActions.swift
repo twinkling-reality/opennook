@@ -53,13 +53,19 @@ public struct NookChromeActions: Sendable {
     /// ``AppCoordinator/releaseNookKeyboardFocus()``.
     public var releaseKeyboardFocus: @Sendable @MainActor () -> Void
 
+    /// Plays the chrome theme's sound for an event, unless the theme has none for it or the
+    /// person turned sounds off - `sound.finish` when the host's work is done, say. See
+    /// ``AppCoordinator/playSound(_:)``.
+    public var playSound: @Sendable @MainActor (NookSoundID) -> Void
+
     public init(
         toggleKeepOpen: @escaping @Sendable @MainActor () -> Void,
         toggleSettings: @escaping @Sendable @MainActor () -> Void,
         collapse: @escaping @Sendable @MainActor () -> Void,
         resetSettings: @escaping @Sendable @MainActor () -> Void = {},
         takeKeyboardFocus: @escaping @Sendable @MainActor () -> Void = {},
-        releaseKeyboardFocus: @escaping @Sendable @MainActor () -> Void = {}
+        releaseKeyboardFocus: @escaping @Sendable @MainActor () -> Void = {},
+        playSound: @escaping @Sendable @MainActor (NookSoundID) -> Void = { _ in }
     ) {
         self.toggleKeepOpen = toggleKeepOpen
         self.toggleSettings = toggleSettings
@@ -67,6 +73,7 @@ public struct NookChromeActions: Sendable {
         self.resetSettings = resetSettings
         self.takeKeyboardFocus = takeKeyboardFocus
         self.releaseKeyboardFocus = releaseKeyboardFocus
+        self.playSound = playSound
     }
 
     /// Actions that do nothing - the value outside a live chrome, such as in a preview.
