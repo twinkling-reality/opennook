@@ -128,6 +128,10 @@ public final class AppCoordinator: ObservableObject {
     /// whenever the surface decorations are projected again.
     private var companionSourceSubscription: AnyCancellable?
 
+    /// Follows the host's and the displayed configuration's live chrome themes. Re-bound
+    /// whenever the displayed configuration changes. See ``NookThemeSource``.
+    var themeSourceSubscriptions: [AnyCancellable] = []
+
     /// Tail of the serial chain that all surface lifecycle transitions
     /// (expand/compact/hide) run through. Without this, two rapid triggers - a
     /// double hotkey press, a display change landing mid-show - each spawn an

@@ -51,6 +51,23 @@ extension AppCoordinator {
             surface.ambientWash = wash
         }
         applyThemeColors()
+        bindThemeSources()
+    }
+
+    /// Follows the theme sources that decide the displayed configuration's theme, so a theme
+    /// replaced in code or a theme file saved on disk reaches the chrome at once.
+    func bindThemeSources() {
+        let sources = [moduleHost.displayedConfiguration.chromeThemeSource, moduleHost.registry.chromeThemeSource]
+        themeSourceSubscriptions = sources.compactMap { $0 }.map { source in
+            source.changes.sink { [weak self] _ in self?.themeSourceDidChange() }
+        }
+    }
+
+    /// Applies a changed live theme the way ``reloadActiveConfiguration()`` applies a
+    /// configuration, to the active module and to a background module presenting over it.
+    func themeSourceDidChange() {
+        moduleHost.reloadPresentedBackgroundConfiguration()
+        reloadActiveConfiguration()
     }
 
     /// The theme colors the surface draws, which follow the appearance: the chrome's shadow.
