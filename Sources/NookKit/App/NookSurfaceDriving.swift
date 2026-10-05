@@ -110,6 +110,22 @@ protocol NookSurfaceDriving: AnyObject {
     /// Hover side-effects. Re-projected when the host replaces its chrome behavior.
     var hoverBehavior: NookHoverBehavior { get set }
 
+    /// What resting the pointer on the compact pill does. Projected from the host's chrome
+    /// behavior, or the person's preferences.
+    var hoverIntent: NookHoverIntent { get set }
+
+    /// The view the compact pill grows to show while it peeks, or `nil` for no peek. Projected
+    /// from the displayed module's configuration.
+    var peekContent: AnyView? { get set }
+
+    /// `true` while the compact pill shows its peek region.
+    var isPeeking: Bool { get }
+
+    /// Grow the compact pill into its peek region.
+    func peek(on screen: NSScreen?) async
+    /// Shrink a peeking pill back to its compact slots.
+    func endPeek() async
+
     /// Host surfaces floated beside the chrome. Re-projected on a module switch, so the
     /// outgoing module's companions leave with it.
     var companions: [NookCompanionSurface] { get set }

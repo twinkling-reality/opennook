@@ -91,6 +91,14 @@ public final class AppCoordinator: ObservableObject {
                 await self?.enqueueLifecycle(operation).value
             },
             expand: { [weak self] in await self?.surface.expand(on: nil) },
+            peek: { [weak self] in
+                guard let surface = self?.surface, surface.peekContent != nil, surface.state != .expanded else {
+                    return false
+                }
+                await surface.peek(on: nil)
+                return surface.isPeeking
+            },
+            endPeek: { [weak self] in await self?.surface.endPeek() },
             compact: { [weak self] in await self?.surface.compact(on: nil) },
             hide: { [weak self] in await self?.surface.hide() },
             topClaimChanged: { [weak self] in self?.surfaceClaimChanged() }
@@ -446,6 +454,7 @@ public final class AppCoordinator: ObservableObject {
 
         syncNotchBackdrop()
         applySurfaceLook()
+        applyHoverIntent()
         configureDisplayTargeting()
 
         registerGlobalHotkey()
@@ -750,6 +759,42 @@ public final class AppCoordinator: ObservableObject {
             }
         surface.rimGlowStyle = configuration.rimGlow
         surface.scrollEdgeFade = configuration.scrollEdgeFade
+        projectPeek(configuration)
+    }
+
+    /// Hands the displayed module's peek view to the surface, wrapped in the chrome environment
+    /// like the compact slots, or `nil` when the module has none: then a peek-first hover opens
+    /// the nook rather than growing an empty pill.
+    private func projectPeek(_ configuration: NookConfiguration) {
+        guard let peek = configuration.peek else {
+            surface.peekContent = nil
+            return
+        }
+        surface.peekContent = AnyView(
+            NookCompactHost(
+                appState: appState,
+                theme: configuration.theme,
+                services: moduleHost.displayedServices,
+                labels: configuration.labels,
+                metrics: configuration.effectiveMetrics,
+                motion: configuration.effectiveMotion,
+                typography: configuration.effectiveTypography,
+                branding: moduleHost.branding,
+                chromeActions: chromeActions,
+                symbols: configuration.topBar.symbols,
+                chromeTheme: configuration.effectiveChromeTheme,
+                themeTokens: configuration.effectiveThemeTokens,
+                content: peek
+            )
+        )
+    }
+
+    /// Puts the hover intent on the surface: the host's, when its chrome behavior fixes one,
+    /// otherwise the person's choice from Settings.
+    func applyHoverIntent() {
+        let fixed = moduleHost.chromeBehavior.hoverIntent
+        if appState.hostFixesHoverIntent != (fixed != nil) { appState.hostFixesHoverIntent = fixed != nil }
+        surface.hoverIntent = fixed ?? appState.appearancePreferences.hoverIntent
     }
 
     /// Wraps each companion in ``NookCompanionHost`` and hands the result to the surface.
@@ -884,6 +929,7 @@ public final class AppCoordinator: ObservableObject {
     public func replaceChromeBehavior(_ behavior: NookChromeBehavior) {
         moduleHost.chromeBehavior = behavior
         surface.hoverBehavior = behavior.hoverBehavior
+        applyHoverIntent()
         syncNotchBackdrop()
     }
 
@@ -1099,6 +1145,14 @@ public final class AppCoordinator: ObservableObject {
             .dropFirst()
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.syncNotchBackdrop() }
+            .store(in: &cancellables)
+
+        // The hover intent follows the person's choice as they change it in Settings. Applied
+        // here and at launch (`start()`), never resolved per hover.
+        appState.$appearancePreferences
+            .dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.applyHoverIntent() }
             .store(in: &cancellables)
 
         // The chrome is two surfaces, and they do not want the same backdrop: collapsed, a
@@ -1535,5 +1589,9 @@ extension AppCoordinator: NookSurfacePresenting {
     /// Releases the claim through the `SurfaceArbiter`.
     public func endTransientPresentation(_ token: NookSurfaceToken) async {
         await arbiter.end(token)
+    }
+
+    public func endTransientPresentation(_ token: NookSurfaceToken, after delay: Duration) async -> Bool {
+        await arbiter.end(token, after: delay)
     }
 }

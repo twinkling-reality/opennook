@@ -96,13 +96,24 @@ public struct NookChromeBehavior: Sendable {
     /// their shortcuts. See ``NookKeyboardBehavior``.
     public var keyboard: NookKeyboardBehavior
 
+    /// Fixes what resting the pointer on the compact pill does, over the person's choice.
+    /// `nil` (the default) follows ``NookAppearancePreferences/openOnHover`` and its timings,
+    /// which Settings offers; a value here applies instead, and Settings hides those rows, the
+    /// same way a theme's pins hide the controls they pin.
+    ///
+    /// ```swift
+    /// configuration.chromeBehavior.hoverIntent = NookHoverIntent(action: .peek, delay: .milliseconds(120))
+    /// ```
+    public var hoverIntent: NookHoverIntent?
+
     public init(
         hoverBehavior: NookHoverBehavior = [],
         showsLaunchShimmer: Bool = true,
         backdrop: BackdropResolver? = nil,
         glassShading: NookGlassShading = .even,
         companionBackdrop: CompanionBackdropResolver? = nil,
-        keyboard: NookKeyboardBehavior = .default
+        keyboard: NookKeyboardBehavior = .default,
+        hoverIntent: NookHoverIntent? = nil
     ) {
         self.hoverBehavior = hoverBehavior
         self.showsLaunchShimmer = showsLaunchShimmer
@@ -110,6 +121,7 @@ public struct NookChromeBehavior: Sendable {
         self.glassShading = glassShading
         self.companionBackdrop = companionBackdrop
         self.keyboard = keyboard
+        self.hoverIntent = hoverIntent
     }
 
     /// The framework defaults - what ships when a host sets no chrome behavior. Using

@@ -39,6 +39,7 @@ public struct NookShortcutSettingsSection: View {
             if !appState.hotkeyRegistrationFailures.keys.filter({ $0 != NookHotkeyIDs.toggle }).isEmpty {
                 SettingsHotkeyFailureRow(appState: appState)
             }
+            NookOpeningSettingsRows(appState: appState)
             SettingActionLine(
                 icon: appState.keepNookOpen ? "pin.fill" : "pin",
                 title: labels.shortcut.stayExpandedTitle,
