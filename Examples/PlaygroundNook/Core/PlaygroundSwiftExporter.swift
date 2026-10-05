@@ -99,6 +99,18 @@ public enum PlaygroundSwiftExporter {
         if differs(appearance.backdropStrength, defaults.backdropStrength) {
             arguments.append("backdropStrength: \(number(appearance.backdropStrength))")
         }
+        if appearance.openOnHover != defaults.openOnHover {
+            arguments.append("openOnHover: \(literal(appearance.openOnHover))")
+        }
+        if differs(appearance.hoverDelay, defaults.hoverDelay) {
+            arguments.append("hoverDelay: \(number(appearance.hoverDelay))")
+        }
+        if differs(appearance.externalDisplayHoverDelay, defaults.externalDisplayHoverDelay) {
+            arguments.append("externalDisplayHoverDelay: \(number(appearance.externalDisplayHoverDelay))")
+        }
+        if differs(appearance.peekDwell, defaults.peekDwell) {
+            arguments.append("peekDwell: \(number(appearance.peekDwell))")
+        }
         guard !arguments.isEmpty else { return [] }
         return [
             "// Launch appearance. It seeds the first run; the user's own Settings choices win.",
@@ -633,6 +645,14 @@ public enum PlaygroundSwiftExporter {
             case .auto: ".auto"
             case .notch: ".notch"
             case .floating: ".floating"
+        }
+    }
+
+    static func literal(_ opening: NookOpenOnHover) -> String {
+        switch opening {
+            case .immediately: ".immediately"
+            case .peekFirst: ".peekFirst"
+            case .off: ".off"
         }
     }
 

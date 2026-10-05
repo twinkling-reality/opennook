@@ -96,6 +96,24 @@ final class PlaygroundSwiftExporterTests: XCTestCase {
         )
     }
 
+    func testAppearanceExportsTheOpeningChoices() {
+        let appearance = NookAppearancePreferences(
+            openOnHover: .peekFirst,
+            hoverDelay: 0.2,
+            externalDisplayHoverDelay: 0.4,
+            peekDwell: 1
+        )
+        XCTAssertEqual(
+            Array(Exporter.appearanceLines(appearance)[3...6]),
+            [
+                "        openOnHover: .peekFirst,",
+                "        hoverDelay: 0.2,",
+                "        externalDisplayHoverDelay: 0.4,",
+                "        peekDwell: 1",
+            ]
+        )
+    }
+
     func testThemeExportsAChromeTheme() {
         var theme = PlaygroundSettings.Theme()
         XCTAssertEqual(Exporter.themeLines(theme), [])
