@@ -131,6 +131,32 @@ final class NookTopBarCustomizationTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(compact.environment).nookChromeSymbols, topBar.symbols)
     }
 
+    /// The configured glyphs reach companion content, so a lock or gear placed in a
+    /// companion draws the same glyphs as the top bar.
+    func testSymbolsReachCompanions() throws {
+        var symbols = NookChromeSymbols.default
+        symbols.keepOpenOff = "pin"
+        symbols.settings = "slider.horizontal.3"
+        let capture = Capture()
+        let appState = AppState()
+        render(
+            NookCompanionHost(
+                appState: appState,
+                companion: NookCompanion(id: "probe") { EnvironmentProbe(capture: capture) },
+                theme: { NookResolvedTheme.live(appState: $0) },
+                services: AppServices(),
+                labels: .default,
+                metrics: .default,
+                motion: .default,
+                typography: .default,
+                branding: .default,
+                chromeActions: NookChromeActions(toggleKeepOpen: {}, toggleSettings: {}, collapse: {}),
+                symbols: symbols
+            )
+        )
+        XCTAssertEqual(try XCTUnwrap(capture.environment).nookChromeSymbols, symbols)
+    }
+
     // MARK: - Leading icon view
 
     /// A leading icon view is drawn in place of the symbol and the mark, in the idle icon
