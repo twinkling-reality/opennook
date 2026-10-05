@@ -70,7 +70,14 @@ final class NookCompactEnvironmentTests: XCTestCase {
         configuration.setCompactLeading { EnvironmentProbe(capture: capture) }
         let host = makeHost(configuration: configuration, branding: NookHostBranding(hostName: "Constellation"))
 
-        render(ModuleRouterCompactView(moduleHost: host, appState: AppState(), activities: host.registry.liveActivities, slot: .leading))
+        render(
+            ModuleRouterCompactView(
+                moduleHost: host,
+                appState: AppState(),
+                activities: host.registry.liveActivities,
+                slot: .leading
+            )
+        )
 
         let environment = try XCTUnwrap(capture.values, "the probe rendered")
         XCTAssertTrue(environment.appServices === host.activeServices, "the module's services")
@@ -85,7 +92,14 @@ final class NookCompactEnvironmentTests: XCTestCase {
         let flag = MarkFlag()
         let host = makeHost(configuration: NookConfiguration(), branding: brandingWithMark(flag))
 
-        render(ModuleRouterCompactView(moduleHost: host, appState: AppState(), activities: host.registry.liveActivities, slot: .trailing))
+        render(
+            ModuleRouterCompactView(
+                moduleHost: host,
+                appState: AppState(),
+                activities: host.registry.liveActivities,
+                slot: .trailing
+            )
+        )
 
         XCTAssertTrue(flag.built)
     }

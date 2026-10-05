@@ -19,7 +19,7 @@ public final class NookModuleContext {
     /// The module's registration-time identity.
     public let descriptor: NookModuleDescriptor
 
-    /// Per-module `UserDefaults` suite (`"opennook.module.<id>"`). Component stores - 
+    /// Per-module `UserDefaults` suite (`"opennook.module.<id>"`). Component stores -
     /// e.g. `NookComponents`' `ShelfStore`, which already accepts an injected
     /// `defaults:` - should be wired to this so their keys can't collide across modules.
     public let defaults: UserDefaults
@@ -62,11 +62,13 @@ public final class NookModuleContext {
         let suiteName = "opennook.module.\(descriptor.id)"
         let defaults = UserDefaults(suiteName: suiteName) ?? .standard
 
-        let appSupport = FileManager.default
+        let appSupport =
+            FileManager.default
             .urls(for: .applicationSupportDirectory, in: .userDomainMask)
             .first ?? URL(fileURLWithPath: NSTemporaryDirectory())
         let host = Bundle.main.bundleIdentifier ?? "OpenNook"
-        let containerURL = appSupport
+        let containerURL =
+            appSupport
             .appendingPathComponent(host, isDirectory: true)
             .appendingPathComponent("Modules", isDirectory: true)
             .appendingPathComponent(descriptor.id, isDirectory: true)
