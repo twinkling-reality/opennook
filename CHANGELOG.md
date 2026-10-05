@@ -227,6 +227,26 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `\.nookTheme`, `\.nookThemeTokens`, and `\.nookChromeColors`.
 - `AppCoordinator.playFeedback(_:duration:repeats:)` plays a peripheral cue in the
   theme's `feedback.tint`.
+- Choreography. The surface plays the theme's `motion.content.exit` when content
+  leaves and holds expanded content back for `motion.content.enterDelay` after the
+  chrome starts growing, each transition on its own curve when it names one. At the
+  engine level: `NookContentTransition.animation` and `.delay`, and
+  `NookTransitionConfiguration.expandedContentRemoval` and `.compactContentRemoval`
+  (`nil` leaves the way content arrived, as before). The framework top bar arrives
+  `motion.header.delay` after the content, and `nookStaggered(index:)` cascades a
+  host's rows in `motion.stagger` apart. Every timing defaults to 0, so nothing moves
+  differently until a theme asks.
+- Sounds. A theme's `sound.open`, `sound.close`, `sound.hover`, `sound.feedback`,
+  `sound.alert` (an error or warning status, a granted `.urgent` claim), and
+  `sound.finish` (a success status) play on those chrome events, at the sound's
+  volume times the theme's `soundVolume`, loaded once when the theme is applied and
+  able to overlap. `AppCoordinator.playSound(_:)` and `NookChromeActions.playSound`
+  play any of them on demand, `sound.peek` included. Settings shows a "Sounds" row
+  while the theme has sounds and `allowsUserSoundToggle` is on
+  (`NookChromeLabels.shortcut.soundsTitle`, `soundsOn`, `soundsOff`), saved as
+  `NookAppearancePreferences.soundsEnabled` (on by default); while it is off nothing
+  plays. A theme without sounds, the default, plays and loads nothing.
+  `NookSoundSpec.Source` is now `Hashable`.
 - `NookGlyphButtonStyle.washColor`.
 - The playground builds its Theme page as a `NookTheme`, adds corner, scale, and
   motion knobs and the new color roles, exports the theme as Swift

@@ -95,8 +95,12 @@ The app chrome layered over `NookSurface`.
   `NookThemeLoadResult`, `NookThemeIssue`, `NookThemeError`. Live themes:
   `NookThemeSource` (`chromeThemeSource`). Custom backdrop views:
   `NookConfiguration.themeBackdrops`. Feedback in the theme's tint:
-  `AppCoordinator.playFeedback(_:duration:repeats:)`. See
-  [Theming](/guides/theming/). Source: `Sources/NookKit/Theme/`.
+  `AppCoordinator.playFeedback(_:duration:repeats:)`. Choreography:
+  `nookStaggered(index:)` for rows that cascade in on `motion.stagger`. Sounds:
+  `AppCoordinator.playSound(_:)`, `NookChromeActions.playSound`, and
+  `NookAppearancePreferences.soundsEnabled` (the Settings "Sounds" row). See
+  [Theming](/guides/theming/), [Choreography](/guides/theming/#choreography), and
+  [Sounds](/guides/theming/#sounds). Source: `Sources/NookKit/Theme/`.
 - **Palette** - `NookResolvedTheme`. The flat palette every chrome view reads,
   including `accent`, `fontDesign`, and the `hoverWash`, `destructive`, `warning`,
   and `success` roles. See [Theming](/guides/theming/#reading-the-theme-in-views).
@@ -167,7 +171,9 @@ these through `NookKit` rather than directly; the host-facing knobs are:
 - `NookStyle` - corner radii, `expandedContentInsets`, and the built-in animation curves.
   `Nook.style` and `Nook.hoverBehavior` are settable, so a running chrome can be
   restyled in place.
-- `NookTransitionConfiguration` - per-instance animation overrides.
+- `NookTransitionConfiguration` - per-instance animation overrides, and how content
+  arrives and leaves (`expandedContentTransition`, `expandedContentRemoval`,
+  `compactContentTransition`, `compactContentRemoval`).
 - `NookPresentation` - notch-fused vs free-floating chrome.
 - `NookContentInsets` - curve-derived safe-area insets for edge-pinned host content.
   See [Layout and content insets](/guides/layout-and-insets/).
@@ -201,7 +207,8 @@ these through `NookKit` rather than directly; the host-facing knobs are:
   `.meshGradient`, and `.custom` backdrops. See
   [Surface materials](/guides/surface-materials/#backdrops-beyond-the-three-styles).
 - `NookShape`, `NookOutline`, `\.nookChromeShape`, and `NookContentTransition` - the
-  chrome's outline and how content arrives. `NookHoverHaptic` (`Nook.hoverHaptic`). See
+  chrome's outline and how content arrives and leaves, with its own `animation` and an
+  arrival `delay`. `NookHoverHaptic` (`Nook.hoverHaptic`). See
   [Chrome customization](/guides/chrome-customization/#engine-level-shape-and-motion-nooksurface).
 - `NookChromeShadow` (`Nook.chromeShadow`), `NookFeedbackStyle`, and `NookAmbientWash`
   (`Nook.ambientWash`). See [Rim glow and edge fade](/guides/panel-effects/#chrome-shadow).

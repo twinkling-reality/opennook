@@ -248,7 +248,7 @@ appear:
 | `labels.settings` | The Settings group titles (Appearance, Display, Shortcut & nook, Data, About), the banner preview row and its message, "Reset All Settings", the About version and fallback tagline |
 | `labels.appearance` | The Theme, Surface, and Layout pickers, their options and captions, the accent swatch names, the strength slider |
 | `labels.display` | The display picker, its options and captions |
-| `labels.shortcut` | The global shortcut row, its hints and accessibility text, the "unavailable" message, "Stay expanded", haptic feedback, and the "Cycle Modules" shortcut name |
+| `labels.shortcut` | The global shortcut row, its hints and accessibility text, the "unavailable" message, "Stay expanded", haptic feedback, "Sounds", and the "Cycle Modules" shortcut name |
 | `labels.menuBar` | The menu-bar item: Show, Settings..., Toggle Stay Expanded, Modules, Quit |
 | `labels.components` | The `NookComponents` shelf and volume glyph |
 | `labels.placeholderMessage` | The line on the placeholder home view |
@@ -420,6 +420,25 @@ configuration.transitions = NookTransitionConfiguration(
 A `NookContentTransition` is a blur, a scale, and an optional fade. The scale runs
 horizontally from the notch for compact slots and vertically from the top edge for
 expanded content. `.opacity` is a plain fade and `.identity` none.
+
+By default content leaves the way it arrived, on the surface's curve, and arrives
+with the chrome. A transition can name its own `animation`, and a `delay` holds the
+content back after the chrome starts changing (at the transition's start: faded,
+blurred, and scaled). `expandedContentRemoval` and `compactContentRemoval` say how
+content leaves when that differs; leaving never waits:
+
+```swift
+configuration.transitions = NookTransitionConfiguration(
+    expandedContentTransition: NookContentTransition(
+        blurRadius: 8, scale: 0.97, animation: .easeOut(duration: 0.3), delay: 0.16),
+    expandedContentRemoval: NookContentTransition(
+        blurRadius: 8, scale: 0.97, animation: .easeOut(duration: 0.16))
+)
+```
+
+A delay with no `animation` of its own waits and then plays on the surface's curve. A
+theme sets the same through `motion.content.enter`, `motion.content.exit`, and
+`motion.content.enterDelay`; see [Choreography](/guides/theming/#choreography).
 
 ### Which curve wins
 
