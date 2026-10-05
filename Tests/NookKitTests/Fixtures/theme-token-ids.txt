@@ -52,6 +52,7 @@ curve.quick
 expanded.columnSpacing
 expanded.edgePadding
 feedback.tint
+motion.activityCard
 motion.breadcrumb
 motion.content.enter
 motion.content.enterDelay
@@ -59,6 +60,8 @@ motion.content.exit
 motion.header.delay
 motion.leadingClusterBack
 motion.leadingClusterHover
+motion.moduleSwitch
+motion.settingsDisclosure
 motion.stagger
 motion.statusBanner
 motion.viewModeChange

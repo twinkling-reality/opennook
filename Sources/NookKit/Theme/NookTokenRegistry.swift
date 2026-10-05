@@ -244,6 +244,9 @@ enum NookTokenRegistry {
         NookAnimationToken(.leadingClusterHover, .component, .reference(.springSnappy)),
         NookAnimationToken(.statusBanner, .component, .reference(.springDefault)),
         NookAnimationToken(.breadcrumb, .component, .reference(.curveQuick)),
+        NookAnimationToken(.settingsDisclosure, .component, .spring(response: 0.30, dampingFraction: 0.86)),
+        NookAnimationToken(.moduleSwitch, .component, .curve(.easeInOut, duration: 0.22)),
+        NookAnimationToken(.activityCard, .component, .spring(response: 0.36, dampingFraction: 0.86)),
     ]
 
     // MARK: Transitions, sounds, shadows

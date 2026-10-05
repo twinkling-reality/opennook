@@ -277,6 +277,9 @@ extension NookResolvedTokens {
             (.leadingClusterHover, \.leadingClusterHover),
             (.statusBanner, \.statusBanner),
             (.breadcrumb, \.breadcrumb),
+            (.settingsDisclosure, \.settingsDisclosure),
+            (.moduleSwitch, \.moduleSwitch),
+            (.activityCard, \.activityCard),
         ]
     }
 }

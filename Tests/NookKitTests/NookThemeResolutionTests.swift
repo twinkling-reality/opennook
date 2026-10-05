@@ -293,6 +293,33 @@ final class NookThemeResolutionTests: XCTestCase {
         XCTAssertEqual(typography.headerIcon, Font.system(size: 11, weight: .semibold))
     }
 
+    /// The motion fields routed through `NookChromeMotion` later have tokens of their own,
+    /// with today's curves as the standard values, and a theme can set them.
+    func testRoutedMotionFieldsAreTokenized() {
+        XCTAssertEqual(NookAnimationID.settingsDisclosure.rawValue, "motion.settingsDisclosure")
+        XCTAssertEqual(NookAnimationID.moduleSwitch.rawValue, "motion.moduleSwitch")
+        XCTAssertEqual(NookAnimationID.activityCard.rawValue, "motion.activityCard")
+
+        let standard = NookTheme.standard.resolvedTokens().motion
+        XCTAssertEqual(standard.settingsDisclosure, Animation.spring(response: 0.30, dampingFraction: 0.86))
+        XCTAssertEqual(standard.moduleSwitch, Animation.easeInOut(duration: 0.22))
+        XCTAssertEqual(standard.activityCard, Animation.spring(response: 0.36, dampingFraction: 0.86))
+
+        var theme = NookTheme()
+        theme.tokens[.settingsDisclosure] = .reference(.springSnappy)
+        theme.tokens[.moduleSwitch] = .curve(.linear, duration: 0.5)
+        theme.tokens[.activityCard] = .spring(response: 0.2, dampingFraction: 0.7)
+        let motion = theme.resolvedTokens().motion
+        XCTAssertEqual(motion.settingsDisclosure, Animation.spring(response: 0.26, dampingFraction: 0.82))
+        XCTAssertEqual(motion.moduleSwitch, Animation.linear(duration: 0.5))
+        XCTAssertEqual(motion.activityCard, Animation.spring(response: 0.2, dampingFraction: 0.7))
+
+        // The calm scheme moves the springs and leaves the module switch's curve alone.
+        let calm = NookTheme(motion: .calm).resolvedTokens().motion
+        XCTAssertEqual(calm.settingsDisclosure, Animation.spring(response: 0.30, dampingFraction: 1))
+        XCTAssertEqual(calm.moduleSwitch, Animation.easeInOut(duration: 0.22))
+    }
+
     func testAnimationOverridesFollowReferences() {
         var theme = NookTheme()
         theme.tokens[.springDefault] = .spring(response: 0.3, dampingFraction: 0.9)

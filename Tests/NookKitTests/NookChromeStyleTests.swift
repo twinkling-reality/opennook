@@ -275,6 +275,23 @@ final class NookChromeStyleTests: XCTestCase {
         XCTAssertNotEqual(configuration.motion, .default)
     }
 
+    /// The curves the Settings disclosure, the module switch, and the activity card used to
+    /// hardcode are the defaults of their motion fields.
+    func testRoutedMotionDefaultsReproduceTheHardcodedCurves() {
+        let motion = NookChromeMotion.default
+        XCTAssertEqual(motion.settingsDisclosure, Animation.spring(response: 0.30, dampingFraction: 0.86))
+        XCTAssertEqual(motion.moduleSwitch, Animation.easeInOut(duration: 0.22))
+        XCTAssertEqual(motion.activityCard, Animation.spring(response: 0.36, dampingFraction: 0.86))
+
+        var configuration = NookConfiguration()
+        configuration.motion.settingsDisclosure = .linear(duration: 1)
+        configuration.motion.moduleSwitch = .linear(duration: 2)
+        configuration.motion.activityCard = .linear(duration: 3)
+        XCTAssertEqual(configuration.motion.settingsDisclosure, .linear(duration: 1))
+        XCTAssertEqual(configuration.motion.moduleSwitch, .linear(duration: 2))
+        XCTAssertEqual(configuration.motion.activityCard, .linear(duration: 3))
+    }
+
     // MARK: - Status banner visibility flag
 
     func testStatusBannerVisibilityDefaultsOnAndIsConfigurable() {
