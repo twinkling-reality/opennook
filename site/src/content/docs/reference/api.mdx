@@ -37,6 +37,27 @@ The app chrome layered over `NookSurface`.
   [Your first nook](/start/first-nook/) and
   [Settings chrome](/guides/settings-chrome/). Source:
   `Sources/NookKit/App/NookConfiguration.swift`.
+- **Top bar** - `NookTopBarConfiguration.symbols` (`NookChromeSymbols`,
+  `\.nookChromeSymbols`): the lock, gear, breadcrumb, back, and module-switcher
+  glyphs; `leadingIconView` (`setLeadingIcon(_:)`): a view for the leading icon; and
+  `content` (`setContent(_:)`, `NookConfiguration.setTopBar(_:)`): a host bar built
+  from `NookTopBarContext` (with `NookTopBarContext.ModuleSwitcher`), which carries the
+  bar's state and the keep-open, Settings, back, and module-switching actions. See
+  [Chrome customization](/guides/chrome-customization/#replacing-the-top-bar). Source:
+  `Sources/NookKit/App/NookChromeSymbols.swift`,
+  `Sources/NookKit/App/NookTopBarContext.swift`.
+- **Chrome strings and motion** - `NookChromeLabels` (`NookConfiguration.labels`,
+  `\.nookChromeLabels`) holds every string the framework draws, grouped as
+  `NookChromeLabels.TopBar`, `.Settings`, `.Appearance`, `.Display`, `.Shortcut`,
+  `.MenuBar`, and `.Components`, with `{name}` templates filled by
+  `NookChromeLabels.fill(_:_:)`; `NookChromeMotion` (`NookConfiguration.motion`,
+  `\.nookChromeMotion`) holds the in-panel curves, including `settingsDisclosure`,
+  `moduleSwitch`, and `activityCard`. See
+  [Labels](/guides/chrome-customization/#labels) and
+  [Motion](/guides/chrome-customization/#motion). Source:
+  `Sources/NookKit/App/NookChromeLabels.swift`,
+  `Sources/NookKit/App/NookChromeLabelGroups.swift`,
+  `Sources/NookKit/App/NookChromeMotion.swift`.
 - **Settings pieces** - `NookSettingsGroups` (`NookConfiguration.settingsGroups`),
   `NookSettingsGroup`, `NookAppearanceSettingsSection`, `NookDisplaySettingsSection`,
   `NookShortcutSettingsSection`, `NookResetSettingsSection`, and

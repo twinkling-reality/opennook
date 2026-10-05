@@ -173,8 +173,44 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     `NookAmbientColorBackground(color:wash:)` paints it.
   - `NookStandardCompanionStyle.Hover.washColor` (white by default).
   - `Nook.hoverHaptic` (`NookHoverHaptic`) picks the hover haptic pattern.
+- A replaceable top bar. `NookTopBarConfiguration.content` (`setContent(_:)`, or
+  `NookConfiguration.setTopBar(_:)`) draws a host bar in place of the framework's,
+  handed a `NookTopBarContext`: the title, view mode, breadcrumb, keep-open state, the
+  modules (`NookTopBarContext.ModuleSwitcher`, for a host that put switching in the top
+  bar), and `toggleKeepOpen()`, `toggleSettings()`, and `goBack()`, which do what the
+  framework bar's lock, gear, and leading glyph do.
+- Top-bar glyphs: `NookTopBarConfiguration.symbols` (`NookChromeSymbols`,
+  `\.nookChromeSymbols`) names the lock in both states, the gear, the breadcrumb
+  separator, an optional back glyph, and the module switcher's chevron and check.
+  `NookKeepOpenButton` and `NookSettingsButton` draw the same glyphs.
+  `NookTopBarConfiguration.leadingIconView` (`setLeadingIcon(_:)`) draws any view as the
+  leading icon.
+- Every string the framework draws is a label. `NookChromeLabels` gained the
+  `topBar`, `settings`, `appearance`, `display`, `shortcut`, `menuBar`, and
+  `components` groups and `placeholderMessage`: the Settings group titles, rows,
+  captions, hints, and accessibility text, the module switcher's tooltip, the menu-bar
+  item, the placeholder home, and the `NookComponents` shelf and volume glyph. Strings
+  that carry a value are `{name}` templates (`NookChromeLabels.fill(_:_:)`). Labels are
+  not part of theme files.
+- `NookChromeMotion.settingsDisclosure`, `moduleSwitch`, and `activityCard`, with theme
+  tokens `motion.settingsDisclosure`, `motion.moduleSwitch`, and `motion.activityCard`.
+  The Settings groups (`NookSettingsGroup`) and `NookActivityHost` read their curve from
+  the chrome; the defaults are the curves they hardcoded.
 
 ### Changed
+
+- Framework strings no longer use em dashes; each became " - ": the "Stay expanded" and
+  "Haptic feedback" details in Settings ("On - nook stays open after hover ends",
+  "Off - closes when the pointer leaves", "On - trackpad pulse on confirmation",
+  "Off - silent confirmation"), the shortcut hints ("Press a shortcut - Esc to cancel",
+  "Global shortcut - click to change"), the Solid surface caption, the disconnected
+  display caption, the banner preview message, and `HotkeyRegistrationFailure.message`
+  ("... is unavailable - another app may be using it.").
+- The framework draws its strings as written instead of looking its English literals up
+  in the host app's string tables; localize with `NookConfiguration.labels`. The shelf's
+  file count uses `labels.components.shelfFileCountOneFormat` and
+  `shelfFileCountOtherFormat` instead of automatic grammar agreement, with the same
+  English.
 
 - **Source compatibility:** `NookBackdrop` gained the `.gradient`, `.meshGradient`, and
   `.custom` cases, and `NookFeedback` gained `.pulse`. A host `switch` over either enum
