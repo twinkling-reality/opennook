@@ -72,6 +72,13 @@ live from the running app; see [`docs/images/`](docs/images/README.md) for how t
 </p>
 
 <p align="center">
+  <img src="docs/images/nook-activities.gif" width="840" alt="The ShowcaseNook compact scene: a song holds the compact pill with a focus timer in a small capsule beside it, then the pill grows into a peek with the song's title, artist and progress, then the nook opens onto the song's player">
+  <br><sub><b>Live activities and peek.</b> Two activities share the pill, the song peeks
+  under the notch, and a click opens onto it.
+  <code>swift run ShowcaseNook --scene compact</code></sub>
+</p>
+
+<p align="center">
   <img src="docs/images/nook-playground.gif" width="840" alt="PlaygroundNook: the controls window below the expanded nook, with the material changing and the nook following it live">
   <br><sub><b>Playground.</b> Change the running nook from a controls window,
   then copy the result as Swift or a JSON preset.

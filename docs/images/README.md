@@ -11,6 +11,7 @@ Images and the animated hero for the root `README.md`.
 | `nook-progress.png` | `ShowcaseNook --scene progress`, expanded | `make-readme-media.sh` |
 | `nook-shelf.png` | `ShowcaseNook --scene shelf`, expanded | `make-readme-media.sh` |
 | `nook-playground.gif` | The PlaygroundNook controls window below the expanded nook, while Material moves Solid -> Translucent -> Glass and the nook follows | `record-playground.sh` |
+| `nook-activities.gif` | `ShowcaseNook --scene compact`: two live activities in the pill, the song's peek, the nook opened onto the song | `record-activities.sh` |
 | `nook-themes.gif` | `ShowcaseNook --scene agenda`, re-themed live: the standard look, then Dusk, Aurora and Ember from `Examples/Themes` | `record-themes.sh` |
 
 `record-playground.sh` also writes `nook-playground.png`, a still of the same
@@ -170,6 +171,26 @@ does not invent one: it cuts from theme to theme, holding each for 2.2 s.
 ShowcaseNook's defaults domains are exported before the launch and imported
 again afterwards, or deleted if they did not exist, so a run leaves no setting
 behind.
+
+## Live activities
+
+`nook-activities.gif` shows the open sequence on real captures:
+
+```sh
+./docs/images/record-activities.sh --dry-run   # print the steps
+./docs/images/record-activities.sh             # the GIF and the guide's still
+```
+
+Each state is its own launch of `ShowcaseNook --scene compact`: plain (the song holds
+the pill, the focus session waits in a capsule), `--peek` (the song's peek alert, held),
+and `--open-activity` (the nook opened onto the song, held). Each is one
+`screencapture -x -o -l<id>` of the nook panel, the app's layer-33 window found by pid;
+no rectangle of the screen is recorded. The three are cropped to one rectangle, so
+the pill and the peek sit under the notch where they do on screen, laid on the same
+`#EAF1F8` paper as the theme GIF, and cut together with no invented transition.
+The Live activities guide gets the pill and the peek side by side
+(`site/src/assets/activities/nook-activities.png`). ShowcaseNook's defaults domains
+are saved and restored around the run, as in `record-themes.sh`.
 
 ## Manual captures
 
