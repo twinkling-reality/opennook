@@ -11,7 +11,7 @@
 // shipping notch app would, one scene per launch:
 //   - `player`: now playing with original cover art drawn in code, and the queue beside it.
 //     The panel takes the cover's color (`nookAmbientColor`); a companion below says where it
-//     plays.
+//     plays. A new song peeks under the notch for a moment (`setPeek` and a peek claim).
 //   - `agenda`: this month beside today's schedule.
 //   - `timer`: a focus countdown on a tick dial, session lengths in a companion, the rim lit
 //     while it runs (`nookRimGlow`).
@@ -27,6 +27,7 @@
 //
 // Run with `swift run ShowcaseNook --scene <id>`. `--expand` opens the nook at launch,
 // `--expand-after <seconds>` opens it later, and `--keep-open` holds it open.
+// `--peek` shows the player's peek shortly after launch and holds it, for a recording.
 // `--theme <file.json>` paints the chrome with a theme file and follows it as it is saved;
 // Examples/Themes holds a few to start from.
 
