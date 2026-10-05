@@ -347,8 +347,26 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
         .environment(\.nookChromeShape, notchShape)
     }
 
-    private var compactTransition: NookContentTransition {
-        nook.transitionConfiguration.compactContentTransition
+    /// How the compact slots arrive and leave. The transaction's curve inside this view is the
+    /// conversion curve (see the `.animation(_:value:)` on `body`), so a slot that waits
+    /// waits on it.
+    private var compactTransition: NookContentTransitionPlan {
+        let configuration = nook.transitionConfiguration
+        return .plan(
+            insertion: configuration.compactContentTransition,
+            removal: configuration.compactContentRemoval,
+            surfaceAnimation: nook.effectiveConversionAnimation
+        )
+    }
+
+    /// How the expanded content arrives and leaves, like ``compactTransition``.
+    private var expandedTransition: NookContentTransitionPlan {
+        let configuration = nook.transitionConfiguration
+        return .plan(
+            insertion: configuration.expandedContentTransition,
+            removal: configuration.expandedContentRemoval,
+            surfaceAnimation: nook.effectiveConversionAnimation
+        )
     }
 
     private func compactContent() -> some View {
@@ -394,12 +412,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
                     .environment(\.nookContentInsets, contentInsets)
                     .environment(\.nookNotchCutout, notchCutout)
                     .environment(\.nookScrollEdgeFade, nook.scrollEdgeFade)
-                    .transition(
-                        nook.transitionConfiguration.expandedContentTransition.anyTransition(
-                            axis: .vertical,
-                            anchor: .top
-                        )
-                    )
+                    .transition(expandedTransition.anyTransition(axis: .vertical, anchor: .top))
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
