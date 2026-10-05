@@ -127,6 +127,17 @@ protocol NookSurfaceDriving: AnyObject {
 
     /// Play a one-shot peripheral cue along the chrome perimeter.
     func playFeedback(_ effect: NookFeedback, tint: Color, duration: TimeInterval, repeats: Bool)
+
+    /// Play a one-shot peripheral cue drawn in `style`.
+    func playFeedback(_ effect: NookFeedback, style: NookFeedbackStyle, duration: TimeInterval, repeats: Bool)
+
+    /// The shadow the chrome casts, or `nil` for none. Projected from the displayed module's
+    /// chrome theme.
+    var chromeShadow: NookChromeShadow? { get set }
+
+    /// The wash behind expanded content lit by `nookAmbientColor(_:)`. Projected from the
+    /// displayed module's chrome theme.
+    var ambientWash: NookAmbientWash { get set }
 }
 
 extension NookSurfaceDriving {

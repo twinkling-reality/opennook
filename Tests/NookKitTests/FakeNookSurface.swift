@@ -103,6 +103,8 @@ final class FakeNookSurface: NookSurfaceDriving {
     var companions: [NookCompanionSurface] = []
     var rimGlowStyle: NookRimGlowStyle = .standard
     var scrollEdgeFade: NookScrollEdgeFade?
+    var chromeShadow: NookChromeShadow?
+    var ambientWash: NookAmbientWash = .standard
 
     /// Mirrors the real surface's `hasLiveWindow` - tests flip this to drive the
     /// coordinator's display-change-while-visible branch without mounting a real
@@ -116,8 +118,19 @@ final class FakeNookSurface: NookSurfaceDriving {
     func compact(on screen: NSScreen?) async { transition(to: .compact) }
     func hide() async { transition(to: .hidden) }
 
+    /// The style of the last `playFeedback` request, as a color for a tint request.
+    private(set) var lastFeedbackStyle: NookFeedbackStyle?
+
     func playFeedback(_ effect: NookFeedback, tint: Color, duration: TimeInterval, repeats: Bool) {
         feedbackCount += 1
+        var style = NookFeedbackStyle.standard
+        style.color = tint
+        lastFeedbackStyle = style
+    }
+
+    func playFeedback(_ effect: NookFeedback, style: NookFeedbackStyle, duration: TimeInterval, repeats: Bool) {
+        feedbackCount += 1
+        lastFeedbackStyle = style
     }
 
     /// Applies a state change, records it, and fires the matching lifecycle hook -

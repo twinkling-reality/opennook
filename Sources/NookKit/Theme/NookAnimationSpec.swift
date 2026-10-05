@@ -284,6 +284,14 @@ public struct NookContentTransitionSpec: Equatable, Sendable {
         scaleY: 0.72,
         anchor: .top
     )
+
+    /// Today's compact slot transition: fade, blur 6, horizontal scale from 0, on the
+    /// surface's curve (`NookContentTransition.standardCompact`).
+    public static let compactContentDefault = NookContentTransitionSpec(
+        opacity: 0,
+        blur: 6,
+        scaleX: 0
+    )
 }
 
 extension NookContentTransitionSpec: Codable {

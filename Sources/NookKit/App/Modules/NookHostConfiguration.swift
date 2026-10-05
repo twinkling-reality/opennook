@@ -55,6 +55,11 @@ public struct NookHostConfiguration: Sendable {
     /// presence or none.
     public var showsMenuBarExtra: Bool = true
 
+    /// The chrome theme every module draws with unless its own configuration sets
+    /// ``NookConfiguration/chromeTheme``. `nil` (the default) is ``NookTheme/standard``, the
+    /// framework's look. A module's theme replaces this one as a whole.
+    public var chromeTheme: NookTheme?
+
     /// Where the module switcher appears. Defaults to ``NookModuleSwitcherPlacement/menuBar``
     /// so the framework never plants switcher chrome in the host's expanded surface: a
     /// multi-module host gets a "Modules" menu-bar section and the cycle / per-module
@@ -86,10 +91,9 @@ public struct NookHostConfiguration: Sendable {
     ) {
         precondition(
             !entries.contains(where: { $0.descriptor.id == descriptor.id }),
-            "NookHostConfiguration: duplicate module id '\(descriptor.id)'. " +
-                "Module ids must be unique within a host — they key persistence, the " +
-                "switcher entry, the per-module hotkey, and the arbiter's claim " +
-                "invalidation."
+            "NookHostConfiguration: duplicate module id '\(descriptor.id)'. "
+                + "Module ids must be unique within a host — they key persistence, the "
+                + "switcher entry, the per-module hotkey, and the arbiter's claim invalidation."
         )
         entries.append(NookModuleRegistry.Registration(descriptor: descriptor, factory: factory))
     }
@@ -131,11 +135,12 @@ public struct NookHostConfiguration: Sendable {
     public func makeRegistry() -> NookModuleRegistry {
         precondition(
             !entries.isEmpty,
-            "NookHostConfiguration: register at least one module before makeRegistry(). " +
-                "For single-module apps, use NookConfiguration with NookApp.main(_:) instead."
+            "NookHostConfiguration: register at least one module before makeRegistry(). "
+                + "For single-module apps, use NookConfiguration with NookApp.main(_:) instead."
         )
         let registeredIDs = Set(entries.map { $0.descriptor.id })
-        let defaultID = explicitDefault.flatMap { registeredIDs.contains($0) ? $0 : nil }
+        let defaultID =
+            explicitDefault.flatMap { registeredIDs.contains($0) ? $0 : nil }
             ?? entries.first!.descriptor.id
         return NookModuleRegistry(
             registrations: entries,
@@ -144,6 +149,7 @@ public struct NookHostConfiguration: Sendable {
             branding: branding,
             chromeBehavior: chromeBehavior,
             showsMenuBarExtra: showsMenuBarExtra,
+            chromeTheme: chromeTheme,
             switcherPlacement: moduleSwitcherPlacement,
             presentationPinning: NookPresentationPinning()
         )

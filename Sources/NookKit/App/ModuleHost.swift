@@ -36,7 +36,10 @@ public final class ModuleHost: ObservableObject {
         self.registry = registry
         let id = registry.defaultModuleID
         self.activeModuleID = id
-        self.configuration = registry.module(for: id)?.makeConfiguration() ?? NookConfiguration()
+        self.configuration = Self.themed(
+            registry.module(for: id)?.makeConfiguration() ?? NookConfiguration(),
+            hostTheme: registry.chromeTheme
+        )
         self.chromeBehavior = registry.chromeBehavior
     }
 
@@ -136,7 +139,7 @@ public final class ModuleHost: ObservableObject {
         incoming.onActivate()
         activeModuleID = id
         attentionModuleIDs.remove(id)
-        configuration = incoming.makeConfiguration()
+        configuration = themed(incoming.makeConfiguration())
         // The incoming module's own content now fills the surface; it is no longer a
         // background module presenting over another.
         if presentedBackgroundModuleID == id {
@@ -205,6 +208,7 @@ public final class ModuleHost: ObservableObject {
         }()
         guard target != presentedBackgroundModuleID else { return false }
         presentedBackgroundConfiguration = target.flatMap { registry.module(for: $0)?.makeConfiguration() }
+            .map(themed)
         presentedBackgroundModuleID = target
         return true
     }
@@ -215,6 +219,21 @@ public final class ModuleHost: ObservableObject {
     /// is why this stays internal.
     func reloadConfiguration() {
         guard let module = activeModule else { return }
-        configuration = module.makeConfiguration()
+        configuration = themed(module.makeConfiguration())
+    }
+
+    // MARK: - Theme
+
+    /// `configuration` with the host's theme filled in when it sets none, so everything that
+    /// reads ``NookConfiguration/chromeTheme`` downstream sees the theme the chrome draws with.
+    static func themed(_ configuration: NookConfiguration, hostTheme: NookTheme?) -> NookConfiguration {
+        guard configuration.chromeTheme == nil, let hostTheme else { return configuration }
+        var themed = configuration
+        themed.chromeTheme = hostTheme
+        return themed
+    }
+
+    private func themed(_ configuration: NookConfiguration) -> NookConfiguration {
+        Self.themed(configuration, hostTheme: registry.chromeTheme)
     }
 }

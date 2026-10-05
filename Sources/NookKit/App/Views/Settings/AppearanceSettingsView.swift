@@ -12,6 +12,8 @@ import SwiftUI
 public struct NookAppearanceSettingsSection: View {
     @ObservedObject public var appState: AppState
     @Environment(\.nookResolvedTheme) private var theme
+    /// The chrome theme; a control for a choice the theme pins is not shown.
+    @Environment(\.nookTheme) private var chromeTheme
     @Environment(\.nookChromeTypography) private var typography
     @Environment(\.nookChromeMetrics) private var metrics
     @Environment(\.nookChromeLabels) private var labels
@@ -35,6 +37,7 @@ public struct NookAppearanceSettingsSection: View {
                 .labelsHidden()
                 .controlSize(.small)
             }
+            .modifier(NookPinnedSettingModifier(isPinned: chromeTheme.palette != nil))
 
             VStack(alignment: .leading, spacing: metrics.settingsFieldSpacing) {
                 labeledPicker(
@@ -56,6 +59,7 @@ public struct NookAppearanceSettingsSection: View {
                     .foregroundStyle(theme.tertiaryLabel)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .modifier(NookPinnedSettingModifier(isPinned: chromeTheme.surface != nil))
 
             VStack(alignment: .leading, spacing: metrics.settingsFieldSpacing) {
                 labeledPicker(
@@ -90,7 +94,7 @@ public struct NookAppearanceSettingsSection: View {
                             appState.replaceAppearancePreferences(prefs)
                         } label: {
                             Circle()
-                                .fill(preset.color())
+                                .fill(swatchColor(for: preset))
                                 .frame(
                                     width: metrics.settingsAccentSwatchSize,
                                     height: metrics.settingsAccentSwatchSize
@@ -108,8 +112,13 @@ public struct NookAppearanceSettingsSection: View {
                     }
                 }
             }
+            .modifier(NookPinnedSettingModifier(isPinned: !chromeTheme.allowsUserAccent))
 
-            if appState.appearancePreferences.surfaceStyle != .solid {
+            // The surface the chrome paints, which a theme may pin, decides whether there is a
+            // strength to set; a pinned strength has no slider.
+            if chromeTheme.effectivePreferences(appState.appearancePreferences).surfaceStyle != .solid,
+                chromeTheme.backdropStrength == nil
+            {
                 VStack(alignment: .leading, spacing: metrics.settingsFieldSpacing) {
                     Text(strengthLabel)
                         .font(typography.settingsFieldLabel)
@@ -169,6 +178,15 @@ public struct NookAppearanceSettingsSection: View {
     }
 
     /// The selected accent swatch's ring color; clear for the unselected swatches.
+    /// A swatch's color. "System" means the theme's accent, which is the macOS accent unless
+    /// the theme sets its own.
+    private func swatchColor(for preset: NookAccentPreset) -> Color {
+        guard preset == .system else { return preset.color() }
+        var context = chromeTheme.liveContext(appState: appState)
+        context.accentPreset = .system
+        return chromeTheme.color(.accent, in: context)
+    }
+
     private func accentRingColor(for preset: NookAccentPreset) -> Color {
         appState.appearancePreferences.accentPreset == preset
             ? theme.primaryLabel.opacity(metrics.settingsAccentSwatchSelectedOpacity)
@@ -218,5 +236,17 @@ public struct NookAppearanceSettingsSection: View {
                 appState.replaceAppearancePreferences(prefs)
             }
         )
+    }
+}
+
+/// Leaves out a Settings control for a choice the chrome theme pins, so a control that
+/// would change nothing is never shown.
+struct NookPinnedSettingModifier: ViewModifier {
+    let isPinned: Bool
+
+    func body(content: Content) -> some View {
+        if !isPinned {
+            content
+        }
     }
 }

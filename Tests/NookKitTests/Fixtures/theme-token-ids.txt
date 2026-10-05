@@ -13,6 +13,10 @@ activity.icon.width
 activity.subtitle.font
 activity.text.spacing
 activity.title.font
+ambient.wash.bottom
+ambient.wash.lower
+ambient.wash.top
+ambient.wash.upper
 banner.cornerRadius
 banner.dismissButton.size
 banner.dismissGlyph.font
@@ -54,6 +58,7 @@ expanded.edgePadding
 feedback.tint
 motion.activityCard
 motion.breadcrumb
+motion.compact.transition
 motion.content.enter
 motion.content.enterDelay
 motion.content.exit

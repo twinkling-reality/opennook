@@ -70,6 +70,10 @@ public struct NookExpandedView: View {
     /// single-module and menu-bar-switcher host. See ``NookModuleSwitcher``.
     let moduleSwitcher: NookModuleSwitcher?
 
+    /// The theme the chrome is drawn with, and its resolved tokens, for the environment.
+    let chromeTheme: NookTheme
+    let themeTokens: NookResolvedTokens
+
     @State private var isHomeIconHovered = false
 
     /// Insets injected by the chrome (`NookSurface`) relative to this view's
@@ -102,7 +106,9 @@ public struct NookExpandedView: View {
         motion: NookChromeMotion = .default,
         typography: NookChromeTypography = .default,
         width: CGFloat = NookLayout.width,
-        moduleSwitcher: NookModuleSwitcher? = nil
+        moduleSwitcher: NookModuleSwitcher? = nil,
+        chromeTheme: NookTheme = .standard,
+        themeTokens: NookResolvedTokens = .standard
     ) {
         self.appState = appState
         self.services = services
@@ -121,6 +127,8 @@ public struct NookExpandedView: View {
         self.typography = typography
         self.width = width
         self.moduleSwitcher = moduleSwitcher
+        self.chromeTheme = chromeTheme
+        self.themeTokens = themeTokens
     }
 
     private var resolvedTheme: NookResolvedTheme {
@@ -188,6 +196,9 @@ public struct NookExpandedView: View {
         expandedColumn
             .frame(width: width)
             .padding(metrics.edgePadding)
+            .environment(\.nookTheme, chromeTheme)
+            .environment(\.nookThemeTokens, themeTokens)
+            .environment(\.nookChromeColors, chromeTheme.liveChromeColors(appState: appState))
             .environment(\.nookResolvedTheme, resolvedTheme)
             .environment(\.nookChromeLabels, labels)
             .environment(\.nookChromeMetrics, metrics)
@@ -206,7 +217,11 @@ public struct NookExpandedView: View {
             .environment(\.controlActiveState, .active)
             .tint(resolvedTheme.accent)
             .fontDesign(resolvedTheme.fontDesign)
-            .preferredColorScheme(appState.appearancePreferences.chromeColorSchemeOverride)
+            .modifier(NookFontWidthModifier(width: chromeTheme.fontWidth))
+            // The theme's pinned palette, if it pins one, over the person's.
+            .preferredColorScheme(
+                chromeTheme.effectivePreferences(appState.appearancePreferences).chromeColorSchemeOverride
+            )
             .onChange(of: appState.viewMode) {
                 isHomeIconHovered = false
             }

@@ -51,9 +51,52 @@ public struct NookConfiguration: Sendable {
     /// ``setCompactTrailing(_:)`` to set it from a `@ViewBuilder`.
     public var compactTrailing: @Sendable @MainActor () -> AnyView
 
-    /// Resolves the chrome palette. Defaults to ``NookResolvedTheme/live(appState:)``;
-    /// supply a closure returning a host-built ``NookResolvedTheme`` to theme the chrome.
-    public var theme: @Sendable @MainActor (AppState) -> NookResolvedTheme
+    /// Resolves the chrome palette. Defaults to ``chromeTheme``'s palette for the person's
+    /// preferences (``NookResolvedTheme/live(appState:theme:)``), which with no theme is the
+    /// framework's own; supply a closure returning a host-built ``NookResolvedTheme`` to
+    /// compute the palette in code.
+    ///
+    /// A closure you assign replaces the palette ``chromeTheme`` would resolve, as a whole:
+    /// it is the escape hatch for a palette that depends on app state. Prefer
+    /// ``chromeTheme`` for a palette that is data.
+    public var theme: @Sendable @MainActor (AppState) -> NookResolvedTheme {
+        get {
+            if let paletteOverride { return paletteOverride }
+            let chromeTheme = chromeTheme ?? .standard
+            return { NookResolvedTheme.live(appState: $0, theme: chromeTheme) }
+        }
+        set { paletteOverride = newValue }
+    }
+
+    /// The palette closure a host assigned to ``theme``, if any.
+    var paletteOverride: (@Sendable @MainActor (AppState) -> NookResolvedTheme)?
+
+    /// The chrome's look as data: knobs, tokens, and backdrops. See ``NookTheme``.
+    ///
+    /// `nil` (the default) uses the host's ``NookHostConfiguration/chromeTheme``, or
+    /// ``NookTheme/standard`` - the framework's look - when the host sets none. A module's
+    /// theme replaces the host's as a whole; the chrome applies the displayed module's theme
+    /// when a module switch, or a background module's urgent claim, puts its content on the
+    /// surface.
+    ///
+    /// ```swift
+    /// configuration.chromeTheme = NookTheme(accent: "#3399FF", radius: .large)
+    /// configuration.chromeTheme = try NookTheme(contentsOf: themeURL)
+    /// ```
+    ///
+    /// The explicit settings still win where they are set: a ``theme`` closure replaces the
+    /// palette, a non-`nil` ``style`` or ``transitions`` replaces the theme's shape or curves,
+    /// a ``NookChromeBehavior/backdrop`` resolver replaces its backdrops, and a field of
+    /// ``metrics``, ``typography``, or ``motion`` that differs from its framework default
+    /// replaces that one field. A field set back to its framework default reads as unset;
+    /// use the theme's tokens to set a field to the default value under a theme that
+    /// changes it.
+    public var chromeTheme: NookTheme? {
+        didSet { resolvedThemeTokens = chromeTheme?.resolvedTokens() }
+    }
+
+    /// ``chromeTheme``'s tokens, resolved once when it is set rather than on every render.
+    private(set) var resolvedThemeTokens: NookResolvedTokens?
 
     /// Replaces the built-in Settings surface (reached via the gear) with host content.
     /// `nil` (the default) uses the framework Settings UI. Use ``setSettings(_:)`` to set
@@ -146,8 +189,9 @@ public struct NookConfiguration: Sendable {
     /// the framework's radii, ``defaultStyle``, tuned to sit well under the menu bar on
     /// notched MacBooks. See `NookStyle`.
     ///
-    /// Read at launch and by ``AppCoordinator/reloadActiveConfiguration()``. A module switch
-    /// keeps the style the chrome already has.
+    /// Applied at launch, by ``AppCoordinator/reloadActiveConfiguration()``, and when a module
+    /// switch (or a background module's urgent claim) puts this configuration's content on
+    /// the surface. With ``chromeTheme`` set, `nil` uses the theme's shape.
     public var style: NookStyle? = nil
 
     /// The chrome's shape when ``style`` is `nil`: 19 pt corners into the notch arch, 24 pt
@@ -166,7 +210,8 @@ public struct NookConfiguration: Sendable {
     /// to retune or to slow the chrome down (set its `animationDuration` so awaited
     /// `expand()`/`compact()` still return once the chrome has visibly arrived).
     ///
-    /// Read at launch and by ``AppCoordinator/reloadActiveConfiguration()``, like ``style``.
+    /// Applied when ``style`` is, and like it. With ``chromeTheme`` set, `nil` uses the
+    /// theme's curves and content transitions.
     public var transitions: NookTransitionConfiguration? = nil
 
     /// Fixed width, in points, for the expanded surface's inner content column. `nil`
@@ -268,10 +313,6 @@ public struct NookConfiguration: Sendable {
         home = { AnyView(NookPlaceholderHomeView()) }
         compactLeading = { AnyView(NookCompactLeadingView()) }
         compactTrailing = { AnyView(NookCompactTrailingView()) }
-        // Wrapped in a closure literal rather than passed as a bare function reference:
-        // the `theme` slot is `@Sendable`, and a closure that captures nothing and just
-        // forwards to the `@MainActor` `live(appState:)` satisfies that cleanly.
-        theme = { NookResolvedTheme.live(appState: $0) }
         topBar = .default
     }
 
@@ -542,4 +583,63 @@ public struct NookTopBarConfiguration: Sendable {
 
     /// The framework-demo defaults - top bar on, Settings on, "Home" with the brand mark.
     public static let `default` = NookTopBarConfiguration()
+}
+
+// MARK: - The chrome look this configuration resolves to
+
+extension NookConfiguration {
+    /// The theme this configuration draws with: its own, or the standard one. The host's
+    /// theme is filled in by ``ModuleHost`` before the chrome reads this.
+    var effectiveChromeTheme: NookTheme {
+        chromeTheme ?? .standard
+    }
+
+    /// The chrome theme's tokens, resolved.
+    var effectiveThemeTokens: NookResolvedTokens {
+        resolvedThemeTokens ?? .standard
+    }
+
+    /// ``metrics`` over the theme's: each field the host changed from its framework default
+    /// keeps the host's value, and every other field takes the theme's.
+    var effectiveMetrics: NookChromeMetrics {
+        guard let tokens = resolvedThemeTokens else { return metrics }
+        var resolved = tokens.metrics
+        for field in NookResolvedTokens.metricFields
+        where metrics[keyPath: field.keyPath] != NookChromeMetrics.default[keyPath: field.keyPath] {
+            resolved[keyPath: field.keyPath] = metrics[keyPath: field.keyPath]
+        }
+        return resolved
+    }
+
+    /// ``typography`` over the theme's, field by field like ``effectiveMetrics``.
+    var effectiveTypography: NookChromeTypography {
+        guard let tokens = resolvedThemeTokens else { return typography }
+        var resolved = tokens.typography
+        for field in NookResolvedTokens.typographyFields
+        where typography[keyPath: field.keyPath] != NookChromeTypography.default[keyPath: field.keyPath] {
+            resolved[keyPath: field.keyPath] = typography[keyPath: field.keyPath]
+        }
+        return resolved
+    }
+
+    /// ``motion`` over the theme's, field by field like ``effectiveMetrics``.
+    var effectiveMotion: NookChromeMotion {
+        guard let tokens = resolvedThemeTokens else { return motion }
+        var resolved = tokens.motion
+        for field in NookResolvedTokens.motionFields
+        where motion[keyPath: field.keyPath] != NookChromeMotion.default[keyPath: field.keyPath] {
+            resolved[keyPath: field.keyPath] = motion[keyPath: field.keyPath]
+        }
+        return resolved
+    }
+
+    /// ``style``, or the theme's shape, or ``defaultStyle``.
+    var effectiveStyle: NookStyle {
+        style ?? resolvedThemeTokens?.style ?? Self.defaultStyle
+    }
+
+    /// ``transitions``, or the theme's curves, or `nil` for the framework's default springs.
+    var effectiveTransitions: NookTransitionConfiguration? {
+        transitions ?? resolvedThemeTokens?.transitionConfiguration
+    }
 }

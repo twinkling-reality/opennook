@@ -162,7 +162,9 @@ enum NookTokenRegistry {
         NookColorToken(.destructive, .semantic, .system(.red)),
         NookColorToken(.warning, .semantic, .system(.orange)),
         NookColorToken(.success, .semantic, .system(.green)),
-        NookColorToken(.feedbackTint, .semantic, .systemAccent),
+        // Follows the accent, as the theming guide has always said: identical to the macOS
+        // accent the cue used before unless the person picked an accent of their own.
+        NookColorToken(.feedbackTint, .semantic, .accent),
         NookColorToken(.bannerSeverityError, .component, .accent),
         NookColorToken(.bannerSeverityWarning, .component, .accent),
         NookColorToken(.bannerSeverityInfo, .component, .accent),
@@ -202,6 +204,10 @@ enum NookTokenRegistry {
         NookDimensionToken(.contentEnterDelay, .semantic, .none, 0, .duration),
         NookDimensionToken(.headerDelay, .semantic, .none, 0, .duration),
         NookDimensionToken(.stagger, .semantic, .none, 0, .duration),
+        NookDimensionToken(.ambientWashTop, .semantic, .none, 0.34, .opacity),
+        NookDimensionToken(.ambientWashUpper, .semantic, .none, 0.16, .opacity),
+        NookDimensionToken(.ambientWashLower, .semantic, .none, 0.06, .opacity),
+        NookDimensionToken(.ambientWashBottom, .semantic, .none, 0.02, .opacity),
     ]
 
     static let dimensionTokens: [NookDimensionToken] = semanticDimensionTokens + metricTokens
@@ -254,6 +260,7 @@ enum NookTokenRegistry {
     static let transitionTokens: [(id: NookTransitionID, value: NookContentTransitionSpec)] = [
         (.contentExit, .expandedContentDefault),
         (.contentEnter, .expandedContentDefault),
+        (.compactContent, .compactContentDefault),
     ]
 
     /// Sound events. Every one defaults to no sound.

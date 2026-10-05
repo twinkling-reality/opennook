@@ -37,7 +37,7 @@ extension NookColorID {
     public static let warning: NookColorID = "color.warning"
     /// Success. Default `Color.green`.
     public static let success: NookColorID = "color.success"
-    /// The tint of the chrome's peripheral feedback cue. Default the macOS accent, as today; set it to `accent` in a theme file to follow the theme.
+    /// The tint of the chrome's peripheral feedback cues, the launch shimmer included. Defaults to the accent.
     public static let feedbackTint: NookColorID = "feedback.tint"
 
     // MARK: Chrome colors (one per `NookChromeColors` field)
@@ -115,6 +115,15 @@ extension NookDimensionID {
     public static let headerDelay: NookDimensionID = "motion.header.delay"
     /// Seconds between successive items entering. Default 0, as today.
     public static let stagger: NookDimensionID = "motion.stagger"
+    /// The ambient wash's opacity at the top of the expanded panel, where content lights it with
+    /// `nookAmbientColor(_:)`. Default 0.34.
+    public static let ambientWashTop: NookDimensionID = "ambient.wash.top"
+    /// The ambient wash's opacity a third of the way down. Default 0.16.
+    public static let ambientWashUpper: NookDimensionID = "ambient.wash.upper"
+    /// The ambient wash's opacity two thirds of the way down. Default 0.06.
+    public static let ambientWashLower: NookDimensionID = "ambient.wash.lower"
+    /// The ambient wash's opacity at the bottom. Default 0.02.
+    public static let ambientWashBottom: NookDimensionID = "ambient.wash.bottom"
 
     // MARK: Chrome metrics (one per `NookChromeMetrics` field)
 
@@ -411,6 +420,9 @@ extension NookTransitionID {
     public static let contentExit: NookTransitionID = "motion.content.exit"
     /// How expanded content enters. Default the same as it leaves.
     public static let contentEnter: NookTransitionID = "motion.content.enter"
+    /// How compact slot content enters and leaves. Default fade, blur 6, and a horizontal scale
+    /// from 0, on the surface's curve.
+    public static let compactContent: NookTransitionID = "motion.compact.transition"
 }
 
 extension NookSoundID {

@@ -156,6 +156,8 @@ struct NookCompanionHost: View {
     let typography: NookChromeTypography
     let branding: NookHostBranding
     let chromeActions: NookChromeActions
+    var chromeTheme: NookTheme = .standard
+    var themeTokens: NookResolvedTokens = .standard
 
     var body: some View {
         companion.content()
@@ -169,7 +171,9 @@ struct NookCompanionHost: View {
                     motion: motion,
                     typography: typography,
                     branding: branding,
-                    chromeActions: chromeActions
+                    chromeActions: chromeActions,
+                    chromeTheme: chromeTheme,
+                    themeTokens: themeTokens
                 )
             )
             .nookCompanionVisibility(Self.settingsRestriction(for: companion, appState: appState))

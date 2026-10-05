@@ -70,6 +70,21 @@ public enum NookApp {
         main(configuration)
     }
 
+    /// "Register a view, pick a look, go" - ``main(home:)`` with a chrome theme:
+    ///
+    /// ```swift
+    /// NookApp.main(theme: NookTheme(accent: "#3399FF", radius: .large)) { MyHomeView() }
+    /// ```
+    public static func main<Home: View & Sendable>(
+        theme: NookTheme,
+        @ViewBuilder home: @escaping @Sendable @MainActor () -> Home
+    ) {
+        var configuration = NookConfiguration()
+        configuration.setHome(home)
+        configuration.chromeTheme = theme
+        main(configuration)
+    }
+
     /// Boots a notch app, building the `NookConfiguration` on the main actor.
     ///
     /// Use this overload when setup constructs main-actor-isolated types - a
