@@ -61,7 +61,7 @@ public enum NookBackdropMapping {
         }
 
         // `backdropStrength` scales the legibility darken for either translucent style.
-        let strength = min(max(preferences.backdropStrength, 0.15), 1)
+        let strength = preferences.clampedBackdropStrength
         switch preferences.surfaceStyle {
             case .translucent:
                 // One frosted sidebar material per appearance, with a darken pass so chrome
@@ -176,7 +176,7 @@ extension NookBackdropMapping {
                 case .dark: true
                 case .light: false
             }
-        let strength = min(max(preferences.backdropStrength, 0.15), 1)
+        let strength = preferences.clampedBackdropStrength
         return .liquidGlass(
             .init(
                 tint: nil,

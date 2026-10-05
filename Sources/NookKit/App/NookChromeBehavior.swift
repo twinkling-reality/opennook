@@ -50,8 +50,9 @@ public struct NookChromeBehavior: Sendable {
 
     /// Overrides how the chrome state maps to the surface backdrop. `nil` (the
     /// default) uses the framework mapping (``NookBackdropMapping/notchBackdrop(preferences:effectiveColorScheme:reduceTransparency:)``):
-    /// solid black/white for `.solid` or Reduce Transparency, otherwise a `.sidebar`
-    /// vibrancy with a legibility darken pass. Supply a resolver to paint a brand-specific
+    /// solid black/white for `.solid` or Reduce Transparency, a `.sidebar` vibrancy with a
+    /// legibility darken pass for `.translucent`, and theme-tinted glass for `.liquidGlass`
+    /// (shaded as ``glassShading`` says). Supply a resolver to paint a brand-specific
     /// material, darken, or solid color while still reacting to the live appearance state -
     /// and, through ``NookBackdropContext/state``, to paint the collapsed pill and the
     /// expanded panel differently.

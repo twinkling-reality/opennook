@@ -28,16 +28,18 @@ public struct NookCompactLeadingView: View {
     }
 }
 
-/// Default compact slot to the **right** of the notch.
+/// Default compact slot to the **right** of the notch: the host's brand mark
+/// (``NookHostBranding/mark``), or the OpenNook mark when the host set none.
 public struct NookCompactTrailingView: View {
     @Environment(\.nookResolvedTheme) private var theme
     @Environment(\.nookChromeMetrics) private var metrics
+    @Environment(\.nookHostBranding) private var branding
 
     public init() {}
 
     public var body: some View {
-        NookMarkView(
-            size: metrics.compactTrailingMarkSize,
+        branding.markView(
+            frameworkWidth: metrics.compactTrailingMarkSize,
             strokeWidth: metrics.compactTrailingMarkStrokeWidth,
             color: theme.primaryLabel.opacity(metrics.compactTrailingMarkOpacity)
         )
@@ -45,8 +47,8 @@ public struct NookCompactTrailingView: View {
     }
 }
 
-/// Wraps host-registered compact content so it gets the same `\.nookResolvedTheme`
-/// environment value the expanded surface injects.
+/// Wraps host-registered compact content in the same chrome environment the expanded
+/// surface gives its content (see ``NookChromeEnvironment``).
 ///
 /// `NookSurface` renders the compact slots directly, with no environment of its own, so
 /// the coordinator wraps each registered compact closure in one of these. Observing
@@ -54,15 +56,63 @@ public struct NookCompactTrailingView: View {
 struct NookCompactHost<Content: View>: View {
     @ObservedObject var appState: AppState
     let theme: (AppState) -> NookResolvedTheme
+    let services: AppServices
+    let labels: NookChromeLabels
+    let metrics: NookChromeMetrics
+    let motion: NookChromeMotion
+    let typography: NookChromeTypography
+    let branding: NookHostBranding
+    let chromeActions: NookChromeActions
     let content: () -> Content
 
     var body: some View {
-        let resolved = theme(appState)
-        return content()
-            .environment(\.nookResolvedTheme, resolved)
-            .fontDesign(resolved.fontDesign)
-            // Match the expanded surface: host-registered compact content gets `AppState`
-            // as an `@EnvironmentObject` so it can observe chrome state directly.
+        content()
+            .modifier(
+                NookChromeEnvironment(
+                    appState: appState,
+                    theme: theme(appState),
+                    services: services,
+                    labels: labels,
+                    metrics: metrics,
+                    motion: motion,
+                    typography: typography,
+                    branding: branding,
+                    chromeActions: chromeActions
+                )
+            )
+    }
+}
+
+/// The chrome environment ``NookExpandedView`` gives the home view, for content the surface
+/// renders in a view tree of its own - the compact slots and companions - so it can read
+/// the same environment values and `@EnvironmentObject` as the rest of the chrome.
+struct NookChromeEnvironment: ViewModifier {
+    @ObservedObject var appState: AppState
+    let theme: NookResolvedTheme
+    let services: AppServices
+    let labels: NookChromeLabels
+    let metrics: NookChromeMetrics
+    let motion: NookChromeMotion
+    let typography: NookChromeTypography
+    let branding: NookHostBranding
+    let chromeActions: NookChromeActions
+
+    func body(content: Content) -> some View {
+        content
+            .environment(\.nookResolvedTheme, theme)
+            .environment(\.nookChromeLabels, labels)
+            .environment(\.nookChromeMetrics, metrics)
+            .environment(\.nookChromeMotion, motion)
+            .environment(\.nookChromeTypography, typography)
+            .environment(\.nookHostBranding, branding)
+            .environment(\.nookChromeActions, chromeActions)
+            .environment(\.appServices, services)
             .environmentObject(appState)
+            // The panel is non-activating, so controls would otherwise paint as inactive
+            // until clicked - the same override the expanded surface applies.
+            .environment(\.controlActiveState, .active)
+            .tint(theme.accent)
+            .fontDesign(theme.fontDesign)
+            .preferredColorScheme(appState.appearancePreferences.chromeColorSchemeOverride)
     }
 }

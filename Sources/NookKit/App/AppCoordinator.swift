@@ -54,6 +54,15 @@ public final class AppCoordinator: ObservableObject {
         NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
     }
 
+    /// Reads the system's light/dark appearance when resolving backdrops under the
+    /// `.followSystem` palette. Always the app's effective appearance in an app; a seam for
+    /// tests, which cannot flip the machine's appearance.
+    var systemColorSchemeProvider: () -> ColorScheme = {
+        // `NSApplication.shared` rather than the `NSApp` global: the latter is nil until
+        // the app object is first materialized, which a headless unit test never does.
+        NSApplication.shared.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? .dark : .light
+    }
+
     /// Arbitrates the surface between competing transient presenters - the activity
     /// queues and ambient indicators of every loaded module. Lazy because it captures
     /// `surface`; layered over ``enqueueLifecycle`` so it serializes nothing itself.
@@ -67,7 +76,8 @@ public final class AppCoordinator: ObservableObject {
             },
             expand: { [weak self] in await self?.surface.expand(on: nil) },
             compact: { [weak self] in await self?.surface.compact(on: nil) },
-            hide: { [weak self] in await self?.surface.hide() }
+            hide: { [weak self] in await self?.surface.hide() },
+            topClaimChanged: { [weak self] in self?.syncPresentedModule() }
         )
     }()
 
@@ -125,19 +135,38 @@ public final class AppCoordinator: ObservableObject {
     /// opposite state from the user's last action.
     private var lifecycleTail: Task<Void, Never>?
 
-    /// Tail of the *off-chain* switch-quiesce drains. A module switch flips identity
-    /// inside the serial lifecycle chain (fast - no user-visible stall) and runs the
-    /// outgoing module's `prepareForSwitchAway` in a detached follow-on task: the
-    /// arbiter's `invalidateClaims` already makes the outgoing module's surface
-    /// activity stale-token-safe, so the user sees the new module immediately and the
-    /// outgoing module drains under the covers. Two rapid switches enqueue two drains
-    /// here in order so `drainSwitchTailsForTesting()` can join them.
+    /// Tail of the *off-chain* switch-away work. A module switch flips identity inside
+    /// the serial lifecycle chain (fast - no user-visible stall) and then finishes the
+    /// outgoing module in a follow-on task: its `prepareForSwitchAway`, then its
+    /// `onDeactivate`, then the unload its background policy asks for. The arbiter has
+    /// already invalidated the outgoing module's claims and denies new ones until this
+    /// finishes, so the user sees the new module immediately and the outgoing module
+    /// drains under the covers. Two rapid switches enqueue their work here in order so
+    /// `drainSwitchTailsForTesting()` can join them.
+    ///
+    /// Off the chain on purpose: a quiescing module typically awaits its own
+    /// `endTransientPresentation`, which runs on the chain, so awaiting the quiesce on
+    /// the chain would deadlock until the timeout.
     private var switchTailTask: Task<Void, Never>?
 
     /// Bounded budget for an outgoing module's `prepareForSwitchAway`. A misbehaving
-    /// module that never returns is logged and the task is cancelled - the arbiter's
-    /// stale-token guard makes the abandoned drain a no-op on the surface.
+    /// module that never returns is logged and the task is cancelled; the switch away
+    /// then carries on with `onDeactivate` and the unload.
     static let switchAwayTimeout: Duration = .seconds(2)
+
+    /// Counts switches away from each module. A switch-away tail finishes its module only
+    /// while its count is still the latest, so after a quick A to B to A to B only the last
+    /// switch away from A deactivates and unloads it.
+    private var switchAwayGenerations: [String: Int] = [:]
+
+    /// Each module's breadcrumb while another module's content is on the surface.
+    /// ``AppState/moduleBreadcrumb`` always belongs to the displayed module; a module's
+    /// entry is dropped when it is unloaded, since its rebuilt instance starts at its root.
+    private var parkedBreadcrumbs: [String: String] = [:]
+
+    /// The module whose content the surface showed when the breadcrumb was last handed
+    /// off. See ``handOffBreadcrumbIfNeeded()``.
+    private var breadcrumbOwnerID: String
 
     /// Awaits the current tail of the serial lifecycle chain - every transition and
     /// switch transaction enqueued so far has settled when this returns. Test-only seam.
@@ -284,15 +313,21 @@ public final class AppCoordinator: ObservableObject {
     /// ``NookSurfaceDriving`` seam: production passes `nil` and a `Nook` is built by
     /// ``makeDefaultNook(moduleHost:appState:coordinatorBox:)``; tests pass a windowless
     /// fake. Internal because ``NookSurfaceDriving`` is a NookKit-internal protocol.
+    ///
+    /// `systemAppearanceChanges` fires when the system's light/dark appearance changes.
+    /// `nil` (production) observes `NSApplication.shared.effectiveAppearance`; tests pass a
+    /// subject they drive.
     init(
         appState: AppState = AppState(),
         hotkeyController: HotkeyController = HotkeyController(),
         moduleHost: ModuleHost,
-        surface: (any NookSurfaceDriving)?
+        surface: (any NookSurfaceDriving)?,
+        systemAppearanceChanges: AnyPublisher<Void, Never>? = nil
     ) {
         self.appState = appState
         self.hotkeyController = hotkeyController
         self.moduleHost = moduleHost
+        self.breadcrumbOwnerID = moduleHost.displayedModuleID
 
         let coordinatorBox = CoordinatorBox()
         self.surface =
@@ -304,6 +339,13 @@ public final class AppCoordinator: ObservableObject {
             )
 
         bindBackdropSynchronization()
+        bindSystemAppearance(
+            systemAppearanceChanges
+                ?? NSApplication.shared.publisher(for: \.effectiveAppearance)
+                .dropFirst()  // the current value, published on subscribe
+                .map { _ in () }
+                .eraseToAnyPublisher()
+        )
         // Bind the surface-state mirror at init, not at start: it is pure observation
         // (writes only to `appState.isNookVisible` and clears `userInitiatedOpen` on
         // independent collapse), and the arbiter's engagement bookkeeping depends on
@@ -429,27 +471,27 @@ public final class AppCoordinator: ObservableObject {
     /// serial lifecycle chain (`enqueueLifecycle`), so it is ordered against - never
     /// interleaved with - surface transitions and other switches.
     ///
-    /// The transaction quiesces the outgoing module's surface activity, invalidates its
-    /// arbiter claims, flips module identity, re-wires the surface hooks, and - when the
+    /// The transaction invalidates the outgoing module's arbiter claims, activates the
+    /// incoming module and flips identity, re-wires the surface hooks, and - when the
     /// surface is already expanded - fires a synthetic `onExpand` for the incoming
     /// module. The content cross-fades in place; the surface is not hidden, so the
-    /// outgoing module gets `onDeactivate` (via `ModuleHost`) but not `onHide`.
+    /// outgoing module gets no `onHide`. The outgoing module is then finished off the
+    /// chain, in its documented order: `prepareForSwitchAway` (bounded by
+    /// ``switchAwayTimeout``), `onDeactivate`, and the unload its background policy asks for.
     public func switchModule(to id: String) {
         enqueueLifecycle { [weak self] in await self?.performSwitch(to: id) }
     }
 
-    /// The serialized module-switch transaction. Reordered from quiesce-first to
-    /// invalidate-first so a slow or misbehaving outgoing module cannot wedge the
-    /// lifecycle chain.
+    /// The serialized module-switch transaction.
     ///
     /// On the serial chain - fast, user-facing:
-    ///   1. **Invalidate** outgoing module's arbiter claims (synchronous, in-memory).
-    ///      After this, any `endTransientPresentation` from the outgoing module is a
-    ///      guaranteed no-op - the arbiter's `liveTokens` guard makes the outgoing
-    ///      drain stale-token-safe regardless of when it finishes.
+    ///   1. **Invalidate** the outgoing module's arbiter claims (synchronous, in-memory)
+    ///      and deny it new ones until its switch away finishes. After this, any
+    ///      `endTransientPresentation` from the outgoing module is a guaranteed no-op.
     ///   2. **Read live surface state** - never the mirror, never a value captured
     ///      before this transaction reached the head of the queue.
-    ///   3. **Flip identity**: `onDeactivate` / `onActivate`, configuration re-publish.
+    ///   3. **Flip identity**: `onActivate` on the incoming module, configuration
+    ///      re-publish. The breadcrumb follows the displayed module.
     ///   4. **Re-wire surface hooks** so the synthetic `onExpand` below fires the
     ///      incoming module's hook.
     ///   5. **Clear stranded `viewMode == .settings`** if the incoming module disables
@@ -457,21 +499,18 @@ public final class AppCoordinator: ObservableObject {
     ///   6. **Fire `onReady`** for the incoming module (once per loaded instance).
     ///   7. **Synthesize `onExpand`** if the surface was already expanded.
     ///
-    /// Off the serial chain - bounded, under-the-covers:
-    ///   8. **Drain the outgoing module's `prepareForSwitchAway`** in a detached
-    ///      follow-on (`enqueueSwitchTail`) with a hard timeout. The user sees the new
-    ///      module immediately; the outgoing module's quiesce runs concurrently. A
-    ///      hanging quiesce hits the timeout and is cancelled - the arbiter's
-    ///      stale-token guard keeps that abandoned work harmless.
-    ///
-    /// Before the reorder, step 1 was an unbounded `await` on a module-supplied
-    /// `prepareForSwitchAway` - a misbehaving module wedged the entire lifecycle chain.
+    /// Off the serial chain - bounded, under the covers (``finishSwitchAway(from:generation:)``):
+    ///   8. **Await the outgoing module's `prepareForSwitchAway`** with a hard timeout,
+    ///      then call its `onDeactivate`, then unload it when its background policy is
+    ///      `.unloadOnSwitchAway`. The user sees the new module immediately. This must
+    ///      stay off the chain: a quiescing module awaits its own
+    ///      `endTransientPresentation`, which runs on the chain.
     private func performSwitch(to id: String) async {
         let outgoingID = moduleHost.activeModuleID
         guard id != outgoingID, moduleHost.registry.descriptor(for: id) != nil else { return }
 
-        // 1. Invalidate outgoing claims FIRST - stale-token safety is now the contract
-        //    the off-chain quiesce drain relies on.
+        // 1. Invalidate outgoing claims FIRST - stale-token safety is the contract the
+        //    off-chain switch-away relies on.
         arbiter.invalidateClaims(ownedBy: outgoingID)
 
         // 2. Read live surface state on the serial chain.
@@ -482,13 +521,22 @@ public final class AppCoordinator: ObservableObject {
             _ = moduleHost.switchModule(to: id)
         }
         guard moduleHost.activeModuleID == id else { return }
+        // The outgoing module is quiescing: deny it the surface until it is finished. A
+        // switch back to a module whose switch away is still running takes it back.
+        arbiter.retiringModuleIDs.insert(outgoingID)
+        arbiter.retiringModuleIDs.remove(id)
+        let generation = (switchAwayGenerations[outgoingID] ?? 0) + 1
+        switchAwayGenerations[outgoingID] = generation
+        // A background claim from the incoming module is no longer a background one.
+        syncPresentedModule()
+        handOffBreadcrumbIfNeeded()
 
         // 4. Re-wire surface hooks in this same critical section, and swap the companion
         //    surfaces with them: the outgoing module's companions leave (releasing any
         //    hover they held) as the incoming module's arrive, cross-fading like the content.
         applyModuleHooks(moduleHost.configuration)
         withAnimation(.easeInOut(duration: 0.22)) {
-            applyModuleSurfaceDecorations(moduleHost.configuration)
+            applyModuleSurfaceDecorations(moduleHost.displayedConfiguration)
         }
 
         // 5. Drop a stranded `.settings` viewMode if the incoming module disables
@@ -496,9 +544,6 @@ public final class AppCoordinator: ObservableObject {
         leaveSettingsIfDisabled()
 
         // 6. onReady for the incoming module (once per loaded instance).
-        if !moduleHost.registry.isLoaded(outgoingID) {
-            modulesGivenOnReady.remove(outgoingID)
-        }
         fireModuleReadyIfNeeded()
 
         // 7. Synthetic onExpand if the surface was already expanded.
@@ -506,24 +551,66 @@ public final class AppCoordinator: ObservableObject {
             moduleHost.configuration.onExpand?()
         }
 
-        // 8. Quiesce drain - off the serial chain, with a hard timeout.
-        //
-        //    Capture the Sendable `outgoingID` only and re-resolve the module instance
-        //    inside the closure. The drain runs on the main actor (the closure body is
-        //    `@MainActor`), so the lookup is in-thread; capturing the `any NookModule`
-        //    reference would force a non-Sendable value across the `@Sendable` closure
-        //    boundary for no real benefit. As a bonus, if a third rapid switch unloaded
-        //    the outgoing module before the drain runs, the re-resolve returns `nil` and
-        //    the drain is a clean no-op - which is exactly what we'd want anyway.
-        guard moduleHost.registry.isLoaded(outgoingID) else { return }
+        // 8. Finish the outgoing module off the serial chain.
         enqueueSwitchTail { [weak self] in
-            guard let self,
-                let outgoingModule = self.moduleHost.registry.module(for: outgoingID)
-            else { return }
+            await self?.finishSwitchAway(from: outgoingID, generation: generation)
+        }
+    }
+
+    /// The off-chain half of a switch away from `outgoingID`: `prepareForSwitchAway` under
+    /// ``switchAwayTimeout``, then `onDeactivate`, then the unload the module's background
+    /// policy asks for.
+    ///
+    /// Skipped, at either step, when the switch away was superseded: the user switched back
+    /// to the module, or switched away from it again (a later `generation`, whose own tail
+    /// finishes it). A module switched back to mid-quiesce therefore gets `onActivate`
+    /// without a matching `onDeactivate`, which ``NookModule/onActivate()`` already has to
+    /// tolerate for the launch module.
+    ///
+    /// The module instance is re-resolved here rather than captured: only the `Sendable` id
+    /// crosses the `@Sendable` closure boundary, and a module that is no longer loaded is
+    /// never rebuilt just to be torn down.
+    private func finishSwitchAway(from outgoingID: String, generation: Int) async {
+        let registry = moduleHost.registry
+        func isCurrent() -> Bool {
+            moduleHost.activeModuleID != outgoingID && switchAwayGenerations[outgoingID] == generation
+        }
+        guard isCurrent() else { return }
+        if registry.isLoaded(outgoingID), let outgoingModule = registry.module(for: outgoingID) {
             await Self.runWithTimeout(Self.switchAwayTimeout, label: "prepareForSwitchAway[\(outgoingID)]") {
                 await outgoingModule.prepareForSwitchAway()
             }
         }
+        guard isCurrent() else { return }
+        if moduleHost.finishSwitchAway(from: outgoingID) {
+            // Unloaded: the next activation builds a fresh instance with a fresh `onReady`
+            // (e.g. to re-bind an activity queue), starting at its root.
+            modulesGivenOnReady.remove(outgoingID)
+            parkedBreadcrumbs[outgoingID] = nil
+        }
+        arbiter.retiringModuleIDs.remove(outgoingID)
+    }
+
+    /// Puts the top surface claim's module on the surface: a background module's content
+    /// while its claim holds the surface, the active module's otherwise. Called by the
+    /// arbiter whenever the top claim changes hands, and after a module switch.
+    private func syncPresentedModule() {
+        let top = arbiter.topModuleID
+        guard moduleHost.presentBackgroundModule(top) else { return }
+        handOffBreadcrumbIfNeeded()
+        applyModuleSurfaceDecorations(moduleHost.displayedConfiguration)
+    }
+
+    /// Keeps ``AppState/moduleBreadcrumb`` with the module whose content is on the surface.
+    /// When that module changes, the outgoing module's breadcrumb is parked and the incoming
+    /// module's parked one, if any, comes back - so a drill-in label never shows over
+    /// another module's content, and a resident module returns to the label it left with.
+    private func handOffBreadcrumbIfNeeded() {
+        let displayedID = moduleHost.displayedModuleID
+        guard displayedID != breadcrumbOwnerID else { return }
+        parkedBreadcrumbs[breadcrumbOwnerID] = appState.moduleBreadcrumb
+        appState.moduleBreadcrumb = parkedBreadcrumbs.removeValue(forKey: displayedID)
+        breadcrumbOwnerID = displayedID
     }
 
     /// Runs `work` under a hard deadline. Past `timeout` the work task is cancelled and
@@ -579,8 +666,9 @@ public final class AppCoordinator: ObservableObject {
     }
 
     /// Projects a module's surface decorations - its companion surfaces, rim glow style, and
-    /// scroll edge fade - onto the surface. Called beside ``applyModuleHooks(_:)`` at init
-    /// and in the switch transaction, so decorations always belong to the active module.
+    /// scroll edge fade - onto the surface. Called at init, in the switch transaction, and
+    /// when a background module's claim takes or leaves the top of the arbiter's stack, so
+    /// decorations always belong to the module whose content is on the surface.
     ///
     /// The companions are the configuration's own followed by its ``NookConfiguration/companionSource``,
     /// which is followed from here on, so a change to the source reaches the surface at once.
@@ -610,7 +698,7 @@ public final class AppCoordinator: ObservableObject {
     /// tracking and its SwiftUI identity.
     private func projectCompanions(_ companions: [NookCompanion], of configuration: NookConfiguration) {
         let appState = appState
-        let services = moduleHost.activeServices
+        let services = moduleHost.displayedServices
         let branding = moduleHost.branding
         let chromeActions = chromeActions
         var seen = Set<String>()
@@ -618,7 +706,7 @@ public final class AppCoordinator: ObservableObject {
         for companion in companions {
             guard seen.insert(companion.id).inserted else {
                 print(
-                    "[OpenNook] module '\(moduleHost.activeModuleID)' has more than one companion with id "
+                    "[OpenNook] module '\(moduleHost.displayedModuleID)' has more than one companion with id "
                         + "'\(companion.id)'; only the first is shown"
                 )
                 continue
@@ -705,7 +793,9 @@ public final class AppCoordinator: ObservableObject {
         moduleHost.reloadConfiguration()
         let configuration = moduleHost.configuration
         applyModuleHooks(configuration)
-        applyModuleSurfaceDecorations(configuration)
+        // A background module presenting over the active one keeps its decorations until
+        // its claim ends.
+        applyModuleSurfaceDecorations(moduleHost.displayedConfiguration)
         let style = configuration.style ?? NookConfiguration.defaultStyle
         // `Nook.style` publishes on every assignment, so skip one that changes nothing.
         if surface.style != style {
@@ -982,17 +1072,32 @@ public final class AppCoordinator: ObservableObject {
                 queue: .main
             ) { [weak self] _ in
                 Task { @MainActor in
-                    self?.syncNotchBackdrop()
+                    self?.systemAppearanceDidChange()
                 }
             }
         )
     }
 
+    /// Follows the system's light/dark appearance. Under the `.followSystem` palette both
+    /// the backdrop and the default theme depend on it, and nothing else would re-resolve
+    /// them until the next expand, collapse, or preference change.
+    private func bindSystemAppearance(_ changes: AnyPublisher<Void, Never>) {
+        changes
+            .receive(on: RunLoop.main)
+            .sink { [weak self] in self?.systemAppearanceDidChange() }
+            .store(in: &cancellables)
+    }
+
+    /// Re-applies everything that reads a system appearance setting - light/dark or Reduce
+    /// Transparency: the backdrop is resolved again, and every view observing ``appState``
+    /// re-renders, which re-runs the configuration's theme resolver.
+    private func systemAppearanceDidChange() {
+        syncNotchBackdrop()
+        appState.objectWillChange.send()
+    }
+
     private func currentResolvedSystemScheme() -> ColorScheme {
-        // `NSApplication.shared` rather than the `NSApp` global: the latter is nil until
-        // the app object is first materialized, which a headless unit test never does.
-        let appearance = NSApplication.shared.effectiveAppearance
-        return appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? .dark : .light
+        systemColorSchemeProvider()
     }
 
     func syncNotchBackdrop() {

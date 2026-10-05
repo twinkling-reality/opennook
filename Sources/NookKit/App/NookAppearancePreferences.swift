@@ -36,9 +36,20 @@ public struct NookAppearancePreferences: Equatable, Codable, Sendable {
     /// Chrome control tint (lock, gear, toggles). `.system` follows macOS accent.
     public var accentPreset: NookAccentPreset
 
-    /// Scales the frosted backdrop's legibility darken pass when ``surfaceStyle`` is
-    /// `.translucent`. `1` is the framework default; lower values show more wallpaper.
+    /// Scales the backdrop's legibility pass when ``surfaceStyle`` is `.translucent` or
+    /// `.liquidGlass`: the frosted material's darken, or the glass's tint and shading. `1` is
+    /// the framework default; lower values show more wallpaper. The framework mapping clamps
+    /// it to `0.15...1`, the range the Settings slider offers.
     public var backdropStrength: Double
+
+    /// The range the framework mapping clamps ``backdropStrength`` to, and the range the
+    /// built-in Settings slider offers - one value, so the two cannot disagree.
+    static let backdropStrengthRange: ClosedRange<Double> = 0.15...1
+
+    /// ``backdropStrength`` clamped to ``backdropStrengthRange``.
+    var clampedBackdropStrength: Double {
+        min(max(backdropStrength, Self.backdropStrengthRange.lowerBound), Self.backdropStrengthRange.upperBound)
+    }
 
     public init(
         chromePalette: NookChromePalette = .followSystem,

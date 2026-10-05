@@ -16,8 +16,10 @@ import Foundation
 ///
 /// A module is built by its factory with an isolated ``NookModuleContext``; conventionally
 /// it captures the context and persists through `context.defaults` / `context.containerURL`.
-/// ``onActivate()`` / ``onDeactivate()`` mark module switches: a switch deactivates the
-/// outgoing module and activates the incoming one. The module the host launches with is
+/// ``onActivate()`` / ``onDeactivate()`` mark module switches: a switch activates the
+/// incoming module, puts it on the surface, and then finishes the outgoing one -
+/// ``prepareForSwitchAway()``, then ``onDeactivate()``, then the unload its
+/// ``NookModuleDescriptor/backgroundPolicy`` asks for. The module the host launches with is
 /// constructed already in the foreground and gets no ``onActivate()``, so work it runs while
 /// in the foreground starts in its initializer as well (see ``onActivate()``).
 @MainActor
@@ -47,15 +49,25 @@ public protocol NookModule: AnyObject {
     /// ```
     func onActivate()
 
-    /// Called when the user switches away. The module's content is no longer on the
-    /// surface; depending on ``NookModuleDescriptor/backgroundPolicy`` the instance may
-    /// be torn down after this returns.
+    /// Called when the user switches away, once ``prepareForSwitchAway()`` has returned (or
+    /// timed out). The module's content is no longer on the surface, and the incoming
+    /// module's ``onActivate()`` has already run; depending on
+    /// ``NookModuleDescriptor/backgroundPolicy`` the instance may be torn down after this
+    /// returns.
+    ///
+    /// Skipped when the user switches back to this module before its switch away finished:
+    /// the module then gets ``onActivate()`` again without an ``onDeactivate()`` in between.
     func onDeactivate()
 
     /// Called when switching away, BEFORE ``onDeactivate()`` and any
-    /// ``NookModuleDescriptor/backgroundPolicy``-driven teardown. Returns once the
-    /// module has stopped all surface activity - drained any in-flight transient
+    /// ``NookModuleDescriptor/backgroundPolicy``-driven teardown, for either policy. Returns
+    /// once the module has stopped all surface activity - drained any in-flight transient
     /// presentation and released any surface claim it holds.
+    ///
+    /// It runs after the incoming module is already on the surface, so it never delays the
+    /// switch the user sees, and it is bounded by a 2-second timeout, after which the switch
+    /// away carries on. Until the switch away finishes, the surface denies this module new
+    /// claims.
     ///
     /// This is the async quiesce seam: ``onDeactivate()`` stays synchronous and is for
     /// cheap, prompt cleanup; anything that must *join* in-flight work belongs here. A

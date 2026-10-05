@@ -104,7 +104,7 @@ public struct NookAppearanceSettingsSection: View {
                     Text(strengthLabel)
                         .font(typography.settingsFieldLabel)
                         .foregroundStyle(theme.secondaryLabel)
-                    Slider(value: backdropStrengthBinding, in: 0.35...1)
+                    Slider(value: backdropStrengthBinding, in: NookAppearancePreferences.backdropStrengthRange)
                         .controlSize(.small)
                         .accessibilityLabel(strengthLabel)
                     Text("Lower shows more wallpaper through the chrome.")
@@ -203,7 +203,8 @@ public struct NookAppearanceSettingsSection: View {
             get: { appState.appearancePreferences.backdropStrength },
             set: { next in
                 var prefs = appState.appearancePreferences
-                prefs.backdropStrength = min(max(next, 0.15), 1)
+                prefs.backdropStrength = next
+                prefs.backdropStrength = prefs.clampedBackdropStrength
                 appState.replaceAppearancePreferences(prefs)
             }
         )
