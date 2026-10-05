@@ -27,10 +27,14 @@ struct SettingsView: View {
     var groups: NookSettingsGroups = .all
 
     @Environment(\.nookChromeMetrics) private var metrics
+    @Environment(\.nookChromeLabels) private var labels
 
-    /// Which sections are expanded. In-memory for the session; Appearance opens by default
+    /// Which sections are expanded, by key (not by title, so a host's labels can rename a
+    /// group without closing it). In-memory for the session; Appearance opens by default
     /// so the surface isn't a wall of collapsed headers on first entry.
-    @State private var expandedSections: Set<String> = ["Appearance"]
+    @State private var expandedSections: Set<String> = [Self.appearanceKey]
+
+    private static let appearanceKey = "framework.appearance"
 
     /// Caps Settings height from the main display so rows scroll instead of clipping below the notch panel.
     private var settingsScrollMaxHeight: CGFloat {
@@ -46,33 +50,33 @@ struct SettingsView: View {
         ScrollView(.vertical, showsIndicators: false) {
             VStack(alignment: .leading, spacing: metrics.settingsSectionSpacing) {
                 if groups.contains(.appearance) {
-                    section("Appearance") {
+                    section(labels.settings.appearanceTitle, key: Self.appearanceKey) {
                         NookAppearanceSettingsSection(appState: appState)
                     }
                 }
 
                 if groups.contains(.display) {
-                    section("Display") {
+                    section(labels.settings.displayTitle, key: "framework.display") {
                         NookDisplaySettingsSection(appState: appState)
                     }
                 }
 
                 if groups.contains(.shortcut) {
-                    section("Shortcut & nook") {
+                    section(labels.settings.shortcutTitle, key: "framework.shortcut") {
                         NookShortcutSettingsSection(appState: appState)
                     }
                 }
 
                 if groups.contains(.data) {
-                    section("Data") {
+                    section(labels.settings.dataTitle, key: "framework.data") {
                         VStack(alignment: .leading, spacing: metrics.settingsGroupSpacing) {
                             SettingsDataCommandRow(
-                                title: "Preview status banner",
-                                subtitle: "Shows the transient message channel under the top bar",
+                                title: labels.settings.previewBannerTitle,
+                                subtitle: labels.settings.previewBannerDetail,
                                 icon: "text.bubble",
                                 style: .standard,
                                 action: {
-                                    appState.errorMessage = "Something went wrong — try again."
+                                    appState.errorMessage = labels.settings.previewBannerMessage
                                     appState.showHome()
                                 }
                             )
@@ -82,13 +86,13 @@ struct SettingsView: View {
                 }
 
                 ForEach(hostSections) { hostSection in
-                    section(hostSection.title) {
+                    section(hostSection.title, key: "host." + hostSection.title) {
                         hostSection.content()
                     }
                 }
 
                 if groups.contains(.about) {
-                    section("About") {
+                    section(labels.settings.aboutTitle, key: "framework.about") {
                         NookAboutSettingsSection()
                     }
                 }
@@ -102,18 +106,19 @@ struct SettingsView: View {
         .frame(maxWidth: .infinity, maxHeight: settingsScrollMaxHeight, alignment: .leading)
     }
 
-    /// A collapsible section bound to ``expandedSections``.
+    /// A collapsible section bound to ``expandedSections`` under `key`.
     @ViewBuilder
     private func section<Content: View>(
         _ title: String,
+        key: String,
         @ViewBuilder content: @escaping () -> Content
     ) -> some View {
         NookSettingsGroup(
             title,
             isExpanded: Binding(
-                get: { expandedSections.contains(title) },
+                get: { expandedSections.contains(key) },
                 set: { open in
-                    if open { expandedSections.insert(title) } else { expandedSections.remove(title) }
+                    if open { expandedSections.insert(key) } else { expandedSections.remove(key) }
                 }
             ),
             content: content

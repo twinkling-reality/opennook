@@ -149,11 +149,13 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     private func rebuildMenu() {
         guard let statusItem else { return }
         let hostName = moduleHost.branding.hostName
+        // The active module's strings, like the "Settings..." item's chrome flag below.
+        let labels = moduleHost.configuration.labels.menuBar
 
         let menu = NSMenu()
         menu.addItem(
             NSMenuItem(
-                title: "Show \(hostName)",
+                title: labels.showHost(hostName),
                 action: #selector(showNook),
                 keyEquivalent: ";"
             )
@@ -165,7 +167,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         if moduleHost.configuration.topBar.showsSettings {
             menu.addItem(
                 NSMenuItem(
-                    title: "Settings…",
+                    title: labels.settings,
                     action: #selector(showSettings),
                     keyEquivalent: ","
                 )
@@ -173,7 +175,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         menu.addItem(
             NSMenuItem(
-                title: "Toggle Stay Expanded",
+                title: labels.toggleStayExpanded,
                 action: #selector(toggleKeepOpen),
                 keyEquivalent: "k"
             )
@@ -184,7 +186,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         // selecting switches. This keeps switching off the host's expanded surface.
         if moduleHost.switcherPlacement.listsModulesInMenuBar && moduleHost.isMultiModule {
             menu.addItem(.separator())
-            menu.addItem(.sectionHeader(title: "Modules"))
+            menu.addItem(.sectionHeader(title: labels.modules))
             for descriptor in moduleHost.descriptors {
                 let moduleItem = NSMenuItem(
                     title: descriptor.displayName,
@@ -204,7 +206,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(.separator())
         menu.addItem(
             NSMenuItem(
-                title: "Quit",
+                title: labels.quit,
                 action: #selector(quit),
                 keyEquivalent: "q"
             )

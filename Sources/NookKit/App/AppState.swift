@@ -33,9 +33,11 @@ public struct HotkeyRegistrationFailure: Equatable, Sendable {
         self.combination = combination
     }
 
-    /// A ready-to-show one-line warning for the Settings UI.
+    /// A ready-to-show one-line warning for the Settings UI, in the default English. The
+    /// Settings screen draws ``NookChromeLabels/Shortcut/unavailable(_:)`` with the host's
+    /// labels instead.
     public var message: String {
-        "\(combination) is unavailable — another app may be using it."
+        NookChromeLabels.default.shortcut.unavailable(combination)
     }
 }
 

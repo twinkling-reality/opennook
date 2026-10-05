@@ -24,6 +24,7 @@ public struct NookShelfView: View {
     @Environment(\.nookResolvedTheme) private var theme
     @Environment(\.nookChromeTypography) private var typography
     @Environment(\.nookChromeMetrics) private var metrics
+    @Environment(\.nookChromeLabels) private var labels
 
     /// Optional "add files" action. When provided, the empty drop zone becomes
     /// click-to-import and a `+` button appears in the populated header, so picking
@@ -57,7 +58,7 @@ public struct NookShelfView: View {
         if let onImport {
             Button(action: onImport) { dropZone }
                 .buttonStyle(.plain)
-                .help("Drop files here, or click to import")
+                .help(labels.components.shelfDropOrImportHint)
         } else {
             dropZone
         }
@@ -68,7 +69,7 @@ public struct NookShelfView: View {
             Image(systemName: "tray.and.arrow.down")
                 .font(typography.shelfDropZoneIcon)
                 .foregroundStyle(theme.tertiaryLabel)
-            Text(onImport == nil ? "Drop files onto the notch to shelve them" : "Drop files here, or click to import")
+            Text(onImport == nil ? labels.components.shelfDropHint : labels.components.shelfDropOrImportHint)
                 .font(typography.shelfCaption)
                 .foregroundStyle(theme.tertiaryLabel)
         }
@@ -86,7 +87,7 @@ public struct NookShelfView: View {
 
     private var header: some View {
         HStack(spacing: metrics.shelfHeaderSpacing) {
-            Text("^[\(store.items.count) file](inflect: true)")
+            Text(labels.components.shelfFileCount(store.items.count))
                 .font(typography.shelfHeaderLabel)
                 .foregroundStyle(theme.secondaryLabel)
             Spacer(minLength: 0)
@@ -97,9 +98,9 @@ public struct NookShelfView: View {
                 .buttonStyle(.plain)
                 .font(typography.shelfHeaderLabel)
                 .foregroundStyle(theme.tertiaryLabel)
-                .help("Import files")
+                .help(labels.components.shelfImportHelp)
             }
-            Button("Clear") { store.clear() }
+            Button(labels.components.shelfClear) { store.clear() }
                 .buttonStyle(.plain)
                 .font(typography.shelfCaption)
                 .foregroundStyle(theme.tertiaryLabel)
@@ -131,6 +132,7 @@ private struct ShelfItemChip: View {
 
     @Environment(\.nookChromeTypography) private var typography
     @Environment(\.nookChromeMetrics) private var metrics
+    @Environment(\.nookChromeLabels) private var labels
     @State private var isHovered = false
 
     var body: some View {
@@ -187,7 +189,7 @@ private struct ShelfItemChip: View {
                 .background(Circle().fill(theme.subtleFill))
         }
         .buttonStyle(.plain)
-        .help("Remove from shelf")
+        .help(labels.components.shelfRemoveHelp)
         .offset(x: 5, y: -5)
     }
 }
