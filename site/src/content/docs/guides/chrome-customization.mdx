@@ -308,6 +308,88 @@ configuration.motion.statusBanner = .snappy          // banner appearance / dism
 configuration.motion.breadcrumb = .easeOut(duration: 0.18)
 ```
 
+## Engine-level shape and motion (`NookSurface`)
+
+These belong to the engine, one layer below `NookConfiguration`. The shape and
+transition ones ride on `NookStyle` and `NookTransitionConfiguration`, which
+`NookConfiguration.style` and `.transitions` already carry. The hover haptic, like the
+[chrome shadow, feedback style, and ambient wash](/guides/panel-effects/#chrome-shadow),
+is set on the `Nook` itself.
+
+### Corner radii
+
+`NookStyle` carries every radius the chrome draws with. Each defaults to the value
+the chrome has always used:
+
+```swift
+var style = NookStyle(topCornerRadius: 19, bottomCornerRadius: 24)
+style.compactTopCornerRadius = 6               // the compact pill's ears (notch form)
+style.compactBottomCornerRadius = 14
+style.floatingExpandedTopCornerRadius = nil    // nil: bottomCornerRadius on every corner
+style.floatingExpandedBottomCornerRadius = nil
+style.floatingCompactCornerRadius = nil        // nil: a capsule, half the pill's height
+configuration.style = style                    // or nook.style on a Nook you drive
+```
+
+A top radius is also that state's horizontal padding, so it moves content in or out.
+
+### The outline
+
+The chrome draws, clips, hit-tests, and traces its rim, shadow, and feedback along one
+`NookShape`. Its path comes from `NookStyle.outline`, a `NookOutline`:
+
+```swift
+style.outline = NookOutline(id: "squared") { geometry in
+    Path(roundedRect: geometry.rect, cornerRadius: geometry.bottomCornerRadius / 2)
+}
+```
+
+The chrome springs by interpolating the two radii and asking the outline for a path
+each frame, so a custom outline animates as long as its path changes smoothly with
+`geometry.topCornerRadius` and `geometry.bottomCornerRadius`. Keep it closed and
+inside `geometry.rect`, since it is also the clip and the hover region.
+`NookOutline.standardNotchPath` and `standardFloatingPath` are the built-in paths, to
+start from. The id stands in for the closure in equality.
+
+To draw a matching outline yourself, build a `NookShape(form:topCornerRadius:bottomCornerRadius:outline:)`,
+or read the live one inside compact and expanded content as `\.nookChromeShape`. It
+describes the chrome's frame, which is larger than the content's by the horizontal
+ear padding and `expandedContentInsets`.
+
+### Content transitions
+
+How compact slots and expanded content arrive and leave is a value on
+`NookTransitionConfiguration`, alongside the curves:
+
+```swift
+configuration.transitions = NookTransitionConfiguration(
+    compactContentTransition: .standardCompact,     // blur 6, grow from zero width, fade
+    expandedContentTransition: NookContentTransition(blurRadius: 0, scale: 0.9, fades: true)
+)
+```
+
+A `NookContentTransition` is a blur, a scale, and an optional fade. The scale runs
+horizontally from the notch for compact slots and vertically from the top edge for
+expanded content. `.opacity` is a plain fade and `.identity` none.
+
+### Which curve wins
+
+`NookStyle.openingAnimation`, `closingAnimation`, and `conversionAnimation` are fixed.
+`NookTransitionConfiguration` is the one override: a non-nil curve there wins, and a
+`nil` one falls back to the style's. NookKit always sets that configuration - to
+`NookConfiguration.transitions` or its own default springs - so a NookKit host never
+sees the style's curves.
+
+### Hover haptic
+
+With `.hapticFeedback` in the hover behavior, `Nook.hoverHaptic` picks the pattern:
+
+```swift
+nook.hoverHaptic = NookHoverHaptic(pattern: .levelChange, performanceTime: .now)
+```
+
+The default, `NookHoverHaptic.standard`, is `.alignment` at the default time.
+
 ## Identity: branding, brand mark, menu-bar
 
 `NookHostBranding` names the host *product* and supplies its brand mark - the

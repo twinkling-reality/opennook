@@ -140,6 +140,60 @@ at rest is never faded - only content that scrolls into the margin is. Like the
 Liquid Glass backdrop, the system path is gated at compile time as well as at run
 time, so the package still builds with an Xcode older than 26.
 
+## Chrome shadow
+
+This and the next two sections are engine-level settings on a `Nook` you drive
+yourself; `NookConfiguration` does not carry them yet.
+
+The panel's window shadow is off, because a window shadow is cast by the whole
+rectangular panel. `Nook.chromeShadow` casts one from the chrome's outline instead,
+so it follows the notch shape through every spring between compact and expanded.
+It is off (`nil`) by default:
+
+```swift
+nook.chromeShadow = NookChromeShadow(color: .black.opacity(0.4), radius: 14, y: 6)
+```
+
+It is drawn only outside the outline, so it never darkens a translucent backdrop, and
+in the notch form it fades out across the menu-bar band the way the rim halo does,
+since the chrome is fused with the top of the screen there. The floating form casts it
+on every side.
+
+## Feedback cues
+
+`Nook.playFeedback(_:tint:duration:repeats:)` plays a peripheral cue along the
+chrome's edge: `.shimmer` sweeps a bright band across it, and `.pulse` brightens the
+whole edge in place (what the shimmer becomes under Reduce Motion). To change more
+than the color, pass a `NookFeedbackStyle`:
+
+```swift
+nook.playFeedback(.shimmer, style: NookFeedbackStyle(
+    color: .green,               // band edges, glow, and the pulse
+    coreColor: nil,              // default: white at 75% in the band's center
+    bandGradient: nil,           // or a Gradient laid across the band, clear at both ends
+    lineWidth: 6,                // the visible line is half this, inside the edge
+    pulseLineWidth: 4,
+    glow: .standard,             // or nil, or NookFeedbackStyle.Glow(color:width:radius:)
+    blendMode: .plusLighter      // .normal on a light chrome, which .plusLighter cannot darken
+))
+```
+
+`NookFeedbackStyle.standard` is the built-in look in the system accent color, and the
+`tint:` overload is that look in another color.
+
+## Ambient wash
+
+Content that publishes `nookAmbientColor(_:)` gets a wash of that color behind the
+expanded chrome. `Nook.ambientWash` shapes it: a list of opacity stops along a
+linear gradient. The default, `NookAmbientWash.standard`, runs 34%, 16%, 6%, and 2%
+from top to bottom:
+
+```swift
+nook.ambientWash = NookAmbientWash(opacities: [0.5, 0], startPoint: .top, endPoint: .center)
+```
+
+`NookAmbientColorBackground(color:wash:)` paints the same wash in a host's own view.
+
 ## See also
 
 - [Companion surfaces](/guides/companion-surfaces/) - floating your own views beside

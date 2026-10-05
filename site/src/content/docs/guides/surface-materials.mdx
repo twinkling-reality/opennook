@@ -235,6 +235,56 @@ configuration.chromeBehavior.backdrop = { context in
 See [Backdrop resolver](/guides/chrome-customization/#backdrop-resolver) for the
 whole `NookBackdropContext`.
 
+## Backdrops beyond the three styles
+
+The Settings styles map to three `NookBackdrop` cases, but the engine paints more.
+Return any of these from a backdrop resolver, or set `Nook.backdrop` directly on a
+`NookSurface`-only host:
+
+```swift
+// Linear, radial (radii in points), elliptical (radii as fractions of the frame),
+// or angular. Elliptical keeps its look as the chrome grows from pill to panel.
+.gradient(.linear(Gradient(colors: [.indigo, .black])))
+.gradient(.elliptical(Gradient(colors: [.teal, .black]), center: .top, endRadiusFraction: 1))
+.gradient(.angular(Gradient(colors: [.pink, .orange, .pink])))
+
+// A SwiftUI MeshGradient (macOS 15). A mesh whose points or colors do not match its
+// width * height paints only its background.
+.meshGradient(MeshGradient(width: 2, height: 2,
+                           points: [[0, 0], [1, 0], [0, 1], [1, 1]],
+                           colors: [.purple, .indigo, .black, .black]))
+
+// Anything else: an image, a Shader, an animated view. The id stands in for the view
+// in equality, so give a different look a different id.
+.custom(.init(id: "aurora") { context in
+    context.reduceTransparency ? AnyView(Color.black) : AnyView(AuroraView())
+})
+```
+
+The custom view fills the surface's frame and is clipped to the outline;
+`context.shape` is that outline, for a view that wants to trace its own edge.
+
+The existing cases also expose the internals they used to fix:
+
+| Knob | What it does | Default |
+|---|---|---|
+| `Vibrancy.darkenColor` | the color of the legibility overlay, so a light chrome can lighten instead of darken | black |
+| `LiquidGlass.variant` | `.regular` or `.clear` glass on macOS 26 and later | `.regular` |
+| `LiquidGlass.fallbackMaterial` | the material the pre-Tahoe approximation starts from | `.hudWindow` |
+| `LiquidGlass.highlightColor` | the approximation's sheen and rim color | white |
+| `LiquidGlass.rimWidth` | the approximation's rim width; 0 keeps the sheen only | 1 |
+
+Apple pairs `.clear` glass with a dimming layer behind content; the glass's
+`shading` is where that goes. `Glass.interactive()` is not exposed: the chrome is a
+surface, not a control.
+
+Reduce Transparency works per case. The surface paints vibrancy, solid, and Liquid
+Glass exactly as given (the framework mapping swaps them for a solid fill, as
+above). Gradients and meshes are painted with every color fully opaque while
+Reduce Transparency is on, hues kept, so a fade to `.clear` becomes a fade to
+black. A custom backdrop is the host's view, so it decides: read
+`context.reduceTransparency` and paint something opaque.
+
 ## See also
 
 - [Theming](/guides/theming/) - the palette resolver and `NookResolvedTheme`
