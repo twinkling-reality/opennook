@@ -176,6 +176,9 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Source compatibility:** `NookBackdrop` gained the `.gradient`, `.meshGradient`, and
+  `.custom` cases, and `NookFeedback` gained `.pulse`. A host `switch` over either enum
+  without a `default` clause needs one; nothing else about existing call sites changes.
 - `NookGlassShading.notchFade` paints the collapsed chrome solid - the flat notch
   color, black or white for light chrome - and fades only the expanded panel.
   Collapsed, a notch-fused panel is the hardware notch's own height with roughly three

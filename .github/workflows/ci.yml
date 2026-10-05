@@ -155,7 +155,8 @@ jobs:
                    -not -path 'Tests/NookKitTests/NookSurfaceConcurrencyTests.swift' \
                    -not -path 'Tests/NookKitTests/NookShapeTests.swift' \
                    -not -path 'Tests/NookKitTests/NookCompanionSurfaceTests.swift' \
-                   -not -path 'Tests/NookKitTests/NookNotchCutoutTests.swift')
+                   -not -path 'Tests/NookKitTests/NookNotchCutoutTests.swift' \
+                   -not -path 'Tests/NookKitTests/NookSurfaceVisualSeamsTests.swift')
 
           # The cross-boundary test files belong with NookSurface (MIT) because they
           # @testable import it.
@@ -163,7 +164,8 @@ jobs:
             Tests/NookKitTests/NookSurfaceConcurrencyTests.swift \
             Tests/NookKitTests/NookShapeTests.swift \
             Tests/NookKitTests/NookCompanionSurfaceTests.swift \
-            Tests/NookKitTests/NookNotchCutoutTests.swift; do
+            Tests/NookKitTests/NookNotchCutoutTests.swift \
+            Tests/NookKitTests/NookSurfaceVisualSeamsTests.swift; do
             if [ -f "$f" ] && ! head -3 "$f" | grep -q 'SPDX-License-Identifier: MIT'; then
               echo "::error file=$f::missing 'SPDX-License-Identifier: MIT' header (cross-boundary test)"
               fail=1
