@@ -367,6 +367,21 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- An awaited `expand()` or `compact()` returns once content held back by
+  `NookContentTransition.delay` has started arriving, and an expand also waits for
+  the top bar held back by `motion.header.delay`, where it used to return as soon as
+  the chrome settled. `NookTransitionConfiguration.expandedEntranceDuration` (0 by
+  default) is how a host declares its own entrances; NookKit sets it from the header
+  delay. Only the `await` waits: no animation and no hide dwell changes length.
+  Staggered rows are open-ended and are not waited for.
+- A surface claim granted while Settings is showing opens onto the claiming module's
+  content instead of Settings. Settings comes back once the last claim ends, unless
+  the person picked a view in the meantime or the module on screen no longer offers
+  Settings.
+- The 2 s deadline on `prepareForSwitchAway` is a hard limit: a module that ignores
+  cancellation no longer holds up the rest of the switch away (`onDeactivate`, the
+  unload, and the end of its surface denial). Its work is cancelled and left to
+  finish on its own.
 - The nook closes when a hold on it ends after the pointer left: a
   `nookKeepsExpanded` pin, the keep-open lock turned off, or the settle after content
   resizes. It used to stay open until the pointer entered and left again. A nook the
