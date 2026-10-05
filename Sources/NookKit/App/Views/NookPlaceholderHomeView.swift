@@ -15,22 +15,24 @@ import SwiftUI
 ///
 /// It reads the resolved palette from the `\.nookResolvedTheme` environment value, which
 /// the expanded surface injects - host home views should do the same so they track the
-/// configured theme automatically.
+/// configured theme automatically. The mark and title come from the host's
+/// ``NookHostBranding``.
 public struct NookPlaceholderHomeView: View {
     @Environment(\.nookResolvedTheme) private var theme
     @Environment(\.nookChromeTypography) private var typography
     @Environment(\.nookChromeMetrics) private var metrics
+    @Environment(\.nookHostBranding) private var branding
 
     public init() {}
 
     public var body: some View {
         VStack(spacing: metrics.placeholderStackSpacing) {
-            NookMarkView(
-                size: metrics.placeholderMarkSize,
+            branding.markView(
+                frameworkWidth: metrics.placeholderMarkSize,
                 strokeWidth: metrics.placeholderMarkStrokeWidth,
                 color: theme.secondaryLabel
             )
-            Text("Nook")
+            Text(branding.hostName)
                 .font(typography.placeholderTitle)
                 .foregroundStyle(theme.primaryLabel)
             Text("Register your own view with NookConfiguration to start building.")

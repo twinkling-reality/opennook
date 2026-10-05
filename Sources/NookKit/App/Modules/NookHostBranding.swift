@@ -8,8 +8,9 @@
 import SwiftUI
 
 /// A host brand mark - builds the mark view at a requested size and color. The framework
-/// renders it in the top-bar leading cluster (when no `leadingIcon` is set), the About
-/// card, and (as a template image) the menu-bar status item.
+/// renders it in the top-bar leading cluster (when no `leadingIcon` is set), the default
+/// compact trailing slot, the placeholder home, the About card, and (as a template image)
+/// the menu-bar status item.
 ///
 /// `@Sendable @MainActor`: builds a SwiftUI view during main-actor rendering, carried by
 /// a `Sendable` ``NookHostBranding``.
@@ -37,7 +38,8 @@ public struct NookHostBranding: Sendable, Equatable {
 
     /// Replaces the OpenNook ``NookMark`` glyph wherever the chrome renders the brand
     /// mark - the top-bar leading cluster (when ``NookTopBarConfiguration/leadingIcon`` is
-    /// `nil`), the About card, and the menu-bar status icon. `nil` (the default) keeps the
+    /// `nil`), the default compact trailing slot, the placeholder home, the About card, and
+    /// the menu-bar status icon. `nil` (the default) keeps the
     /// OpenNook mark. Not part of `Equatable` (a closure can't be compared) - two
     /// brandings are equal when their strings match.
     public var mark: NookBrandMark?
@@ -107,6 +109,19 @@ public struct NookHostBranding: Sendable, Equatable {
     /// How many times a glyph `size` the framework mark is drawn wide, so it carries about
     /// the visual weight of a square glyph at that size.
     public static let frameworkMarkWidthScale: CGFloat = 2
+
+    /// The brand mark for a slot whose metric is the *framework* mark's width - the compact
+    /// trailing slot and the placeholder home. With no host ``mark`` this is the OpenNook
+    /// mark exactly as those slots always drew it, `frameworkWidth` wide; a host mark gets the
+    /// matching square, `frameworkWidth / frameworkMarkWidthScale` on a side, the same weight
+    /// ``markView(size:strokeWidth:color:)`` gives it beside the framework mark elsewhere.
+    @MainActor
+    func markView(frameworkWidth: CGFloat, strokeWidth: CGFloat, color: Color) -> AnyView {
+        guard mark != nil else {
+            return AnyView(NookMarkView(size: frameworkWidth, strokeWidth: strokeWidth, color: color))
+        }
+        return markView(size: frameworkWidth / Self.frameworkMarkWidthScale, strokeWidth: strokeWidth, color: color)
+    }
 }
 
 #if canImport(AppKit)

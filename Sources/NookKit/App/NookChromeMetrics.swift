@@ -104,7 +104,8 @@ public struct NookChromeMetrics: Sendable, Equatable {
     public var compactLeadingGlyphOpacity: CGFloat
 
     /// Width of the default compact trailing mark (its height follows from the mark's
-    /// aspect). Keep it within ``compactSlotSize``, the slot frame around it. Default `20`.
+    /// aspect). Keep it within ``compactSlotSize``, the slot frame around it. A host
+    /// ``NookHostBranding/mark`` is drawn in a square half this size. Default `20`.
     public var compactTrailingMarkSize: CGFloat
 
     /// Stroke width of the default compact trailing mark glyph. The filled framework mark
@@ -209,7 +210,8 @@ public struct NookChromeMetrics: Sendable, Equatable {
     public var placeholderStackSpacing: CGFloat
 
     /// Width of the placeholder home's brand mark (its height follows from the mark's
-    /// aspect). Default `56`.
+    /// aspect). A host ``NookHostBranding/mark`` is drawn in a square half this size.
+    /// Default `56`.
     public var placeholderMarkSize: CGFloat
 
     /// Stroke width of the placeholder home's brand mark. The filled framework mark ignores

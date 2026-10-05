@@ -7,6 +7,7 @@
 
 import Combine
 import XCTest
+
 @testable import NookKit
 
 /// Direct coverage for ``ModuleHost``: the attention/badging API, the single-
@@ -23,7 +24,9 @@ final class ModuleHostTests: XCTestCase {
 
         init(id: String, backgroundPolicy: NookModuleDescriptor.BackgroundPolicy = .stayResident) {
             descriptor = NookModuleDescriptor(
-                id: id, displayName: id, backgroundPolicy: backgroundPolicy
+                id: id,
+                displayName: id,
+                backgroundPolicy: backgroundPolicy
             )
         }
 
@@ -155,8 +158,9 @@ final class ModuleHostTests: XCTestCase {
         XCTAssertEqual(a.deactivateCount, 0)
     }
 
-    /// A successful switch fires onDeactivate on the outgoing module and onActivate on
-    /// the incoming module, in that order; `configuration` re-publishes.
+    /// A successful switch activates the incoming module and re-publishes; the outgoing
+    /// module is deactivated only by `finishSwitchAway(from:)`, which the coordinator calls
+    /// after the module's `prepareForSwitchAway` has returned.
     func testSuccessfulSwitchFiresLifecycleHooks() {
         let a = StubModule(id: "A")
         let b = StubModule(id: "B")
@@ -169,9 +173,28 @@ final class ModuleHostTests: XCTestCase {
 
         XCTAssertTrue(host.switchModule(to: "B"))
 
-        XCTAssertEqual(a.deactivateCount, 1)
+        XCTAssertEqual(a.deactivateCount, 0, "deactivation waits for finishSwitchAway")
         XCTAssertEqual(b.activateCount, 1)
         XCTAssertEqual(host.activeModuleID, "B")
+
+        XCTAssertFalse(host.finishSwitchAway(from: "A"), "a .stayResident module stays loaded")
+        XCTAssertEqual(a.deactivateCount, 1)
+        XCTAssertTrue(host.registry.isLoaded("A"))
+    }
+
+    /// `finishSwitchAway(from:)` is a no-op for the module that is active again - a switch
+    /// back that landed before the switch away finished.
+    func testFinishSwitchAwayIgnoresActiveModule() {
+        let a = StubModule(id: "A", backgroundPolicy: .unloadOnSwitchAway)
+        let b = StubModule(id: "B")
+        let host = makeHost([a, b], defaultID: "A")
+
+        host.switchModule(to: "B")
+        host.switchModule(to: "A")
+
+        XCTAssertFalse(host.finishSwitchAway(from: "A"))
+        XCTAssertEqual(a.deactivateCount, 0)
+        XCTAssertTrue(host.registry.isLoaded("A"))
     }
 
     /// A switch to a module with `.unloadOnSwitchAway` unloads the outgoing module
@@ -186,8 +209,44 @@ final class ModuleHostTests: XCTestCase {
         XCTAssertTrue(host.registry.isLoaded("A"))
 
         host.switchModule(to: "B")
+        XCTAssertTrue(host.registry.isLoaded("A"), "A stays loaded until its switch away finishes")
+        XCTAssertTrue(host.finishSwitchAway(from: "A"))
+        XCTAssertEqual(a.deactivateCount, 1)
         XCTAssertFalse(host.registry.isLoaded("A"), "A was unloaded by its policy")
         XCTAssertTrue(host.registry.isLoaded("B"))
+    }
+
+    // MARK: - Background presentation
+
+    /// `presentBackgroundModule(_:)` shows a loaded background module's configuration and
+    /// services; `nil` goes back to the active module's.
+    func testPresentBackgroundModuleSwapsTheDisplayedModule() {
+        let a = StubModule(id: "A")
+        let b = StubModule(id: "B")
+        let host = makeHost([a, b], defaultID: "A")
+        _ = host.registry.module(for: "B")
+
+        XCTAssertTrue(host.presentBackgroundModule("B"))
+        XCTAssertEqual(host.displayedModuleID, "B")
+        XCTAssertEqual(host.activeModuleID, "A", "presenting does not switch")
+        XCTAssertTrue(host.displayedServices === host.registry.context(for: "B")?.services)
+
+        XCTAssertTrue(host.presentBackgroundModule(nil))
+        XCTAssertEqual(host.displayedModuleID, "A")
+        XCTAssertTrue(host.displayedServices === host.activeServices)
+    }
+
+    /// The active module and a module that is not loaded are never presented as background
+    /// modules - the latter would mean building a module nobody activated.
+    func testPresentBackgroundModuleIgnoresActiveAndUnloadedModules() {
+        let a = StubModule(id: "A")
+        let b = StubModule(id: "B")
+        let host = makeHost([a, b], defaultID: "A")
+
+        XCTAssertFalse(host.presentBackgroundModule("A"))
+        XCTAssertFalse(host.presentBackgroundModule("B"))
+        XCTAssertFalse(host.registry.isLoaded("B"), "presenting must not construct the module")
+        XCTAssertNil(host.presentedBackgroundModuleID)
     }
 
     /// `isMultiModule` reflects how many modules are registered.

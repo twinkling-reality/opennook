@@ -160,6 +160,11 @@ public final class AppState: ObservableObject {
     /// or the back-to-home affordance. A module that wants the breadcrumb to be
     /// clickable (e.g. "click to pop back one level") owns that interaction
     /// inside its own surface - the chrome only renders the text.
+    ///
+    /// It belongs to the module whose content is on the surface. When that changes - a
+    /// module switch, or a background module's urgent claim taking the surface - the
+    /// coordinator parks the outgoing module's breadcrumb and restores the incoming
+    /// module's (or `nil`). An unloaded module's parked breadcrumb is dropped.
     @Published public var moduleBreadcrumb: String?
 
     /// Loads the persisted appearance, hotkey, and display preferences from

@@ -138,9 +138,9 @@ public struct NookCompanion: Identifiable, Sendable {
     }
 }
 
-/// Renders a host companion inside the chrome environment, mirroring what
-/// ``NookExpandedView`` gives the home view, so companion content can use the same
-/// environment values and `@EnvironmentObject` as the rest of the chrome.
+/// Renders a host companion inside the chrome environment (``NookChromeEnvironment``),
+/// mirroring what ``NookExpandedView`` gives the home view, so companion content can use
+/// the same environment values and `@EnvironmentObject` as the rest of the chrome.
 ///
 /// The surface renders companions in their own view tree, beside the chrome rather than
 /// under ``NookExpandedView``, so nothing reaches them unless it is injected here - the same
@@ -158,23 +158,20 @@ struct NookCompanionHost: View {
     let chromeActions: NookChromeActions
 
     var body: some View {
-        let resolved = (companion.theme ?? theme)(appState)
         companion.content()
-            .environment(\.nookResolvedTheme, resolved)
-            .environment(\.nookChromeLabels, labels)
-            .environment(\.nookChromeMetrics, metrics)
-            .environment(\.nookChromeMotion, motion)
-            .environment(\.nookChromeTypography, typography)
-            .environment(\.nookHostBranding, branding)
-            .environment(\.nookChromeActions, chromeActions)
-            .environment(\.appServices, services)
-            .environmentObject(appState)
-            // The panel is non-activating, so controls would otherwise paint as inactive
-            // until clicked - the same override the expanded surface applies.
-            .environment(\.controlActiveState, .active)
-            .tint(resolved.accent)
-            .fontDesign(resolved.fontDesign)
-            .preferredColorScheme(appState.appearancePreferences.chromeColorSchemeOverride)
+            .modifier(
+                NookChromeEnvironment(
+                    appState: appState,
+                    theme: (companion.theme ?? theme)(appState),
+                    services: services,
+                    labels: labels,
+                    metrics: metrics,
+                    motion: motion,
+                    typography: typography,
+                    branding: branding,
+                    chromeActions: chromeActions
+                )
+            )
             .nookCompanionVisibility(Self.settingsRestriction(for: companion, appState: appState))
     }
 

@@ -117,6 +117,24 @@ final class NookBackdropMappingTests: XCTestCase {
         XCTAssertEqual(backdrop, expected)
     }
 
+    /// The mapping clamps strength to the one range the Settings slider also offers, so
+    /// every slider position changes the backdrop and nothing outside it does.
+    func testBackdropStrengthClampsToTheSettingsRange() {
+        XCTAssertEqual(NookAppearancePreferences.backdropStrengthRange, 0.15...1)
+        func darken(_ strength: Double) -> NookBackdrop {
+            var prefs = preferences(palette: .dark, style: .translucent)
+            prefs.backdropStrength = strength
+            return NookBackdropMapping.notchBackdrop(
+                preferences: prefs,
+                effectiveColorScheme: .dark,
+                reduceTransparency: false
+            )
+        }
+        XCTAssertEqual(darken(0.01), darken(0.15), "below the range clamps to its floor")
+        XCTAssertEqual(darken(3), darken(1), "above the range clamps to 1")
+        XCTAssertNotEqual(darken(0.15), darken(0.35), "the low end of the range is reachable")
+    }
+
     /// The framework default - what every host gets before any mapping runs - must be
     /// the solid-black fill so cold-launch rendering matches the historical chrome.
     func testDefaultBackdropIsSolidBlack() {
