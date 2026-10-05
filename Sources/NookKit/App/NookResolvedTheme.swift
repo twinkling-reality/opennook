@@ -39,6 +39,20 @@ public struct NookResolvedTheme: Equatable, Sendable {
     /// content controls its own fonts.
     public var fontDesign: Font.Design
 
+    /// The wash a hovered control is filled with, at the control's own wash opacity. Defaults
+    /// to white, the wash the chrome has always drawn.
+    public var hoverWash: Color
+
+    /// Destructive actions, such as the reset command in Settings. Defaults to `Color.red`.
+    public var destructive: Color
+
+    /// Warnings, such as a shortcut that could not be registered. Defaults to `Color.orange`.
+    public var warning: Color
+
+    /// Success. Defaults to `Color.green`. The framework chrome does not use it yet; it is
+    /// here for host content and banners that want one.
+    public var success: Color
+
     /// Memberwise initializer. Host apps building a custom palette construct one
     /// directly and feed it to ``NookConfiguration/theme``; the framework's own
     /// palette is produced by ``resolve(preferences:effectiveColorScheme:reduceTransparency:)``.
@@ -46,8 +60,9 @@ public struct NookResolvedTheme: Equatable, Sendable {
     /// Every color should be an explicit black/white-at-opacity value - see the type
     /// note above on why system-adaptive colors render wrong on the nook's panel.
     ///
-    /// `accent` and `fontDesign` are defaulted, so a palette can fill only the color
-    /// slots and still get a sensible chrome; pass them to brand it.
+    /// `accent`, `fontDesign`, and the status and hover colors are defaulted, so a palette
+    /// can fill only the label, fill, and stroke slots and still get a sensible chrome; pass
+    /// them to brand it.
     public init(
         primaryLabel: Color,
         secondaryLabel: Color,
@@ -57,7 +72,11 @@ public struct NookResolvedTheme: Equatable, Sendable {
         subtleStroke: Color,
         headerInactiveIcon: Color,
         accent: Color = Color(nsColor: .controlAccentColor),
-        fontDesign: Font.Design = .default
+        fontDesign: Font.Design = .default,
+        hoverWash: Color = .white,
+        destructive: Color = .red,
+        warning: Color = .orange,
+        success: Color = .green
     ) {
         self.primaryLabel = primaryLabel
         self.secondaryLabel = secondaryLabel
@@ -68,6 +87,10 @@ public struct NookResolvedTheme: Equatable, Sendable {
         self.headerInactiveIcon = headerInactiveIcon
         self.accent = accent
         self.fontDesign = fontDesign
+        self.hoverWash = hoverWash
+        self.destructive = destructive
+        self.warning = warning
+        self.success = success
     }
 
     /// The framework's palette for `preferences`: ``NookTheme/standard`` resolved for the
@@ -115,7 +138,11 @@ public struct NookResolvedTheme: Equatable, Sendable {
             subtleStroke: resolver.color(.strokeSubtle, in: context),
             headerInactiveIcon: resolver.color(.iconInactive, in: context),
             accent: resolver.color(.accent, in: context),
-            fontDesign: theme.fontDesign.design
+            fontDesign: theme.fontDesign.design,
+            hoverWash: resolver.color(.hoverWash, in: context),
+            destructive: resolver.color(.destructive, in: context),
+            warning: resolver.color(.warning, in: context),
+            success: resolver.color(.success, in: context)
         )
     }
 }

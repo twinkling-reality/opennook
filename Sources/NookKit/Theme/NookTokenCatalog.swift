@@ -39,6 +39,17 @@ extension NookColorID {
     public static let success: NookColorID = "color.success"
     /// The tint of the chrome's peripheral feedback cue. Default the macOS accent, as today; set it to `accent` in a theme file to follow the theme.
     public static let feedbackTint: NookColorID = "feedback.tint"
+
+    // MARK: Chrome colors (one per `NookChromeColors` field)
+
+    /// ``NookChromeColors/bannerSeverityError``. Default the accent.
+    public static let bannerSeverityError: NookColorID = "banner.severity.error.color"
+    /// ``NookChromeColors/bannerSeverityWarning``. Default the accent.
+    public static let bannerSeverityWarning: NookColorID = "banner.severity.warning.color"
+    /// ``NookChromeColors/bannerSeverityInfo``. Default the accent.
+    public static let bannerSeverityInfo: NookColorID = "banner.severity.info.color"
+    /// ``NookChromeColors/bannerSeveritySuccess``. Default the accent.
+    public static let bannerSeveritySuccess: NookColorID = "banner.severity.success.color"
 }
 
 extension NookDimensionID {

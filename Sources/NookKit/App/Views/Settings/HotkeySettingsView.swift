@@ -94,7 +94,7 @@ struct SettingsShortcutRow: View {
                 if let failure = appState.hotkeyRegistrationFailures[NookHotkeyIDs.toggle] {
                     Text(failure.message)
                         .font(typography.settingsHint)
-                        .foregroundStyle(Color.orange)
+                        .foregroundStyle(theme.warning)
                 } else {
                     Text(isRecording ? "Press a shortcut — Esc to cancel" : "Global shortcut — click to change")
                         .font(typography.settingsHint)
@@ -187,6 +187,7 @@ struct SettingsShortcutRow: View {
 struct SettingsHotkeyFailureRow: View {
     @ObservedObject var appState: AppState
 
+    @Environment(\.nookResolvedTheme) private var theme
     @Environment(\.nookChromeTypography) private var typography
     @Environment(\.nookChromeMetrics) private var metrics
 
@@ -205,14 +206,14 @@ struct SettingsHotkeyFailureRow: View {
                     HStack(alignment: .center, spacing: metrics.settingsGroupSpacing) {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .font(typography.settingsEmphasis)
-                            .foregroundStyle(Color.orange)
+                            .foregroundStyle(theme.warning)
                             .frame(width: metrics.settingsIconWidth)
                         VStack(alignment: .leading, spacing: metrics.settingsTextSpacing) {
                             Text(failure.shortcutName)
                                 .font(typography.settingsRowTitle)
                             Text(failure.message)
                                 .font(typography.settingsHint)
-                                .foregroundStyle(Color.orange)
+                                .foregroundStyle(theme.warning)
                         }
                         Spacer(minLength: 8)
                     }
