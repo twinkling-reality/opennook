@@ -280,7 +280,9 @@ final class AssistantCatalogCoverageTests: XCTestCase {
         settings.theme.surface = .liquidGlass
         settings.theme.backdropStrength = 0.6
         settings.theme.name = "Night"
-        let gradient = NookBackdropDescription.linearGradient(.init(gradient: NookGradientSpec(colors: ["#101014", "#000000"])))
+        let gradient = NookBackdropDescription.linearGradient(
+            .init(gradient: NookGradientSpec(colors: ["#101014", "#000000"]))
+        )
         settings.theme.backdrops = NookThemeBackdrops(
             solid: .solid("#1C1C1E"),
             translucent: gradient,

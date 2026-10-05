@@ -242,8 +242,12 @@ extension PlaygroundSwiftExporter {
             case .vibrancy(let vibrancy):
                 let fallback = NookBackdropDescription.Vibrancy()
                 var arguments: [String] = []
-                if vibrancy.material != fallback.material { arguments.append("material: .\(vibrancy.material.rawValue)") }
-                if vibrancy.blending != fallback.blending { arguments.append("blending: .\(vibrancy.blending.rawValue)") }
+                if vibrancy.material != fallback.material {
+                    arguments.append("material: .\(vibrancy.material.rawValue)")
+                }
+                if vibrancy.blending != fallback.blending {
+                    arguments.append("blending: .\(vibrancy.blending.rawValue)")
+                }
                 if vibrancy.darken != fallback.darken { arguments.append("darken: \(literal(vibrancy.darken))") }
                 if !vibrancy.scalesWithStrength { arguments.append("scalesWithStrength: false") }
                 if let color = vibrancy.darkenColor { arguments.append("darkenColor: \(literal(color))") }
@@ -266,7 +270,8 @@ extension PlaygroundSwiftExporter {
             case .linearGradient(let gradient):
                 return ".linearGradient(\(linearLiteral(gradient)))"
             case .radialGradient(let gradient):
-                return ".radialGradient(.init(gradient: \(literal(gradient.gradient)), center: \(literal(gradient.center)), "
+                return
+                    ".radialGradient(.init(gradient: \(literal(gradient.gradient)), center: \(literal(gradient.center)), "
                     + "startRadius: \(number(gradient.startRadius)), endRadius: \(number(gradient.endRadius))))"
             case .ellipticalGradient(let gradient):
                 return ".ellipticalGradient(.init(gradient: \(literal(gradient.gradient)), "

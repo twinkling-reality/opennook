@@ -94,7 +94,9 @@ enum AssistantTokenCatalog {
         AssistantJSON.Member("type", .array([.string("object"), .string("null")])),
         AssistantJSON.Member(
             "properties",
-            .object([("kind", .object([("type", .string("string")), ("enum", .array(backdropKinds.map { .string($0) }))]))])
+            .object([
+                ("kind", .object([("type", .string("string")), ("enum", .array(backdropKinds.map { .string($0) }))]))
+            ])
         ),
     ]
 
