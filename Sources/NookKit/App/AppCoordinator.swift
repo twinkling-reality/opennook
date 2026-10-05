@@ -521,8 +521,10 @@ public final class AppCoordinator: ObservableObject {
         // 2. Read live surface state on the serial chain.
         let wasExpanded = surface.state == .expanded
 
-        // 3. Flip identity.
-        withAnimation(.easeInOut(duration: 0.22)) {
+        // 3. Flip identity. The switch curve is read before the flip, from the module the
+        //    surface is leaving, so the content and the chrome look below move together.
+        let switchAnimation = moduleHost.configuration.effectiveMotion.moduleSwitch
+        withAnimation(switchAnimation) {
             _ = moduleHost.switchModule(to: id)
         }
         guard moduleHost.activeModuleID == id else { return }
@@ -540,7 +542,7 @@ public final class AppCoordinator: ObservableObject {
         //    surfaces with them: the outgoing module's companions leave (releasing any
         //    hover they held) as the incoming module's arrive, cross-fading like the content.
         applyModuleHooks(moduleHost.configuration)
-        withAnimation(.easeInOut(duration: 0.22)) {
+        withAnimation(switchAnimation) {
             applyModuleSurfaceDecorations(moduleHost.displayedConfiguration)
             // The incoming module's chrome look - shape, curves, wash, shadow, backdrop, and
             // window appearance - in the same animation as its content.
@@ -753,6 +755,7 @@ public final class AppCoordinator: ObservableObject {
                         typography: typography,
                         branding: branding,
                         chromeActions: chromeActions,
+                        symbols: configuration.topBar.symbols,
                         chromeTheme: chromeTheme,
                         themeTokens: themeTokens
                     )
@@ -927,7 +930,7 @@ public final class AppCoordinator: ObservableObject {
         recordHotkeyOutcome(
             id: Self.toggleHotkeyID,
             status: status,
-            shortcutName: "Show \(moduleHost.branding.hostName)",
+            shortcutName: moduleHost.configuration.labels.shortcut.showHost(moduleHost.branding.hostName),
             hotkey: hotkey
         )
     }
@@ -966,7 +969,7 @@ public final class AppCoordinator: ObservableObject {
             recordHotkeyOutcome(
                 id: NookHotkeyIDs.cycle,
                 status: status,
-                shortcutName: "Cycle Modules",
+                shortcutName: moduleHost.configuration.labels.shortcut.cycleModulesName,
                 hotkey: cycle
             )
         }

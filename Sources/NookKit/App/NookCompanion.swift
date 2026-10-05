@@ -156,6 +156,7 @@ struct NookCompanionHost: View {
     let typography: NookChromeTypography
     let branding: NookHostBranding
     let chromeActions: NookChromeActions
+    var symbols: NookChromeSymbols = .default
     var chromeTheme: NookTheme = .standard
     var themeTokens: NookResolvedTokens = .standard
 
@@ -172,6 +173,7 @@ struct NookCompanionHost: View {
                     typography: typography,
                     branding: branding,
                     chromeActions: chromeActions,
+                    symbols: symbols,
                     chromeTheme: chromeTheme,
                     themeTokens: themeTokens
                 )

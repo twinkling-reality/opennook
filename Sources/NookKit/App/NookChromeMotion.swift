@@ -40,6 +40,9 @@ public struct NookChromeMotion: Sendable, Equatable {
     public var settingsDisclosure: Animation
 
     /// The cross-fade when a multi-module host switches the module filling the surface.
+    /// The incoming module's chrome look (shape, transitions, backdrop) moves on the same
+    /// curve. It is read from the module being switched away from, because the incoming
+    /// module's configuration is only built by the switch itself.
     public var moduleSwitch: Animation
 
     /// A `NookComponents` activity card taking over the home view or handing it back
