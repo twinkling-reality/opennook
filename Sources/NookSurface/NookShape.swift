@@ -35,6 +35,7 @@ public struct NookShape: Shape {
     /// What turns the form and radii into a path.
     public let outline: NookOutline
 
+    /// A chrome outline of `form` with the given corner radii, drawn by `outline`.
     public init(
         form: NookChromeForm = .notch,
         topCornerRadius: CGFloat,
@@ -47,6 +48,7 @@ public struct NookShape: Shape {
         self.outline = outline
     }
 
+    /// The two corner radii, top then bottom, which SwiftUI interpolates as the chrome springs.
     public var animatableData: AnimatablePair<CGFloat, CGFloat> {
         get { .init(topCornerRadius, bottomCornerRadius) }
         set {
@@ -55,6 +57,7 @@ public struct NookShape: Shape {
         }
     }
 
+    /// The outline's path in `rect`, at the shape's current radii.
     public func path(in rect: CGRect) -> Path {
         outline.path(
             NookOutline.Geometry(
@@ -68,6 +71,7 @@ public struct NookShape: Shape {
 }
 
 extension NookShape: Equatable {
+    /// Equal when the form, both radii, and the outline's id match.
     public static func == (lhs: NookShape, rhs: NookShape) -> Bool {
         lhs.form == rhs.form
             && lhs.topCornerRadius == rhs.topCornerRadius
@@ -101,11 +105,16 @@ extension NookShape: Equatable {
 public struct NookOutline: Equatable, Sendable {
     /// What an outline draws from: the frame and the chrome's current form and radii.
     public struct Geometry: Equatable, Sendable {
+        /// The frame to draw in: the chrome's own frame.
         public var rect: CGRect
+        /// Notch-fused or floating.
         public var form: NookChromeForm
+        /// The top radius at this frame of the animation: the ears in the notch form.
         public var topCornerRadius: CGFloat
+        /// The bottom radius at this frame of the animation.
         public var bottomCornerRadius: CGFloat
 
+        /// Geometry for drawing an outline of `form` in `rect`.
         public init(rect: CGRect, form: NookChromeForm, topCornerRadius: CGFloat, bottomCornerRadius: CGFloat) {
             self.rect = rect
             self.form = form
@@ -130,6 +139,7 @@ public struct NookOutline: Equatable, Sendable {
         makePath(geometry)
     }
 
+    /// Equal when the ids match; the paths are not compared.
     public static func == (lhs: NookOutline, rhs: NookOutline) -> Bool {
         lhs.id == rhs.id
     }

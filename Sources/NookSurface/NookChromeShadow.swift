@@ -16,6 +16,7 @@ import SwiftUI
 /// nook.chromeShadow = NookChromeShadow(color: .black.opacity(0.4), radius: 14, y: 6)
 /// ```
 public struct NookChromeShadow: Equatable, Sendable {
+    /// The shadow's color, alpha included.
     public var color: Color
     /// The blur radius, in points.
     public var radius: CGFloat
@@ -24,6 +25,8 @@ public struct NookChromeShadow: Equatable, Sendable {
     /// Vertical offset, in points. Positive moves the shadow down.
     public var y: CGFloat
 
+    /// A shadow in `color`, blurred by `radius` and offset by `x` and `y`. A negative radius
+    /// is treated as 0.
     public init(color: Color = .black.opacity(0.35), radius: CGFloat = 12, x: CGFloat = 0, y: CGFloat = 4) {
         self.color = color
         self.radius = max(radius, 0)

@@ -67,6 +67,8 @@ public struct NookFeedbackStyle: Equatable, Sendable {
     /// How the cue composites over the chrome. `.plusLighter` (the default) adds light.
     public var blendMode: BlendMode
 
+    /// A feedback look. Every parameter defaults to the built-in look; negative widths are
+    /// treated as 0.
     public init(
         color: Color = Color(nsColor: .controlAccentColor),
         coreColor: Color? = .white.opacity(0.75),
@@ -97,6 +99,7 @@ public struct NookFeedbackStyle: Equatable, Sendable {
         /// The blur radius. 3 by default.
         public var radius: CGFloat
 
+        /// A glow `width` wide, blurred by `radius`, in `color` or the style's color.
         public init(color: Color? = nil, width: CGFloat = 8, radius: CGFloat = 3) {
             self.color = color
             self.width = max(width, 0)
