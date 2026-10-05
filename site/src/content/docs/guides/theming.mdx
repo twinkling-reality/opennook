@@ -225,18 +225,31 @@ from it.
 public struct NookAppearancePreferences: Equatable, Codable, Sendable {
     public var chromePalette: NookChromePalette   // .followSystem / .dark / .light
     public var surfaceStyle: NookSurfaceStyle     // .solid / .translucent / .liquidGlass
-    public var presentation: NookPresentation     // .auto / fused / free-floating
+    public var presentation: NookPresentation     // .auto / .notch / .floating
     public var hapticFeedbackEnabled: Bool
     public var keepNookOpen: Bool
+    public var accentPreset: NookAccentPreset     // .system / .teal / .blue / .violet / .orange / .rose
+    public var backdropStrength: Double           // 0.15...1, default 1
 }
 ```
 
-- `chromePalette` pins the chrome to dark / light or follows macOS.
+- `chromePalette` pins the chrome to dark / light or follows macOS. Following
+  macOS, the chrome re-resolves its backdrop and re-renders its theme as soon as
+  the system switches between light and dark.
 - `surfaceStyle` picks a solid panel that matches the menu-bar notch (the
   default), a translucent material that lets the wallpaper through, or Liquid
   Glass - see [Surface materials](/guides/surface-materials/).
 - `presentation` is `.auto` by default and is the knob that makes the chrome
-  work on a Mac with no notch.
+  work on a Mac with no notch: `.auto` uses the notch layout on a notched
+  display and the floating layout (a rounded panel below the menu bar)
+  elsewhere; `.notch` and `.floating` force one layout everywhere.
+- `accentPreset` is the Settings accent swatch. The default resolver,
+  `NookResolvedTheme.live(appState:)`, uses it for `theme.accent` (`.system`
+  follows the macOS accent); a custom `theme` closure decides for itself whether
+  to read it.
+- `backdropStrength` scales the translucent and Liquid Glass backdrops'
+  legibility pass - lower shows more wallpaper. The framework mapping clamps it
+  to `0.15...1`, the range the Settings slider offers. Solid ignores it.
 
 A host that just wants to read the user's current choices can do so directly:
 

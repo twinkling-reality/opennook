@@ -393,7 +393,10 @@ Companion content renders in the same chrome environment as the home view:
   companion's own `theme` when you pass one;
 - `AppState` as an `@EnvironmentObject`;
 - the module's services, `\.appServices`;
-- the chrome labels, metrics, motion, and typography;
+- the chrome labels, metrics, motion, and typography, and the host branding,
+  `\.nookHostBranding`;
+- the theme's accent as the `.tint` and its font design, and the palette's
+  light/dark choice as the preferred color scheme;
 - the chrome actions, `\.nookChromeActions` (see below);
 - the companion's size, `\.nookCompanionSize`, and the chrome's backdrop,
   `\.nookChromeBackdrop`;

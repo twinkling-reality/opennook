@@ -34,7 +34,8 @@ The working example for everything below is `Examples/ChromeNook/main.swift`.
 ## Launch defaults: `preferenceDefaults`
 
 The process-global preferences - appearance (palette / surface style /
-presentation / haptics / keep-open), the global show/hide `NookHotkey`, and the
+presentation / haptics / keep-open / accent / backdrop strength), the global
+show/hide `NookHotkey`, and the
 `NookDisplayPreference` - normally start from framework defaults until the user
 changes them in Settings. `preferenceDefaults` reseeds those starting values, so
 a host can launch with its own look and shortcut without the user opening
@@ -148,7 +149,9 @@ settles into its compact launch state, it just skips the feedback flourish.
 
 `backdrop` overrides how the chrome state maps to the surface backdrop.
 `nil` (the default) uses the framework mapping - solid black or white for `.solid`
-or Reduce Transparency, otherwise a `.sidebar` vibrancy with a legibility darken.
+or Reduce Transparency, a `.sidebar` vibrancy with a legibility darken for
+`.translucent`, and theme-tinted glass for `.liquidGlass` (see [Surface
+materials](/guides/surface-materials/)).
 Supply a resolver to paint a brand-specific material, darken, or solid color
 while still reacting to the live appearance state:
 
@@ -216,7 +219,10 @@ it on `NookConfiguration`; a multi-module host sets it on
 Four small value types tune the chrome's strings, fixed layout values, fonts, and
 in-panel springs. Each defaults to a value that reproduces today's framework
 exactly, and each reaches the views through a chrome environment value, so a host
-sets only the fields it cares about.
+sets only the fields it cares about. Compact slot content, expanded content, and
+companions all get the same chrome environment: these four values, the resolved
+theme and its accent tint, the module's `\.appServices`, `\.nookHostBranding`,
+`\.nookChromeActions`, and `AppState` as an `@EnvironmentObject`.
 
 ### Labels
 
@@ -308,8 +314,9 @@ configuration.motion.breadcrumb = .easeOut(duration: 0.18)
 identity the chrome labels itself with. The About card reads `hostName` and
 `hostTagline`; the show/hide hotkey label and the menu-bar fallback read
 `hostName`; the `mark` closure replaces the OpenNook glyph everywhere the chrome
-draws it (the top-bar leading cluster when no `leadingIcon` is set, the About
-card, and the menu-bar status icon).
+draws it (the top-bar leading cluster when no `leadingIcon` is set, the default
+compact trailing slot, the placeholder home, the About card, and the menu-bar
+status icon). The placeholder home also titles itself with `hostName`.
 
 ```swift
 configuration.branding = NookHostBranding(
