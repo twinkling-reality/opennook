@@ -250,7 +250,9 @@ enum NookTopBarCommands {
             if appState.isSettingsView {
                 appState.showHome()
             } else if hasBreadcrumb {
+                // An activity's expanded view sits under its own breadcrumb; back returns home.
                 appState.moduleBreadcrumb = nil
+                appState.presentedLiveActivity = nil
             } else {
                 appState.showHome()
             }

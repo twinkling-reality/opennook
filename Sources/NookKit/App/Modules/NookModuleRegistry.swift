@@ -81,6 +81,15 @@ public final class NookModuleRegistry {
     /// ``NookModuleContext`` is built. See ``NookFilePicker``.
     public let filePicker: NookFilePicker
 
+    /// The host's live activities, shared across every module. Each module's ``AppServices``
+    /// gets its own view of it (``NookLiveActivitiesKey``), and a module's activities end when
+    /// it is unloaded. See ``NookActivityCenter``.
+    public let liveActivities = NookActivityCenter()
+
+    /// How the compact pill shares itself among live activities. See
+    /// ``NookHostConfiguration/activityPolicy``.
+    public let activityPolicy: NookActivityPolicy
+
     private var instances: [String: NookModule] = [:]
     private var contexts: [String: NookModuleContext] = [:]
 
@@ -94,7 +103,8 @@ public final class NookModuleRegistry {
         chromeTheme: NookTheme? = nil,
         chromeThemeSource: NookThemeSource? = nil,
         switcherPlacement: NookModuleSwitcherPlacement = .menuBar,
-        presentationPinning: NookPresentationPinning = NookPresentationPinning()
+        presentationPinning: NookPresentationPinning = NookPresentationPinning(),
+        activityPolicy: NookActivityPolicy = .standard
     ) {
         self.registrations = registrations
         self.defaultModuleID = defaultModuleID
@@ -106,6 +116,7 @@ public final class NookModuleRegistry {
         self.chromeThemeSource = chromeThemeSource
         self.switcherPlacement = switcherPlacement
         self.presentationPinning = presentationPinning
+        self.activityPolicy = activityPolicy
         self.filePicker = NookFilePicker(presentationPinning: presentationPinning)
     }
 
@@ -129,7 +140,8 @@ public final class NookModuleRegistry {
         let context = NookModuleContext.makeDefault(
             for: registration.descriptor,
             presentationPinning: presentationPinning,
-            filePicker: filePicker
+            filePicker: filePicker,
+            liveActivities: liveActivities
         )
         let module = registration.factory(context)
         contexts[id] = context
@@ -154,5 +166,7 @@ public final class NookModuleRegistry {
     public func unload(_ id: String) {
         instances.removeValue(forKey: id)
         contexts.removeValue(forKey: id)
+        // Its activities' views read the instance's state, which is gone.
+        liveActivities.endAll(moduleID: id)
     }
 }

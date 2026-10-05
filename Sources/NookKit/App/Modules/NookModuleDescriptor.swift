@@ -55,6 +55,12 @@ public struct NookModuleDescriptor: Identifiable, Sendable {
     /// What happens to the module when the user switches away from it.
     public var backgroundPolicy: BackgroundPolicy
 
+    /// Builds a ``BackgroundPolicy/stayResident`` module at launch, before it is ever shown, and
+    /// gives it its `onReady`, so it can run live activities from the background from the
+    /// start: a timer, a player, a download. `false` by default, which builds a module the first
+    /// time it is shown. Ignored for ``BackgroundPolicy/unloadOnSwitchAway``.
+    public var loadsAtLaunch: Bool = false
+
     /// Residency policy for a module that is not the foreground module.
     public enum BackgroundPolicy: Sendable {
         /// Tear the module down on switch-away; rebuild it on next activation. Cheapest;

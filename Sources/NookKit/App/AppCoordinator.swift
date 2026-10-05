@@ -138,6 +138,8 @@ public final class AppCoordinator: ObservableObject {
     /// Single setter for ``userInitiatedOpen`` that publishes through
     /// ``userInitiatedOpenSubject``. Idempotent: a no-op when the value is unchanged.
     private func setUserInitiatedOpen(_ value: Bool) {
+        // Opening the nook yourself shows the module's home, not an activity's view.
+        if value { clearActivityPresentation() }
         guard userInitiatedOpen != value else { return }
         userInitiatedOpen = value
         userInitiatedOpenSubject.send(value)
@@ -151,6 +153,17 @@ public final class AppCoordinator: ObservableObject {
     /// Follows the active configuration's ``NookConfiguration/companionSource``, replaced
     /// whenever the surface decorations are projected again.
     private var companionSourceSubscription: AnyCancellable?
+
+    /// The live activity whose peek is on the surface, by entry id, or `nil` when the peek is
+    /// the module's own (or there is none). See `AppCoordinator+Activities.swift`.
+    var peekOwnerActivity: String?
+
+    /// The breadcrumb this coordinator put up over a live activity's expanded view, so taking
+    /// the view down only takes down its own breadcrumb.
+    var activityBreadcrumb: String?
+
+    /// Subscriptions that keep the surface in step with the live activities.
+    var liveActivitySubscriptions: Set<AnyCancellable> = []
 
     /// Follows the host's and the displayed configuration's live chrome themes. Re-bound
     /// whenever the displayed configuration changes. See ``NookThemeSource``.
@@ -255,6 +268,7 @@ public final class AppCoordinator: ObservableObject {
                     ModuleRouterExpandedView(
                         moduleHost: moduleHost,
                         appState: appState,
+                        activities: moduleHost.registry.liveActivities,
                         toggleKeepOpen: { coordinatorBox.coordinator?.toggleKeepNookOpen() },
                         hide: { coordinatorBox.coordinator?.hideNook() },
                         resetAllSettings: { coordinatorBox.coordinator?.resetAllSettingsToDefaults() },
@@ -268,6 +282,7 @@ public final class AppCoordinator: ObservableObject {
                     ModuleRouterCompactView(
                         moduleHost: moduleHost,
                         appState: appState,
+                        activities: moduleHost.registry.liveActivities,
                         slot: .leading,
                         chromeActions: chromeActions
                     )
@@ -278,6 +293,7 @@ public final class AppCoordinator: ObservableObject {
                     ModuleRouterCompactView(
                         moduleHost: moduleHost,
                         appState: appState,
+                        activities: moduleHost.registry.liveActivities,
                         slot: .trailing,
                         chromeActions: chromeActions
                     )
@@ -368,6 +384,7 @@ public final class AppCoordinator: ObservableObject {
             )
 
         bindBackdropSynchronization()
+        bindLiveActivities()
         bindSystemAppearance(
             systemAppearanceChanges
                 ?? NSApplication.shared.publisher(for: \.effectiveAppearance)
@@ -492,6 +509,7 @@ public final class AppCoordinator: ObservableObject {
         // Hand the host a post-launch handle on the live coordinator (e.g. for
         // NookComponents' activity queue to bind itself as a transient presenter).
         fireModuleReadyIfNeeded()
+        loadModulesAtLaunch()
     }
 
     // MARK: - Module switching
@@ -744,9 +762,10 @@ public final class AppCoordinator: ObservableObject {
     ///
     /// The companions are the configuration's own followed by its ``NookConfiguration/companionSource``,
     /// which is followed from here on, so a change to the source reaches the surface at once.
-    private func applyModuleSurfaceDecorations(_ configuration: NookConfiguration) {
+    func applyModuleSurfaceDecorations(_ configuration: NookConfiguration) {
         let source = configuration.companionSource
-        projectCompanions(configuration.companions + (source?.companions ?? []), of: configuration)
+        let capsules = activityCapsuleCompanions(liveActivities.activities)
+        projectCompanions(configuration.companions + (source?.companions ?? []) + capsules, of: configuration)
         // `@Published` sends from `willSet` on the main actor, so the new list is passed along
         // rather than read back, and it lands in the same transaction as the change itself: a
         // change made inside `withAnimation` animates on the surface too.
@@ -754,7 +773,9 @@ public final class AppCoordinator: ObservableObject {
             .dropFirst()
             .sink { [weak self] companions in
                 MainActor.assumeIsolated {
-                    self?.projectCompanions(configuration.companions + companions, of: configuration)
+                    guard let self else { return }
+                    let capsules = self.activityCapsuleCompanions(self.liveActivities.activities)
+                    self.projectCompanions(configuration.companions + companions + capsules, of: configuration)
                 }
             }
         surface.rimGlowStyle = configuration.rimGlow
@@ -765,8 +786,12 @@ public final class AppCoordinator: ObservableObject {
     /// Hands the displayed module's peek view to the surface, wrapped in the chrome environment
     /// like the compact slots, or `nil` when the module has none: then a peek-first hover opens
     /// the nook rather than growing an empty pill.
-    private func projectPeek(_ configuration: NookConfiguration) {
-        guard let peek = configuration.peek else {
+    func projectPeek(_ configuration: NookConfiguration, activities entries: [NookActivityCenter.Entry]? = nil) {
+        // A live activity's peek comes first: one whose alert is showing, then the one holding
+        // the pill. The module's own peek otherwise.
+        let owner = peekActivity(entries ?? liveActivities.activities)
+        peekOwnerActivity = owner?.id
+        guard let peek = owner?.activity.peek ?? configuration.peek else {
             surface.peekContent = nil
             return
         }
@@ -804,7 +829,7 @@ public final class AppCoordinator: ObservableObject {
     /// A companion leaves its style, size, and presence unset to take the configuration's. A
     /// companion whose id an earlier one already has is dropped, since the id keys its hover
     /// tracking and its SwiftUI identity.
-    private func projectCompanions(_ companions: [NookCompanion], of configuration: NookConfiguration) {
+    func projectCompanions(_ companions: [NookCompanion], of configuration: NookConfiguration) {
         let appState = appState
         let services = moduleHost.displayedServices
         let branding = moduleHost.branding
@@ -939,6 +964,21 @@ public final class AppCoordinator: ObservableObject {
         guard !modulesGivenOnReady.contains(id) else { return }
         modulesGivenOnReady.insert(id)
         moduleHost.configuration.onReady?(self)
+    }
+
+    /// Builds every module that asks to load at launch (``NookModuleDescriptor/loadsAtLaunch``,
+    /// resident ones only) and gives it its `onReady`, so it can run live activities from the
+    /// background before it is ever shown. The active module has had its own already.
+    func loadModulesAtLaunch() {
+        let registry = moduleHost.registry
+        for descriptor in registry.descriptors
+        where descriptor.loadsAtLaunch && descriptor.backgroundPolicy == .stayResident {
+            guard !modulesGivenOnReady.contains(descriptor.id),
+                let module = registry.module(for: descriptor.id)
+            else { continue }
+            modulesGivenOnReady.insert(descriptor.id)
+            module.makeConfiguration().onReady?(self)
+        }
     }
 
     // MARK: - Display targeting

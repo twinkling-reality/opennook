@@ -206,6 +206,7 @@ public struct NookExpandedView: View {
             .environment(\.nookChromeTypography, typography)
             .environment(\.nookChromeSymbols, topBar.symbols)
             .environment(\.appServices, services)
+            .environment(\.nookLiveActivities, services.resolve(NookLiveActivitiesKey.self))
             // Expose `AppState` to the host-registered `home` surface so it can observe
             // chrome-level state (e.g. `isDragInFlight`) without each closure needing a
             // bespoke parameter.

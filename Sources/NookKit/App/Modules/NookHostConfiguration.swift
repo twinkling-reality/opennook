@@ -73,6 +73,11 @@ public struct NookHostConfiguration: Sendable {
     /// single-module host.
     public var moduleSwitcherPlacement: NookModuleSwitcherPlacement = .menuBar
 
+    /// How the compact pill shares itself among live activities: how many show in capsules
+    /// beside it, and on which side. ``NookActivityPolicy/standard`` (one capsule, trailing) by
+    /// default. See ``NookLiveActivity``.
+    public var activityPolicy: NookActivityPolicy = .standard
+
     /// Builds an empty host. Register at least one module via ``register(_:factory:)``
     /// or ``register(_:configuration:)`` before passing to `NookApp.main(_:)`.
     public init() {}
@@ -156,7 +161,8 @@ public struct NookHostConfiguration: Sendable {
             chromeTheme: chromeTheme,
             chromeThemeSource: chromeThemeSource,
             switcherPlacement: moduleSwitcherPlacement,
-            presentationPinning: NookPresentationPinning()
+            presentationPinning: NookPresentationPinning(),
+            activityPolicy: activityPolicy
         )
     }
 }
