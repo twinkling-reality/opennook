@@ -24,6 +24,7 @@ public struct NookShortcutSettingsSection: View {
     @Environment(\.nookResolvedTheme) private var theme
     @Environment(\.nookChromeMetrics) private var metrics
     @Environment(\.nookChromeActions) private var actions
+    @Environment(\.nookChromeLabels) private var labels
 
     public init(appState: AppState) {
         self.appState = appState
@@ -37,19 +38,19 @@ public struct NookShortcutSettingsSection: View {
             }
             SettingActionLine(
                 icon: appState.keepNookOpen ? "pin.fill" : "pin",
-                title: "Stay expanded",
+                title: labels.shortcut.stayExpandedTitle,
                 detail: appState.keepNookOpen
-                    ? "On — nook stays open after hover ends"
-                    : "Off — closes when the pointer leaves",
+                    ? labels.shortcut.stayExpandedOn
+                    : labels.shortcut.stayExpandedOff,
                 accent: theme.accent,
                 action: actions.toggleKeepOpen
             )
             SettingActionLine(
                 icon: appState.appearancePreferences.hapticFeedbackEnabled ? "hand.tap.fill" : "hand.tap",
-                title: "Haptic feedback",
+                title: labels.shortcut.hapticTitle,
                 detail: appState.appearancePreferences.hapticFeedbackEnabled
-                    ? "On — trackpad pulse on confirmation"
-                    : "Off — silent confirmation",
+                    ? labels.shortcut.hapticOn
+                    : labels.shortcut.hapticOff,
                 accent: theme.accent,
                 action: toggleHapticFeedback
             )
@@ -77,6 +78,7 @@ struct SettingsShortcutRow: View {
     @Environment(\.nookChromeMetrics) private var metrics
     @Environment(\.nookHostBranding) private var branding
     @Environment(\.nookChromeActions) private var actions
+    @Environment(\.nookChromeLabels) private var labels
     @State private var isRecording = false
     @State private var eventMonitor: Any?
 
@@ -88,15 +90,15 @@ struct SettingsShortcutRow: View {
                 .frame(width: metrics.settingsIconWidth)
 
             VStack(alignment: .leading, spacing: metrics.settingsTextSpacing) {
-                Text("Show \(branding.hostName)")
+                Text(labels.shortcut.showHost(branding.hostName))
                     .font(typography.settingsRowTitle)
                     .foregroundStyle(theme.primaryLabel.opacity(metrics.settingsTitleEmphasisOpacity))
                 if let failure = appState.hotkeyRegistrationFailures[NookHotkeyIDs.toggle] {
-                    Text(failure.message)
+                    Text(labels.shortcut.unavailable(failure.combination))
                         .font(typography.settingsHint)
                         .foregroundStyle(theme.warning)
                 } else {
-                    Text(isRecording ? "Press a shortcut — Esc to cancel" : "Global shortcut — click to change")
+                    Text(isRecording ? labels.shortcut.recordingHint : labels.shortcut.changeHint)
                         .font(typography.settingsHint)
                         .foregroundStyle(theme.tertiaryLabel)
                 }
@@ -106,7 +108,7 @@ struct SettingsShortcutRow: View {
 
             Button(action: toggleRecording) {
                 if isRecording {
-                    Text("Listening…")
+                    Text(labels.shortcut.listening)
                         .font(typography.settingsFieldLabel)
                         .foregroundStyle(theme.primaryLabel.opacity(metrics.settingsRecordingLabelOpacity))
                         .padding(.horizontal, metrics.settingsRecordingHorizontalPadding)
@@ -131,10 +133,9 @@ struct SettingsShortcutRow: View {
         .padding(.vertical, metrics.settingsRowVerticalPadding)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
-            "Show \(branding.hostName) shortcut, "
-                + "currently \(appState.hotkey.displaySymbols.joined(separator: " "))"
+            labels.shortcut.rowAccessibilityLabel(host: branding.hostName, keys: appState.hotkey.displaySymbols)
         )
-        .accessibilityHint("Activates to record a new shortcut")
+        .accessibilityHint(labels.shortcut.rowAccessibilityHint)
         .onDisappear { stopRecording() }
     }
 
@@ -190,6 +191,7 @@ struct SettingsHotkeyFailureRow: View {
     @Environment(\.nookResolvedTheme) private var theme
     @Environment(\.nookChromeTypography) private var typography
     @Environment(\.nookChromeMetrics) private var metrics
+    @Environment(\.nookChromeLabels) private var labels
 
     /// Failures for every shortcut except the show/hide toggle, sorted for stable order.
     private var staticFailures: [HotkeyRegistrationFailure] {
@@ -211,14 +213,14 @@ struct SettingsHotkeyFailureRow: View {
                         VStack(alignment: .leading, spacing: metrics.settingsTextSpacing) {
                             Text(failure.shortcutName)
                                 .font(typography.settingsRowTitle)
-                            Text(failure.message)
+                            Text(labels.shortcut.unavailable(failure.combination))
                                 .font(typography.settingsHint)
                                 .foregroundStyle(theme.warning)
                         }
                         Spacer(minLength: 8)
                     }
                     .accessibilityElement(children: .combine)
-                    .accessibilityLabel("\(failure.shortcutName) shortcut unavailable: \(failure.message)")
+                    .accessibilityLabel(labels.shortcut.failureAccessibilityLabel(failure))
                 }
             }
             .padding(.vertical, metrics.settingsRowVerticalPadding)

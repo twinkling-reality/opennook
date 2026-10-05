@@ -25,6 +25,7 @@ public struct NookVolumeIndicator: View {
     @Environment(\.nookResolvedTheme) private var theme
     @Environment(\.nookChromeTypography) private var typography
     @Environment(\.nookChromeMetrics) private var metrics
+    @Environment(\.nookChromeLabels) private var labels
 
     public init(observer: SystemVolumeObserver) {
         self.observer = observer
@@ -37,8 +38,8 @@ public struct NookVolumeIndicator: View {
             .frame(width: metrics.compactSlotSize, height: metrics.compactSlotSize)
             .accessibilityLabel(
                 observer.isMuted
-                    ? "Volume muted"
-                    : "Volume \(Int((observer.volume * 100).rounded())) percent"
+                    ? labels.components.volumeMuted
+                    : labels.components.volumeLevel(percent: Int((observer.volume * 100).rounded()))
             )
     }
 

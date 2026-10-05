@@ -22,6 +22,7 @@ public struct NookPlaceholderHomeView: View {
     @Environment(\.nookChromeTypography) private var typography
     @Environment(\.nookChromeMetrics) private var metrics
     @Environment(\.nookHostBranding) private var branding
+    @Environment(\.nookChromeLabels) private var labels
 
     public init() {}
 
@@ -35,7 +36,7 @@ public struct NookPlaceholderHomeView: View {
             Text(branding.hostName)
                 .font(typography.placeholderTitle)
                 .foregroundStyle(theme.primaryLabel)
-            Text("Register your own view with NookConfiguration to start building.")
+            Text(labels.placeholderMessage)
                 .font(typography.placeholderBody)
                 .foregroundStyle(theme.tertiaryLabel)
         }

@@ -25,6 +25,7 @@ public struct NookDisplaySettingsSection: View {
     @Environment(\.nookResolvedTheme) private var theme
     @Environment(\.nookChromeTypography) private var typography
     @Environment(\.nookChromeMetrics) private var metrics
+    @Environment(\.nookChromeLabels) private var labels
 
     @State private var displays: [NookScreenLocator.DisplayInfo] = NookScreenLocator.connectedDisplays()
 
@@ -38,9 +39,9 @@ public struct NookDisplaySettingsSection: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: metrics.settingsFieldSpacing) {
-            Picker("Display", selection: selectionBinding) {
-                Text("Built-in display").tag(Self.builtInTag)
-                Text("Display with active menu bar").tag(Self.mainTag)
+            Picker(labels.display.pickerTitle, selection: selectionBinding) {
+                Text(labels.display.builtIn).tag(Self.builtInTag)
+                Text(labels.display.main).tag(Self.mainTag)
                 if !specificOptions.isEmpty {
                     Divider()
                     ForEach(specificOptions, id: \.tag) { option in
@@ -51,7 +52,7 @@ public struct NookDisplaySettingsSection: View {
             .pickerStyle(.menu)
             .labelsHidden()
             .controlSize(.small)
-            .accessibilityLabel("Display")
+            .accessibilityLabel(labels.display.pickerTitle)
 
             Text(descriptionText)
                 .font(typography.settingsCaption)
@@ -68,16 +69,16 @@ public struct NookDisplaySettingsSection: View {
     private var descriptionText: String {
         switch appState.displayPreference.mode {
             case .builtIn:
-                return "The chrome stays on the built-in (notched) display."
+                return labels.display.builtInDetail
             case .main:
-                return "The chrome follows the display that currently hosts the menu bar."
+                return labels.display.mainDetail
             case .specific:
                 let connected =
                     appState.displayPreference.displayUUID
                     .map { uuid in displays.contains { $0.uuid == uuid } } ?? false
                 return connected
-                    ? "The chrome is pinned to a specific display."
-                    : "The chosen display isn't connected — using the built-in display until it returns."
+                    ? labels.display.specificDetail
+                    : labels.display.specificDisconnectedDetail
         }
     }
 
@@ -91,7 +92,7 @@ public struct NookDisplaySettingsSection: View {
             let uuid = appState.displayPreference.displayUUID,
             !displays.contains(where: { $0.uuid == uuid })
         {
-            options.append((tag: Self.specificTagPrefix + uuid, label: "Saved display (not connected)"))
+            options.append((tag: Self.specificTagPrefix + uuid, label: labels.display.savedDisconnected))
         }
         return options
     }

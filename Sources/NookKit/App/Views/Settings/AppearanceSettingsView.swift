@@ -14,6 +14,7 @@ public struct NookAppearanceSettingsSection: View {
     @Environment(\.nookResolvedTheme) private var theme
     @Environment(\.nookChromeTypography) private var typography
     @Environment(\.nookChromeMetrics) private var metrics
+    @Environment(\.nookChromeLabels) private var labels
 
     public init(appState: AppState) {
         self.appState = appState
@@ -21,11 +22,14 @@ public struct NookAppearanceSettingsSection: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: metrics.settingsBlockSpacing) {
-            labeledPicker(title: "Theme", accessibilityLabel: "Theme") {
-                Picker("Theme", selection: chromePaletteBinding) {
-                    Text("Match Mac").tag(NookChromePalette.followSystem)
-                    Text("Dark").tag(NookChromePalette.dark)
-                    Text("Light").tag(NookChromePalette.light)
+            labeledPicker(
+                title: labels.appearance.themeTitle,
+                accessibilityLabel: labels.appearance.themeAccessibilityLabel
+            ) {
+                Picker(labels.appearance.themeTitle, selection: chromePaletteBinding) {
+                    Text(labels.appearance.themeFollowSystem).tag(NookChromePalette.followSystem)
+                    Text(labels.appearance.themeDark).tag(NookChromePalette.dark)
+                    Text(labels.appearance.themeLight).tag(NookChromePalette.light)
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
@@ -33,11 +37,14 @@ public struct NookAppearanceSettingsSection: View {
             }
 
             VStack(alignment: .leading, spacing: metrics.settingsFieldSpacing) {
-                labeledPicker(title: "Surface", accessibilityLabel: "Chrome surface") {
-                    Picker("Surface", selection: surfaceStyleBinding) {
-                        Text("Solid").tag(NookSurfaceStyle.solid)
-                        Text("Translucent").tag(NookSurfaceStyle.translucent)
-                        Text("Liquid Glass").tag(NookSurfaceStyle.liquidGlass)
+                labeledPicker(
+                    title: labels.appearance.surfaceTitle,
+                    accessibilityLabel: labels.appearance.surfaceAccessibilityLabel
+                ) {
+                    Picker(labels.appearance.surfaceTitle, selection: surfaceStyleBinding) {
+                        Text(labels.appearance.surfaceSolid).tag(NookSurfaceStyle.solid)
+                        Text(labels.appearance.surfaceTranslucent).tag(NookSurfaceStyle.translucent)
+                        Text(labels.appearance.surfaceLiquidGlass).tag(NookSurfaceStyle.liquidGlass)
                     }
                     .pickerStyle(.segmented)
                     .labelsHidden()
@@ -51,11 +58,14 @@ public struct NookAppearanceSettingsSection: View {
             }
 
             VStack(alignment: .leading, spacing: metrics.settingsFieldSpacing) {
-                labeledPicker(title: "Layout", accessibilityLabel: "Chrome layout") {
-                    Picker("Layout", selection: presentationBinding) {
-                        Text("Auto").tag(NookPresentation.auto)
-                        Text("Notch").tag(NookPresentation.notch)
-                        Text("Floating").tag(NookPresentation.floating)
+                labeledPicker(
+                    title: labels.appearance.layoutTitle,
+                    accessibilityLabel: labels.appearance.layoutAccessibilityLabel
+                ) {
+                    Picker(labels.appearance.layoutTitle, selection: presentationBinding) {
+                        Text(labels.appearance.layoutAuto).tag(NookPresentation.auto)
+                        Text(labels.appearance.layoutNotch).tag(NookPresentation.notch)
+                        Text(labels.appearance.layoutFloating).tag(NookPresentation.floating)
                     }
                     .pickerStyle(.segmented)
                     .labelsHidden()
@@ -69,7 +79,7 @@ public struct NookAppearanceSettingsSection: View {
             }
 
             VStack(alignment: .leading, spacing: metrics.settingsFieldSpacing) {
-                Text("Accent")
+                Text(labels.appearance.accentTitle)
                     .font(typography.settingsFieldLabel)
                     .foregroundStyle(theme.secondaryLabel)
                 HStack(spacing: metrics.settingsInlineSpacing) {
@@ -94,7 +104,7 @@ public struct NookAppearanceSettingsSection: View {
                                 )
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel(preset.displayName)
+                        .accessibilityLabel(labels.appearance.accentName(preset))
                     }
                 }
             }
@@ -107,7 +117,7 @@ public struct NookAppearanceSettingsSection: View {
                     Slider(value: backdropStrengthBinding, in: NookAppearancePreferences.backdropStrengthRange)
                         .controlSize(.small)
                         .accessibilityLabel(strengthLabel)
-                    Text("Lower shows more wallpaper through the chrome.")
+                    Text(labels.appearance.strengthDetail)
                         .font(typography.settingsCaption)
                         .foregroundStyle(theme.tertiaryLabel)
                         .fixedSize(horizontal: false, vertical: true)
@@ -119,27 +129,27 @@ public struct NookAppearanceSettingsSection: View {
     private var surfaceStyleDescription: String {
         switch surfaceStyleBinding.wrappedValue {
             case .solid:
-                return "Solid paints the chrome the same color as the notch — true black on dark, true white on light."
+                return labels.appearance.surfaceSolidDetail
             case .translucent:
-                return "Translucent shows the wallpaper through a frosted material."
+                return labels.appearance.surfaceTranslucentDetail
             case .liquidGlass:
-                return "Liquid Glass refracts the wallpaper through Apple's glass material on macOS 26, "
-                    + "with a frosted-glass fallback on earlier versions."
+                return labels.appearance.surfaceLiquidGlassDetail
         }
     }
 
     private var strengthLabel: String {
-        surfaceStyleBinding.wrappedValue == .liquidGlass ? "Glass strength" : "Translucency strength"
+        surfaceStyleBinding.wrappedValue == .liquidGlass
+            ? labels.appearance.glassStrengthTitle : labels.appearance.translucencyStrengthTitle
     }
 
     private var presentationDescription: String {
         switch presentationBinding.wrappedValue {
             case .auto:
-                return "Auto uses the notch shape on a notched display and a floating panel on any other."
+                return labels.appearance.layoutAutoDetail
             case .notch:
-                return "Notch always uses the notch shape, even on a display without one."
+                return labels.appearance.layoutNotchDetail
             case .floating:
-                return "Floating always shows a free-standing panel below the menu bar."
+                return labels.appearance.layoutFloatingDetail
         }
     }
 

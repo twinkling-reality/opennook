@@ -90,13 +90,14 @@ struct SettingsDataCommandRow: View {
 /// ```
 public struct NookResetSettingsSection: View {
     @Environment(\.nookChromeActions) private var actions
+    @Environment(\.nookChromeLabels) private var labels
 
     public init() {}
 
     public var body: some View {
         SettingsDataCommandRow(
-            title: "Reset All Settings",
-            subtitle: "Theme, surface, layout, display, hotkey, stay expanded",
+            title: labels.settings.resetTitle,
+            subtitle: labels.settings.resetDetail,
             icon: "arrow.counterclockwise",
             style: .standard,
             action: actions.resetSettings
@@ -124,18 +125,13 @@ struct SettingsAboutCard: View {
     @Environment(\.nookChromeTypography) private var typography
     @Environment(\.nookChromeMetrics) private var metrics
     @Environment(\.nookHostBranding) private var branding
+    @Environment(\.nookChromeLabels) private var labels
 
     /// Reads `CFBundleShortVersionString` from the running bundle. The SPM `swift run`
     /// build has no `Info.plist` on disk, so it falls back to the package version.
     private var version: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.1.0"
     }
-
-    /// Default tagline used when the host has not overridden ``NookHostBranding/hostTagline``.
-    /// References OpenNook as the framework, not the host product - the host's
-    /// own marketing copy belongs in a `hostTagline` override.
-    private static let defaultTagline =
-        "A demo notch app built with OpenNook, an open-source framework for macOS notch apps."
 
     var body: some View {
         HStack(alignment: .top, spacing: metrics.settingsRowSpacing) {
@@ -151,11 +147,13 @@ struct SettingsAboutCard: View {
                     Text(branding.hostName)
                         .font(typography.settingsEmphasis)
                         .foregroundStyle(theme.primaryLabel.opacity(metrics.settingsTitleEmphasisOpacity))
-                    Text("v\(version)")
+                    Text(labels.settings.version(version))
                         .font(typography.settingsVersionLabel)
                         .foregroundStyle(theme.tertiaryLabel)
                 }
-                Text(branding.hostTagline ?? Self.defaultTagline)
+                // The default tagline references OpenNook as the framework, not the host
+                // product - the host's own copy belongs in a `hostTagline` override.
+                Text(branding.hostTagline ?? labels.settings.defaultTagline)
                     .font(typography.settingsCaption)
                     .foregroundStyle(theme.secondaryLabel)
                     .fixedSize(horizontal: false, vertical: true)
