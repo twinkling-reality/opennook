@@ -96,7 +96,7 @@ final class PlaygroundSwiftExporterTests: XCTestCase {
         )
     }
 
-    func testThemeExportsOverridesOnTheLivePalette() {
+    func testThemeExportsAChromeTheme() {
         var theme = PlaygroundSettings.Theme()
         XCTAssertEqual(Exporter.themeLines(theme), [])
 
@@ -105,19 +105,26 @@ final class PlaygroundSwiftExporterTests: XCTestCase {
         XCTAssertEqual(
             Exporter.themeLines(theme),
             [
-                "// The live palette, which follows the user's palette and accent, with overrides.",
-                "configuration.theme = { appState in",
-                "    var theme = NookResolvedTheme.live(appState: appState)",
-                "    theme.accent = Color(red: 0, green: 0.502, blue: 1)",
-                "    theme.headerInactiveIcon = Color(red: 1, green: 1, blue: 1, opacity: 0.2)",
-                "    return theme",
-                "}",
+                "// The chrome theme. A color left out follows the user's palette, and the accent follows",
+                "// the user's accent choice when they make one.",
+                "var theme = NookTheme()",
+                "theme.accent = \"#0080FF\"",
+                "theme.tokens[.iconInactive] = \"#FFFFFF33\"",
+                "configuration.chromeTheme = theme",
             ]
         )
 
         theme = PlaygroundSettings.Theme()
         theme.fontDesign = .monospaced
-        XCTAssertEqual(Exporter.themeLines(theme)[3], "    theme.fontDesign = .monospaced")
+        theme.radius = 1.5
+        theme.scale = 1.1
+        theme.motion = .calm
+        theme.destructive = PlaygroundColor(red: 1, green: 0, blue: 0)
+        XCTAssertEqual(
+            Exporter.themeLines(theme)[2],
+            "var theme = NookTheme(radius: .factor(1.5), scale: 1.1, fontDesign: .monospaced, motion: .calm)"
+        )
+        XCTAssertEqual(Exporter.themeLines(theme)[3], "theme.tokens[.destructive] = \"#FF0000\"")
     }
 
     func testPanelExportsTheWidthAndOnlyTheStyleValuesThatChanged() {

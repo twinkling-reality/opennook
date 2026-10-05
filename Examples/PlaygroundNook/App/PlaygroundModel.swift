@@ -314,6 +314,17 @@ final class PlaygroundModel: ObservableObject {
         if announcing { flash("Copied the preset") }
     }
 
+    /// Copies the theme part of the settings as a framework theme file, which any host loads
+    /// with `NookTheme(contentsOf:)` or follows with `NookThemeSource.watching(fileAt:)`.
+    func copyThemeJSON() {
+        do {
+            copy(try NookThemeCoder.encodeString(settings.theme.nookTheme))
+            flash("Copied the theme")
+        } catch {
+            alertMessage = error.localizedDescription
+        }
+    }
+
     func pasteJSON() {
         guard let text = NSPasteboard.general.string(forType: .string) else {
             alertMessage = "The clipboard has no text to read a preset from."

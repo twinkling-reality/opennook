@@ -62,6 +62,17 @@ struct PresetsPage: View {
                     }
                     .buttonStyle(PillButtonStyle())
                 }
+                ControlRow(
+                    title: "Theme",
+                    help: "The Theme page as a NookTheme file, which a host loads with NookTheme(contentsOf:)."
+                ) {
+                    Button {
+                        model.copyThemeJSON()
+                    } label: {
+                        Label("Copy", systemImage: "doc.on.doc")
+                    }
+                    .buttonStyle(PillButtonStyle())
+                }
                 ControlRow(title: "Import", help: "Apply a preset from the clipboard or a file. You can undo it.") {
                     HStack(spacing: 8) {
                         Button(action: model.pasteJSON) {

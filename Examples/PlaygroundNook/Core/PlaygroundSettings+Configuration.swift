@@ -24,12 +24,7 @@ extension PlaygroundSettings {
         configuration.setHome(home)
 
         if theme != Theme() {
-            let theme = theme
-            configuration.theme = { appState in
-                var resolved = NookResolvedTheme.live(appState: appState)
-                theme.apply(to: &resolved)
-                return resolved
-            }
+            configuration.chromeTheme = theme.nookTheme
         }
 
         if panel.expandedWidth != Panel().expandedWidth {

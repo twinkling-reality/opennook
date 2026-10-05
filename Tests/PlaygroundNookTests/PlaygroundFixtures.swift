@@ -106,14 +106,12 @@ enum PlaygroundFixtures {
             )
         )
 
-        // The live palette, which follows the user's palette and accent, with overrides.
-        configuration.theme = { appState in
-            var theme = NookResolvedTheme.live(appState: appState)
-            theme.accent = Color(red: 1, green: 0.502, blue: 0)
-            theme.primaryLabel = Color(red: 1, green: 1, blue: 1, opacity: 0.902)
-            theme.fontDesign = .rounded
-            return theme
-        }
+        // The chrome theme. A color left out follows the user's palette, and the accent follows
+        // the user's accent choice when they make one.
+        var theme = NookTheme(fontDesign: .rounded)
+        theme.accent = "#FF8000"
+        theme.tokens[.labelPrimary] = "#FFFFFFE6"
+        configuration.chromeTheme = theme
 
         configuration.expandedWidth = 440
         configuration.style = NookConfiguration.defaultStyle
