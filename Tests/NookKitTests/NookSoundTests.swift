@@ -254,7 +254,10 @@ final class NookSoundTests: XCTestCase {
 
     func testSoundsAreOnByDefaultAndDecodeForwardCompatibly() throws {
         XCTAssertTrue(NookAppearancePreferences.default.soundsEnabled)
-        let older = try JSONDecoder().decode(NookAppearancePreferences.self, from: Data(#"{"chromePalette":"dark"}"#.utf8))
+        let older = try JSONDecoder().decode(
+            NookAppearancePreferences.self,
+            from: Data(#"{"chromePalette":"dark"}"#.utf8)
+        )
         XCTAssertTrue(older.soundsEnabled)
 
         let off = NookAppearancePreferences(soundsEnabled: false)

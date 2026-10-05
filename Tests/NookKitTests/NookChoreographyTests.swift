@@ -117,9 +117,10 @@ final class NookChoreographyTests: XCTestCase {
         let result = try NookThemeCoder.decode(json)
         XCTAssertEqual(result.issues, [])
         let tokens = result.theme.resolvedTokens()
-        let expected = choreographedTheme().resolvedTokens()
-        XCTAssertEqual(tokens.transitionConfiguration.expandedContentTransition, expected.transitionConfiguration.expandedContentTransition)
-        XCTAssertEqual(tokens.transitionConfiguration.expandedContentRemoval, expected.transitionConfiguration.expandedContentRemoval)
+        let transitions = tokens.transitionConfiguration
+        let expected = choreographedTheme().resolvedTokens().transitionConfiguration
+        XCTAssertEqual(transitions.expandedContentTransition, expected.expandedContentTransition)
+        XCTAssertEqual(transitions.expandedContentRemoval, expected.expandedContentRemoval)
         XCTAssertEqual(tokens[.headerDelay], 0.3, accuracy: 1e-9)
         XCTAssertEqual(tokens[.stagger], 0.035, accuracy: 1e-9)
         XCTAssertEqual(tokens.sound(.open), .system("Pop", volume: 0.4))
