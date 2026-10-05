@@ -118,6 +118,16 @@ navigation. The module observes the clear and pops its own sub-state:
 }
 ```
 
+The breadcrumb belongs to the module that set it. A module switch parks the
+outgoing module's breadcrumb and clears the property for the incoming one, so a
+drill-in label never shows over another module's content. Switching back to a
+`.stayResident` module brings its breadcrumb back with it; an
+`.unloadOnSwitchAway` module is rebuilt at its root, so its breadcrumb is
+dropped. A background module whose urgent claim is on screen (see [Background
+policy](#background-policy)) gets the same treatment while it is shown. Set the
+property from the module's own views, which are only on screen while it is the
+module shown.
+
 This is a soft state hint, not a view-mode change. It does not affect
 `AppState.viewMode` or the home/Settings routing - a breadcrumb can be set while
 the home view is showing, and entering Settings takes over the same leading slot
@@ -334,24 +344,36 @@ without the host registration.
 
 A module switch flips identity inside a single serial transaction, so the
 user sees the incoming module immediately - no half-applied state, no flash of
-the outgoing chrome with the incoming content.
+the outgoing chrome with the incoming content. The outgoing module is then
+finished in the background, in the order `NookModule` documents:
+`prepareForSwitchAway`, then `onDeactivate`, then the unload its background
+policy asks for. Both policies get the same order.
 
 For one switch from A to B, the framework:
 
-1. Calls `A.onDeactivate()` on the outgoing module (synchronous, cheap
-   cleanup).
+1. Invalidates `A`'s surface claims and denies it new ones until step 6 is
+   done, so nothing `A` still has in flight can take the surface.
 2. Calls `B.onActivate()` on the incoming module (the new module is now
    foreground).
 3. Builds `B`'s `NookConfiguration` from `makeConfiguration()` and re-publishes
    it to the surface, which re-wires its hooks and runs `onReady` for the new
    module.
-4. Drops `A`'s instance and context when `A.descriptor.backgroundPolicy` is
+4. Awaits `A.prepareForSwitchAway()` in a follow-on task, bounded by a
+   2-second timeout, so it runs without blocking the user-visible switch.
+5. Calls `A.onDeactivate()` (synchronous, cheap cleanup).
+6. Drops `A`'s instance and context when `A.descriptor.backgroundPolicy` is
    `.unloadOnSwitchAway` (the default), so the next activation rebuilds it from
-   scratch.
-5. Awaits `A.prepareForSwitchAway()` in a detached follow-on task, bounded by
-   a 2-second timeout. The surface arbiter already treats `A`'s in-flight
-   claims as stale, so this drain runs under the covers without blocking the
-   user-visible switch.
+   scratch and runs its `onReady` again.
+
+Steps 4 to 6 run after `B` is already on screen, so `B.onActivate()` comes
+before `A.onDeactivate()`. Don't hand one resource back and forth between the
+two hooks of different modules; give each module its own.
+
+Switches are serialized, and a rapid A to B to A stays safe: if the user
+switches back to `A` before its switch away has finished, steps 5 and 6 are
+skipped for it - `A` stays loaded and gets `onActivate()` again without an
+`onDeactivate()` in between, which `onActivate` must already tolerate (see
+below).
 
 The async seam matters when a module owns a transient surface presenter -
 typically a `NookActivityQueue` (see the [Activity queue
@@ -413,6 +435,16 @@ switch-away:
   priority is `.urgent` - background modules cannot quietly take over the
   surface from the foreground one.
 
+While a background module's urgent claim is on top, the surface shows *that*
+module: its home, compact slots, companions, theme, and services, built from
+its `makeConfiguration()`, and a leading-cluster switcher labels it. The
+foreground module stays the active one - nothing is switched, the menu-bar
+check stays on it, and the surface's lifecycle hooks (`onExpand`, `onCompact`,
+`onHide`, file drop) stay its own. When the claim
+ends the surface restores to its earlier state and then goes back to the
+foreground module's content. If a higher-priority claim from another module
+preempts it, the surface shows the preempting module until that claim ends.
+
 ## Host branding
 
 The framework chrome - About card, show/hide hotkey label, menu-bar fallback -
@@ -452,8 +484,8 @@ silently alias across modules and undo the isolation guarantee.
 
 ### Owning a `NookActivityQueue`? Implement `prepareForSwitchAway`
 
-A module that holds a transient surface presenter must drain it before the
-switch completes, or its dangling surface claim can outlive the switch. See
+A module that holds a transient surface presenter must drain it before it is
+deactivated and unloaded, or its dangling surface claim can outlive the switch. See
 the [Activity queue guide](/guides/activity-queue/) for the full pattern.
 
 ## See also

@@ -50,12 +50,16 @@ scheme, and whether Reduce Transparency is on.
 - **`.translucent`** paints a frosted `NSVisualEffectView` sidebar material
   sampling the wallpaper behind the window, with a legibility darken pass
   composited on top. The darken scales with `backdropStrength` (the Settings
-  "Translucency strength" slider) so the user can let more wallpaper through.
+  "Translucency strength" slider, `0.15` to `1`; the mapping clamps any other
+  value into that range) so the user can let more wallpaper through.
 - **`.liquidGlass`** paints Apple's Liquid Glass material on macOS 26 (Tahoe)
   and later, and a layered approximation on earlier systems. The default mapping
-  uses neutral, untinted glass - the real material refracts the wallpaper on its
-  own - with a light top-to-bottom darken so the surface reads glassier as it
-  nears the wallpaper.
+  tints the glass toward the resolved theme - black for dark chrome, white for
+  light - because the real material otherwise flips its own light/dark treatment
+  to match the wallpaper and can end up fighting the chrome's text. It adds a
+  matching top-to-bottom scrim that tapers toward the bottom, so the surface
+  reads glassier as it nears the wallpaper. Both scale with `backdropStrength`
+  (the Settings "Glass strength" slider).
 
 ## Liquid Glass in depth
 

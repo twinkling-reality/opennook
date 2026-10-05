@@ -239,6 +239,39 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `onChange(of:)` overload, and doc comment links that could not resolve (links to
   another module or to internal symbols) are plain code, so the DocC build is
   clean too.
+- `NookModule.prepareForSwitchAway()` now runs for every module switched away from,
+  in its documented order: `prepareForSwitchAway()`, then `onDeactivate()`, then the
+  unload the background policy asks for. A module with the default
+  `.unloadOnSwitchAway` policy was unloaded first and never got the call, so an
+  owned `NookActivityQueue` was never quiesced; a `.stayResident` module got it after
+  `onDeactivate()`. The incoming module is still on screen at once, so its
+  `onActivate()` now comes before the outgoing module's `onDeactivate()`. A module
+  being switched away from is denied new surface claims until it is finished, and a
+  quick switch back to it leaves it loaded and active.
+- A background module's `.urgent` surface claim now shows that module's home,
+  compact slots, companions, theme, and services while it is on top, and the surface
+  goes back to the foreground module when the claim ends. It used to expand the
+  surface onto the foreground module's content.
+- `AppState.moduleBreadcrumb` no longer leaks from one module into the next. It
+  belongs to the module whose content is on screen: a switch parks the outgoing
+  module's breadcrumb, a `.stayResident` module gets its own back when the user
+  returns, and an unloaded module's is dropped.
+- Compact slot content gets the same chrome environment as expanded content and
+  companions: the module's `\.appServices`, `\.nookHostBranding`, the chrome labels
+  and motion, the theme's accent as the tint, the palette's color-scheme override,
+  and active-looking controls on the non-activating panel.
+- The default compact trailing glyph and the placeholder home draw the host's
+  `NookHostBranding.mark`, as the documentation said, and the placeholder home titles
+  itself with `hostName`. Without a host mark they look as before.
+- Under the follow-system palette, a macOS light/dark switch re-resolves the backdrop
+  and re-renders the theme right away; they used to stay stale until the next expand
+  or collapse. A Reduce Transparency change now re-renders the theme too.
+- The Settings backdrop strength slider covers `0.15` to `1`, the range the backdrop
+  mapping clamps to. It stopped at `0.35`.
+- Documentation: Surface materials said the default Liquid Glass is untinted (it is
+  tinted toward the theme); the Theming preferences listing lacked `accentPreset` and
+  `backdropStrength` and named the presentation cases wrongly; the backdrop resolver
+  docs left out Liquid Glass; the launch-seed and brand-mark lists were incomplete.
 
 ## [0.4.0] - 2026-06-29
 

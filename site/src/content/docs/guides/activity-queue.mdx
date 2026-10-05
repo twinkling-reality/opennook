@@ -125,7 +125,9 @@ Priority is also what gates a backgrounded module's claims. In a multi-module
 host, only a `.high` claim from a non-foreground module can take over the
 surface from the foreground one - lower priorities are denied at the arbiter.
 This is the seam that lets background modules surface their own urgent events
-without quietly stealing the surface for ambient ones.
+without quietly stealing the surface for ambient ones. While such a claim is on
+screen the surface shows the claiming module's own content, so its
+`NookActivityHost` card is what the user sees.
 
 ## Coalescing
 
@@ -212,7 +214,9 @@ A few details that matter:
   the queue falls back to the active module at bind time.
 - `prepareForSwitchAway` is async; `onDeactivate` is synchronous. Use the
   async seam when you need to *join* in-flight work, the sync seam for cheap
-  cleanup (timers, observers).
+  cleanup (timers, observers). `prepareForSwitchAway` runs first, for both
+  background policies, while the module is still loaded; `onDeactivate` and any
+  unload follow once it returns.
 - The framework bounds `prepareForSwitchAway` to a 2-second timeout. The
   surface arbiter already treats the outgoing module's claims as stale, so a
   misbehaving drain can't strand the user-visible switch - but you should not
