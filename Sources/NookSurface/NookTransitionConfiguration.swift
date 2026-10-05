@@ -83,6 +83,20 @@ public struct NookTransitionConfiguration: Sendable {
     /// last held-back view has started arriving. 0, the default, adds nothing.
     public var expandedEntranceDuration: TimeInterval
 
+    /// How the peek content arrives, and leaves unless ``peekContentRemoval`` says otherwise.
+    /// Its scale runs vertically, anchored on the top edge, so the peek unfolds from the
+    /// compact slots. Defaults to ``NookContentTransition/standardPeek``.
+    public var peekContentTransition: NookContentTransition
+
+    /// How the peek content leaves, when that differs from how it arrives. `nil` (the default)
+    /// plays ``peekContentTransition`` in reverse. Its ``NookContentTransition/delay`` is
+    /// ignored: leaving never waits.
+    public var peekContentRemoval: NookContentTransition?
+
+    /// The curve the pill grows into its peek region and back on. `nil` (the default) uses
+    /// ``conversionAnimation``, or the surface's built-in conversion curve.
+    public var peekAnimation: Animation?
+
     public init(
         openingAnimation: Animation? = nil,
         closingAnimation: Animation? = nil,
@@ -94,7 +108,10 @@ public struct NookTransitionConfiguration: Sendable {
         expandedContentTransition: NookContentTransition = .standardExpanded,
         compactContentRemoval: NookContentTransition? = nil,
         expandedContentRemoval: NookContentTransition? = nil,
-        expandedEntranceDuration: TimeInterval = 0
+        expandedEntranceDuration: TimeInterval = 0,
+        peekContentTransition: NookContentTransition = .standardPeek,
+        peekContentRemoval: NookContentTransition? = nil,
+        peekAnimation: Animation? = nil
     ) {
         self.openingAnimation = openingAnimation
         self.closingAnimation = closingAnimation
@@ -107,6 +124,9 @@ public struct NookTransitionConfiguration: Sendable {
         self.compactContentRemoval = compactContentRemoval
         self.expandedContentRemoval = expandedContentRemoval
         self.expandedEntranceDuration = expandedEntranceDuration.isFinite ? max(expandedEntranceDuration, 0) : 0
+        self.peekContentTransition = peekContentTransition
+        self.peekContentRemoval = peekContentRemoval
+        self.peekAnimation = peekAnimation
     }
 }
 
@@ -162,6 +182,9 @@ public struct NookContentTransition: Equatable, Sendable {
 
     /// The built-in expanded content transition: blur 6, unfold from 72% height, fade.
     public static let standardExpanded = NookContentTransition(blurRadius: 6, scale: 0.72)
+
+    /// The built-in peek content transition: blur 4, unfold from 90% height, fade.
+    public static let standardPeek = NookContentTransition(blurRadius: 4, scale: 0.9)
 
     /// A plain fade.
     public static let opacity = NookContentTransition()

@@ -89,6 +89,19 @@ public struct NookStyle: Equatable, Sendable {
     /// default. See ``NookOutline`` for what a custom outline must keep true.
     public var outline: NookOutline
 
+    /// The bottom corner radius while the compact pill shows its peek region, in both forms.
+    /// 22 by default, between the compact pill's and the expanded chrome's. The top keeps the
+    /// compact pill's radius, so the pill grows down without its ears moving.
+    public var peekBottomCornerRadius: CGFloat
+
+    /// The margin around the peek content inside the grown pill. 2 on top (the compact slots
+    /// already clear the notch), 10 at the bottom, 14 on the sides by default.
+    public var peekContentInsets: NookEdgeInsets
+
+    /// The tallest the peek content can make the pill grow below the compact slots. 120 by
+    /// default; taller content is clipped.
+    public var peekMaxHeight: CGFloat
+
     public init(
         topCornerRadius: CGFloat,
         bottomCornerRadius: CGFloat,
@@ -98,7 +111,10 @@ public struct NookStyle: Equatable, Sendable {
         floatingExpandedTopCornerRadius: CGFloat? = nil,
         floatingExpandedBottomCornerRadius: CGFloat? = nil,
         floatingCompactCornerRadius: CGFloat? = nil,
-        outline: NookOutline = .standard
+        outline: NookOutline = .standard,
+        peekBottomCornerRadius: CGFloat = NookStyle.standardPeekBottomCornerRadius,
+        peekContentInsets: NookEdgeInsets = NookStyle.standardPeekContentInsets,
+        peekMaxHeight: CGFloat = NookStyle.standardPeekMaxHeight
     ) {
         self.topCornerRadius = topCornerRadius
         self.bottomCornerRadius = bottomCornerRadius
@@ -109,6 +125,9 @@ public struct NookStyle: Equatable, Sendable {
         self.floatingExpandedBottomCornerRadius = floatingExpandedBottomCornerRadius
         self.floatingCompactCornerRadius = floatingCompactCornerRadius
         self.outline = outline
+        self.peekBottomCornerRadius = peekBottomCornerRadius
+        self.peekContentInsets = peekContentInsets
+        self.peekMaxHeight = peekMaxHeight
     }
 
     /// The historical expanded-content safe-area strip: no top inset (the top corner
@@ -125,6 +144,15 @@ public struct NookStyle: Equatable, Sendable {
 
     /// The compact pill's built-in bottom corner radius in the notch form.
     public static let standardCompactBottomCornerRadius: CGFloat = 14
+
+    /// The peek region's built-in bottom corner radius.
+    public static let standardPeekBottomCornerRadius: CGFloat = 22
+
+    /// The peek content's built-in margin inside the grown pill.
+    public static let standardPeekContentInsets = NookEdgeInsets(top: 2, bottom: 10, leading: 14, trailing: 14)
+
+    /// The peek region's built-in maximum height.
+    public static let standardPeekMaxHeight: CGFloat = 120
 
     /// Reasonable default that reads well next to the system menu bar on most notched MacBooks.
     public static let standard = NookStyle(topCornerRadius: 15, bottomCornerRadius: 20)
