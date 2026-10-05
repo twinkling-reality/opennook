@@ -149,6 +149,8 @@ struct ThemePage: View {
     @ObservedObject var model: PlaygroundModel
     @ObservedObject var appState: AppState
     @AppStorage("playground.theme.showsMoreColors") private var showsMoreColors = false
+    @AppStorage("playground.theme.showsThemeFile") private var showsThemeFile = false
+    @State private var backdropSlot = NookSurfaceStyle.solid
 
     private typealias Role = PlaygroundSettings.Theme.ColorRole
     private static let mainRoles: [Role] = [.accent, .primaryLabel, .secondaryLabel, .tertiaryLabel]
@@ -169,6 +171,15 @@ struct ThemePage: View {
                         Choice(.monospaced, "Mono"),
                     ],
                     help: "The design of the chrome's own text: the top bar, the banner, and Settings."
+                )
+                SegmentedRow(
+                    title: "Width",
+                    selection: optional(\.fontWidth, standard: .standard),
+                    choices: [
+                        Choice(.compressed, "Compressed"), Choice(.condensed, "Condensed"), Choice(.standard, "Standard"),
+                        Choice(.expanded, "Expanded"),
+                    ],
+                    help: "The width of the chrome's own text."
                 )
             }
 
@@ -225,7 +236,133 @@ struct ThemePage: View {
                     colorRow(role)
                 }
             }
+
+            ThemeBackdropCard(model: model, resolver: colorResolver, slot: $backdropSlot)
+
+            CollapsibleCard(
+                title: "Theme File",
+                help: "What a theme file says beyond its look: its name, values it pins over the person's own "
+                    + "choices on the Appearance page, and what it lets them change.",
+                isExpanded: $showsThemeFile,
+                isModified: themeFileIsModified,
+                reset: resetThemeFile
+            ) {
+                TextRow(title: "Name", text: nameBinding, prompt: "Untitled", help: "The theme's display name.")
+                SegmentedRow(
+                    title: "Pin palette",
+                    selection: $model.settings.theme.palette,
+                    choices: [
+                        Choice(nil, "No"), Choice(.followSystem, "System"), Choice(.dark, "Dark"), Choice(.light, "Light"),
+                    ],
+                    help: "Pins the palette over the person's choice."
+                )
+                SegmentedRow(
+                    title: "Pin material",
+                    selection: $model.settings.theme.surface,
+                    choices: [
+                        Choice(nil, "No"), Choice(.solid, "Solid"), Choice(.translucent, "Translucent"),
+                        Choice(.liquidGlass, "Glass"),
+                    ],
+                    help: "Pins the material over the person's choice."
+                )
+                SwitchRow(title: "Pin backdrop strength", isOn: pinsStrength)
+                if let strength = theme.backdropStrength {
+                    SliderRow(
+                        title: "Strength",
+                        value: Binding(get: { strength }, set: { model.settings.theme.backdropStrength = $0 }),
+                        range: 0.15...1,
+                        step: 0.01,
+                        defaultValue: NookAppearancePreferences.default.backdropStrength,
+                        format: .percent
+                    )
+                }
+                SwitchRow(
+                    title: "Person's accent wins",
+                    isOn: flag(\.allowsUserAccent),
+                    help: "Whether an accent picked in Settings replaces the theme's."
+                )
+                SliderRow(
+                    title: "Sound volume",
+                    value: soundVolume,
+                    range: 0...1,
+                    step: 0.01,
+                    defaultValue: 1,
+                    format: .percent,
+                    help: "Multiplies every sound the theme plays. Sounds are set on the Tokens page."
+                )
+                SwitchRow(
+                    title: "Person can mute",
+                    isOn: flag(\.allowsUserSoundToggle),
+                    help: "Whether the person may turn the theme's sounds off."
+                )
+            }
         }
+        .onAppear {
+            backdropSlot = theme.surface ?? appState.appearancePreferences.surfaceStyle
+        }
+    }
+
+    private var colorResolver: ThemeColorResolver {
+        let nookTheme = theme.nookTheme
+        return ThemeColorResolver(theme: nookTheme, context: TokensPage.context(for: nookTheme, appState: appState))
+    }
+
+    /// An optional knob as a picker value: `nil` reads as `standard`, and `standard` writes back
+    /// as `nil` so an untouched knob stays out of presets and exports.
+    private func optional<Value: Equatable>(
+        _ keyPath: WritableKeyPath<PlaygroundSettings.Theme, Value?>,
+        standard: Value
+    ) -> Binding<Value> {
+        Binding(
+            get: { model.settings.theme[keyPath: keyPath] ?? standard },
+            set: { model.settings.theme[keyPath: keyPath] = $0 == standard ? nil : $0 }
+        )
+    }
+
+    /// A permission that is `true` until turned off.
+    private func flag(_ keyPath: WritableKeyPath<PlaygroundSettings.Theme, Bool?>) -> Binding<Bool> {
+        optional(keyPath, standard: true)
+    }
+
+    private var soundVolume: Binding<Double> {
+        Binding(
+            get: { theme.soundVolume ?? 1 },
+            set: { model.settings.theme.soundVolume = abs($0 - 1) < 0.0005 ? nil : $0 }
+        )
+    }
+
+    private var pinsStrength: Binding<Bool> {
+        Binding(
+            get: { theme.backdropStrength != nil },
+            set: { pins in
+                model.settings.theme.backdropStrength =
+                    pins ? appState.appearancePreferences.backdropStrength : nil
+            }
+        )
+    }
+
+    private var nameBinding: Binding<String> {
+        Binding(
+            get: { theme.name ?? "" },
+            set: { model.settings.theme.name = $0.isEmpty ? nil : $0 }
+        )
+    }
+
+    private var themeFileIsModified: Bool {
+        theme.name != nil || theme.palette != nil || theme.surface != nil || theme.backdropStrength != nil
+            || theme.allowsUserAccent != nil || theme.soundVolume != nil || theme.allowsUserSoundToggle != nil
+    }
+
+    private func resetThemeFile() {
+        var theme = theme
+        theme.name = nil
+        theme.palette = nil
+        theme.surface = nil
+        theme.backdropStrength = nil
+        theme.allowsUserAccent = nil
+        theme.soundVolume = nil
+        theme.allowsUserSoundToggle = nil
+        model.settings.theme = theme
     }
 
     private var theme: PlaygroundSettings.Theme { model.settings.theme }

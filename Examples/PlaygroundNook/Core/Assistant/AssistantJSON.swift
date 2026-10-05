@@ -135,6 +135,19 @@ extension AssistantJSON {
         Data(text.utf8)
     }
 
+    /// The value as JSON text on one line, for a proposal row: `{"radius": 8, "y": 3}`.
+    public var compactText: String {
+        switch self {
+            case .string, .number, .bool, .null:
+                return text
+            case .array(let values):
+                return "[" + values.map(\.compactText).joined(separator: ", ") + "]"
+            case .object(let members):
+                return "{" + members.map { Self.quoted($0.name) + ": " + $0.value.compactText }.joined(separator: ", ")
+                    + "}"
+        }
+    }
+
     private func write(into output: inout String, depth: Int) {
         switch self {
             case .string(let value):

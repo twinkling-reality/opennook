@@ -277,6 +277,7 @@ extension PlaygroundPage {
             case .companions: self = .companions
             case .effects: self = .effects
             case .behavior: self = .behavior
+            case .tokens: self = .tokens
         }
     }
 }

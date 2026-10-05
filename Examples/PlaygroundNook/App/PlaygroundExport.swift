@@ -64,7 +64,8 @@ struct PresetsPage: View {
                 }
                 ControlRow(
                     title: "Theme",
-                    help: "The Theme page as a NookTheme file, which a host loads with NookTheme(contentsOf:)."
+                    help: "The Theme page, the token overrides, and the chrome's shadow as a NookTheme file, which "
+                        + "a host loads with NookTheme(contentsOf:)."
                 ) {
                     Button {
                         model.copyThemeJSON()

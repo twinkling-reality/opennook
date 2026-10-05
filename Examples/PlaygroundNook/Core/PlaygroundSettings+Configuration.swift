@@ -92,6 +92,42 @@ extension PlaygroundSettings {
         }
     }
 
+    /// The page whose own control sets the token named `id` in a way that wins over the theme,
+    /// or `nil` when none does. A changed metric, font, or spring on the Panel or Type and Motion
+    /// page replaces that one field of the theme, and a changed panel shape replaces the
+    /// theme's whole shape, as `NookConfiguration` documents for `metrics` and `style`.
+    public func pageOverriding(token id: String) -> String? {
+        if id.hasPrefix("shape."), panel.style != nil { return "Panel" }
+        let metricDefaults = Metrics()
+        let metrics: [String: Bool] = [
+            NookDimensionID.edgePadding.rawValue: self.metrics.edgePadding != metricDefaults.edgePadding,
+            NookDimensionID.expandedColumnSpacing.rawValue:
+                self.metrics.expandedColumnSpacing != metricDefaults.expandedColumnSpacing,
+            NookDimensionID.topBarHeight.rawValue: self.metrics.topBarHeight != metricDefaults.topBarHeight,
+            NookDimensionID.headerIconSize.rawValue: self.metrics.headerIconSize != metricDefaults.headerIconSize,
+            NookDimensionID.headerIconCornerRadius.rawValue:
+                self.metrics.headerIconCornerRadius != metricDefaults.headerIconCornerRadius,
+            NookDimensionID.compactSlotSize.rawValue: self.metrics.compactSlotSize != metricDefaults.compactSlotSize,
+            NookDimensionID.bannerCornerRadius.rawValue:
+                self.metrics.bannerCornerRadius != metricDefaults.bannerCornerRadius,
+        ]
+        if metrics[id] == true { return "Panel" }
+        let fontDefaults = Typography()
+        let fonts: [String: Bool] = [
+            NookFontID.headerIcon.rawValue: typography.headerIcon != fontDefaults.headerIcon,
+            NookFontID.topBarLabel.rawValue: typography.topBarLabel != fontDefaults.topBarLabel,
+            NookFontID.bannerMessage.rawValue: typography.bannerMessage != fontDefaults.bannerMessage,
+            NookFontID.compactLeadingGlyph.rawValue: typography.compactLeadingGlyph != fontDefaults.compactLeadingGlyph,
+        ]
+        let motionDefaults = Motion()
+        let springs: [String: Bool] = [
+            NookAnimationID.viewModeChange.rawValue: motion.viewModeChange != motionDefaults.viewModeChange,
+            NookAnimationID.statusBanner.rawValue: motion.statusBanner != motionDefaults.statusBanner,
+        ]
+        if fonts[id] == true || springs[id] == true { return "Type and Motion" }
+        return nil
+    }
+
     /// The chrome behavior these settings describe.
     public var chromeBehavior: NookChromeBehavior {
         NookChromeBehavior(hoverBehavior: behavior.hoverBehavior, glassShading: behavior.glassShading.nookShading)

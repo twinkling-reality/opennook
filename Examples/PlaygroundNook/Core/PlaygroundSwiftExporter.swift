@@ -114,7 +114,23 @@ public enum PlaygroundSwiftExporter {
 
     static func themeLines(_ theme: PlaygroundSettings.Theme) -> [String] {
         guard theme != PlaygroundSettings.Theme() else { return [] }
+        // In the initializer's own order.
         var arguments: [String] = []
+        if let name = theme.name {
+            arguments.append("name: \(stringLiteral(name))")
+        }
+        if let allowsUserAccent = theme.allowsUserAccent, !allowsUserAccent {
+            arguments.append("allowsUserAccent: false")
+        }
+        if let palette = theme.palette {
+            arguments.append("palette: \(literal(palette))")
+        }
+        if let surface = theme.surface {
+            arguments.append("surface: \(literal(surface))")
+        }
+        if let strength = theme.backdropStrength {
+            arguments.append("backdropStrength: \(number(strength))")
+        }
         if let radius = theme.radius, differs(radius, 1) {
             arguments.append("radius: .factor(\(number(radius)))")
         }
@@ -124,8 +140,17 @@ public enum PlaygroundSwiftExporter {
         if theme.fontDesign != .default {
             arguments.append("fontDesign: \(literal(theme.fontDesign))")
         }
+        if let width = theme.fontWidth, width != .standard {
+            arguments.append("fontWidth: .\(width.rawValue)")
+        }
         if let motion = theme.motion, motion != .standard {
             arguments.append("motion: .\(motion.rawValue)")
+        }
+        if let volume = theme.soundVolume, differs(volume, 1) {
+            arguments.append("soundVolume: \(number(volume))")
+        }
+        if let allowsToggle = theme.allowsUserSoundToggle, !allowsToggle {
+            arguments.append("allowsUserSoundToggle: false")
         }
         var body = call("var theme = NookTheme", arguments: arguments)
         if let accent = theme.accent {
@@ -136,6 +161,8 @@ public enum PlaygroundSwiftExporter {
                 body.append("theme.tokens[.\(role.tokenName)] = \(stringLiteral(color.hex))")
             }
         }
+        body += tokenOverrideLines(theme)
+        body += backdropLines(theme.backdrops)
         return [
             "// The chrome theme. A color left out follows the user's palette, and the accent follows",
             "// the user's accent choice when they make one.",
@@ -219,6 +246,11 @@ public enum PlaygroundSwiftExporter {
         for (name, value, fallback) in strings where value != fallback {
             lines.append("configuration.labels.\(name) = \(stringLiteral(value))")
         }
+        for group in PlaygroundSettings.Labels.GroupTitle.allCases {
+            if let title = labels[group], title != group.defaultTitle {
+                lines.append("configuration.labels.settings.\(group.rawValue) = \(stringLiteral(title))")
+            }
+        }
         return lines
     }
 
@@ -246,6 +278,11 @@ public enum PlaygroundSwiftExporter {
         }
         if topBar.leadingIcon != defaults.leadingIcon, let icon = topBar.leadingIcon {
             lines.append("configuration.topBar.leadingIcon = \(stringLiteral(icon))")
+        }
+        for symbol in PlaygroundSettings.TopBar.Symbol.allCases {
+            if let name = topBar[symbol], name != symbol.defaultName {
+                lines.append("configuration.topBar.symbols.\(symbol.propertyName) = \(stringLiteral(name))")
+            }
         }
         return lines
     }

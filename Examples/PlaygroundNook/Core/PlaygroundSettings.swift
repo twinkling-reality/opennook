@@ -67,22 +67,96 @@ extension PlaygroundSettings {
         public var scale: Double?
         /// `NookTheme.motion`. `nil` is `.standard`.
         public var motion: NookMotionScheme?
+        /// `NookTheme.fontWidth`. `nil` is `.standard`.
+        public var fontWidth: NookFontWidth?
+        /// `NookTheme.soundVolume`, 0...1. `nil` is 1.
+        public var soundVolume: Double?
+        /// `NookTheme.allowsUserAccent`. `nil` is `true`.
+        public var allowsUserAccent: Bool?
+        /// `NookTheme.allowsUserSoundToggle`. `nil` is `true`.
+        public var allowsUserSoundToggle: Bool?
+        /// `NookTheme.palette`: pins the palette over the person's choice. `nil` leaves it to them.
+        public var palette: NookChromePalette?
+        /// `NookTheme.surface`: pins the surface over the person's choice. `nil` leaves it to them.
+        public var surface: NookSurfaceStyle?
+        /// `NookTheme.backdropStrength`: pins the strength, 0.15...1. `nil` leaves it to the person.
+        public var backdropStrength: Double?
+        /// `NookTheme.name`, for a theme file.
+        public var name: String?
+        /// `NookTheme.backdrops`: what each surface style paints. Empty is the framework's own.
+        public var backdrops = NookThemeBackdrops()
+        /// Token overrides by id, everything the Tokens page and the theme's own controls set
+        /// that is not one of the knobs or color roles above. A color role, when set, wins over
+        /// an override of its token here; see ``tokenOverride(_:)``.
+        public var tokens = NookThemeTokens()
 
         public init() {}
 
         /// The theme these settings describe. ``NookTheme/standard`` when nothing is set.
         public var nookTheme: NookTheme {
             var theme = NookTheme(
+                name: name,
+                allowsUserAccent: allowsUserAccent ?? true,
+                palette: palette,
+                surface: surface,
+                backdropStrength: backdropStrength,
                 radius: radius.map { .factor($0) } ?? .standard,
                 scale: scale ?? 1,
                 fontDesign: fontDesign,
-                motion: motion ?? .standard
+                fontWidth: fontWidth ?? .standard,
+                motion: motion ?? .standard,
+                soundVolume: soundVolume ?? 1,
+                allowsUserSoundToggle: allowsUserSoundToggle ?? true,
+                tokens: tokens,
+                backdrops: backdrops
             )
-            if let accent { theme.accent = .hex(accent) }
+            // A role's color wins over an override of the same token: the accent role is the
+            // accent knob, which an override of `color.accent` would otherwise replace.
+            if let accent {
+                theme.accent = .hex(accent)
+                theme.tokens[.accent] = nil
+            }
             for role in ColorRole.allCases where role != .accent {
                 if let color = self[role] { theme.tokens[role.tokenID] = .hex(color) }
             }
             return theme
+        }
+
+        /// The theme without its token overrides: what the Theme page itself sets.
+        public var withoutTokens: Theme {
+            var theme = self
+            theme.tokens = NookThemeTokens()
+            return theme
+        }
+
+        /// The override for the token named `id`, as the Tokens page and the assistant see it:
+        /// the color role or accent that sets it when there is one, otherwise ``tokens``. `nil`
+        /// when the token has its default.
+        public func tokenOverride(_ id: String) -> NookTokenValue? {
+            if let role = ColorRole(tokenID: id), let color = self[role] {
+                return .color(.hex(color))
+            }
+            return tokens.value(for: id)
+        }
+
+        /// Sets the override for the token named `id`, or removes it with `nil`. A plain hex
+        /// color for a token one of the color roles sets is stored in that role, so the Theme
+        /// page shows it; anything else is stored in ``tokens`` with the role cleared. A value
+        /// of the wrong kind, or an id the framework does not define, changes nothing.
+        public mutating func setTokenOverride(_ value: NookTokenValue?, for id: String) {
+            guard let descriptor = NookTokenDescriptor.named(id) else { return }
+            if let value, value.kind != descriptor.kind { return }
+            guard let role = ColorRole(tokenID: descriptor.id) else {
+                tokens.setValue(value, for: descriptor.id)
+                return
+            }
+            if case .color(.hex(let rgba))? = value {
+                self[role] = rgba
+                tokens.setValue(nil, for: descriptor.id)
+            } else {
+                self[role] = nil
+                tokens.setValue(value, for: descriptor.id)
+            }
         }
 
         /// One overridable `NookResolvedTheme` color. The raw value is the property name, on
@@ -103,6 +177,12 @@ extension PlaygroundSettings {
             case success
 
             public var id: String { rawValue }
+
+            /// The role that sets the token named `tokenID`, if one does.
+            public init?(tokenID: String) {
+                guard let role = Self.allCases.first(where: { $0.tokenID.rawValue == tokenID }) else { return nil }
+                self = role
+            }
 
             /// The Swift name of ``tokenID``'s constant on `NookColorID`, for the Swift export.
             public var tokenName: String {
@@ -427,24 +507,84 @@ extension PlaygroundSettings {
         public var nookSpec: NookAnimationSpec { .spring(response: response, dampingFraction: dampingFraction) }
     }
 
-    /// `NookChromeLabels`, all four strings.
+    /// `NookChromeLabels`: the four top bar strings, and the built-in Settings screen's group
+    /// titles, the labels hosts rename most.
     public struct Labels: Equatable, Sendable {
         public var settingsBreadcrumb = Labels.base.settingsBreadcrumb
         public var keepOpenHelp = Labels.base.keepOpenHelp
         public var settingsHelp = Labels.base.settingsHelp
         public var dismissHelp = Labels.base.dismissHelp
+        /// `NookChromeLabels.settings.appearanceTitle`. `nil` is the framework's.
+        public var appearanceTitle: String?
+        /// `NookChromeLabels.settings.displayTitle`. `nil` is the framework's.
+        public var displayTitle: String?
+        /// `NookChromeLabels.settings.shortcutTitle`. `nil` is the framework's.
+        public var shortcutTitle: String?
+        /// `NookChromeLabels.settings.dataTitle`. `nil` is the framework's.
+        public var dataTitle: String?
+        /// `NookChromeLabels.settings.aboutTitle`. `nil` is the framework's.
+        public var aboutTitle: String?
 
         public init() {}
 
         static let base = NookChromeLabels.default
 
+        /// One of the Settings screen's group titles, named as it encodes.
+        public enum GroupTitle: String, CaseIterable, Sendable {
+            case appearanceTitle
+            case displayTitle
+            case shortcutTitle
+            case dataTitle
+            case aboutTitle
+
+            /// The framework's own title.
+            public var defaultTitle: String {
+                let settings = Labels.base.settings
+                return switch self {
+                    case .appearanceTitle: settings.appearanceTitle
+                    case .displayTitle: settings.displayTitle
+                    case .shortcutTitle: settings.shortcutTitle
+                    case .dataTitle: settings.dataTitle
+                    case .aboutTitle: settings.aboutTitle
+                }
+            }
+        }
+
+        /// The title set for `group`, or `nil` for the framework's.
+        public subscript(group: GroupTitle) -> String? {
+            get {
+                switch group {
+                    case .appearanceTitle: appearanceTitle
+                    case .displayTitle: displayTitle
+                    case .shortcutTitle: shortcutTitle
+                    case .dataTitle: dataTitle
+                    case .aboutTitle: aboutTitle
+                }
+            }
+            set {
+                switch group {
+                    case .appearanceTitle: appearanceTitle = newValue
+                    case .displayTitle: displayTitle = newValue
+                    case .shortcutTitle: shortcutTitle = newValue
+                    case .dataTitle: dataTitle = newValue
+                    case .aboutTitle: aboutTitle = newValue
+                }
+            }
+        }
+
         public var chromeLabels: NookChromeLabels {
-            NookChromeLabels(
+            var labels = NookChromeLabels(
                 settingsBreadcrumb: settingsBreadcrumb,
                 keepOpenHelp: keepOpenHelp,
                 settingsHelp: settingsHelp,
                 dismissHelp: dismissHelp
             )
+            if let appearanceTitle { labels.settings.appearanceTitle = appearanceTitle }
+            if let displayTitle { labels.settings.displayTitle = displayTitle }
+            if let shortcutTitle { labels.settings.shortcutTitle = shortcutTitle }
+            if let dataTitle { labels.settings.dataTitle = dataTitle }
+            if let aboutTitle { labels.settings.aboutTitle = aboutTitle }
+            return labels
         }
     }
 
@@ -476,10 +616,75 @@ extension PlaygroundSettings {
         public var leadingTitle = "Home"
         /// An SF Symbol name, or `nil` for the brand mark.
         public var leadingIcon: String?
+        /// `NookChromeSymbols.keepOpenOn`: the lock while the nook stays open. `nil` is the
+        /// framework's.
+        public var keepOpenOnSymbol: String?
+        /// `NookChromeSymbols.keepOpenOff`. `nil` is the framework's.
+        public var keepOpenOffSymbol: String?
+        /// `NookChromeSymbols.settings`: the gear. `nil` is the framework's.
+        public var settingsSymbol: String?
+        /// `NookChromeSymbols.breadcrumbSeparator`. `nil` is the framework's.
+        public var breadcrumbSeparatorSymbol: String?
+        /// `NookChromeSymbols.back`: the leading glyph in Settings. `nil` keeps the leading icon.
+        public var backSymbol: String?
 
         public init() {}
 
         static let base = NookTopBarConfiguration.default
+
+        /// One of the top bar's SF Symbols, named as it encodes.
+        public enum Symbol: String, CaseIterable, Sendable {
+            case keepOpenOnSymbol
+            case keepOpenOffSymbol
+            case settingsSymbol
+            case breadcrumbSeparatorSymbol
+            case backSymbol
+
+            /// The name of the `NookChromeSymbols` property it sets.
+            public var propertyName: String {
+                switch self {
+                    case .keepOpenOnSymbol: "keepOpenOn"
+                    case .keepOpenOffSymbol: "keepOpenOff"
+                    case .settingsSymbol: "settings"
+                    case .breadcrumbSeparatorSymbol: "breadcrumbSeparator"
+                    case .backSymbol: "back"
+                }
+            }
+
+            /// The framework's own symbol, or `nil` where it draws the leading icon instead.
+            public var defaultName: String? {
+                let symbols = NookChromeSymbols.default
+                return switch self {
+                    case .keepOpenOnSymbol: symbols.keepOpenOn
+                    case .keepOpenOffSymbol: symbols.keepOpenOff
+                    case .settingsSymbol: symbols.settings
+                    case .breadcrumbSeparatorSymbol: symbols.breadcrumbSeparator
+                    case .backSymbol: symbols.back
+                }
+            }
+        }
+
+        /// The symbol set for `symbol`, or `nil` for the framework's.
+        public subscript(symbol: Symbol) -> String? {
+            get {
+                switch symbol {
+                    case .keepOpenOnSymbol: keepOpenOnSymbol
+                    case .keepOpenOffSymbol: keepOpenOffSymbol
+                    case .settingsSymbol: settingsSymbol
+                    case .breadcrumbSeparatorSymbol: breadcrumbSeparatorSymbol
+                    case .backSymbol: backSymbol
+                }
+            }
+            set {
+                switch symbol {
+                    case .keepOpenOnSymbol: keepOpenOnSymbol = newValue
+                    case .keepOpenOffSymbol: keepOpenOffSymbol = newValue
+                    case .settingsSymbol: settingsSymbol = newValue
+                    case .breadcrumbSeparatorSymbol: breadcrumbSeparatorSymbol = newValue
+                    case .backSymbol: backSymbol = newValue
+                }
+            }
+        }
 
         public func apply(to topBar: inout NookTopBarConfiguration) {
             topBar.showsTopBar = showsTopBar
@@ -502,6 +707,11 @@ extension PlaygroundSettings {
                 topBar.leadingTitle = { _ in title }
             }
             topBar.leadingIcon = leadingIcon
+            if let keepOpenOnSymbol { topBar.symbols.keepOpenOn = keepOpenOnSymbol }
+            if let keepOpenOffSymbol { topBar.symbols.keepOpenOff = keepOpenOffSymbol }
+            if let settingsSymbol { topBar.symbols.settings = settingsSymbol }
+            if let breadcrumbSeparatorSymbol { topBar.symbols.breadcrumbSeparator = breadcrumbSeparatorSymbol }
+            if let backSymbol { topBar.symbols.back = backSymbol }
         }
     }
 
@@ -1146,6 +1356,24 @@ extension PlaygroundSettings {
 
         let icon = topBar.leadingIcon?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         settings.topBar.leadingIcon = icon.isEmpty ? nil : icon
+        for symbol in TopBar.Symbol.allCases {
+            settings.topBar[symbol] = Self.trimmed(topBar[symbol])
+        }
+
+        settings.theme.soundVolume = theme.soundVolume.map(Self.unit)
+        settings.theme.backdropStrength = theme.backdropStrength.map { $0.isFinite ? min(max($0, 0.15), 1) : 1 }
+        settings.theme.name = Self.trimmed(theme.name)
+        // A role's color is the role's: an override of the same token is dropped, and a plain
+        // hex override with no role set moves into the role, so the Theme page shows it.
+        for role in Theme.ColorRole.allCases {
+            let id = role.tokenID.rawValue
+            guard let value = settings.theme.tokens.value(for: id) else { continue }
+            if settings.theme[role] != nil {
+                settings.theme.tokens.setValue(nil, for: id)
+            } else if case .color(.hex) = value {
+                settings.theme.setTokenOverride(value, for: id)
+            }
+        }
 
         settings.rimGlow.lineWidth = max(rimGlow.lineWidth, 0)
         settings.rimGlow.glowRadius = max(rimGlow.glowRadius, 0)
@@ -1247,6 +1475,77 @@ extension PlaygroundSettings.Theme: Codable {
         radius = try container.decodeIfPresent(Double.self, forKey: .radius)
         scale = try container.decodeIfPresent(Double.self, forKey: .scale)
         motion = try container.decodeIfPresent(NookMotionScheme.self, forKey: .motion)
+        fontWidth = try container.decodeIfPresent(NookFontWidth.self, forKey: .fontWidth)
+        soundVolume = try container.decodeIfPresent(Double.self, forKey: .soundVolume)
+        allowsUserAccent = try container.decodeIfPresent(Bool.self, forKey: .allowsUserAccent)
+        allowsUserSoundToggle = try container.decodeIfPresent(Bool.self, forKey: .allowsUserSoundToggle)
+        palette = try container.decodeIfPresent(NookChromePalette.self, forKey: .palette)
+        surface = try container.decodeIfPresent(NookSurfaceStyle.self, forKey: .surface)
+        backdropStrength = try container.decodeIfPresent(Double.self, forKey: .backdropStrength)
+        name = try container.decodeIfPresent(String.self, forKey: .name)
+        backdrops = try container.value(.backdrops, or: NookThemeBackdrops())
+        tokens = try container.value(.tokens, or: NookThemeTokens())
+    }
+
+    /// Writes what is set: an optional left `nil` is left out, as are empty backdrops and
+    /// tokens, so a preset that changes none of them has the same keys it always had.
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(accent, forKey: .accent)
+        try container.encode(fontDesign, forKey: .fontDesign)
+        try container.encodeIfPresent(primaryLabel, forKey: .primaryLabel)
+        try container.encodeIfPresent(secondaryLabel, forKey: .secondaryLabel)
+        try container.encodeIfPresent(tertiaryLabel, forKey: .tertiaryLabel)
+        try container.encodeIfPresent(quaternaryLabel, forKey: .quaternaryLabel)
+        try container.encodeIfPresent(subtleFill, forKey: .subtleFill)
+        try container.encodeIfPresent(subtleStroke, forKey: .subtleStroke)
+        try container.encodeIfPresent(headerInactiveIcon, forKey: .headerInactiveIcon)
+        try container.encodeIfPresent(hoverWash, forKey: .hoverWash)
+        try container.encodeIfPresent(destructive, forKey: .destructive)
+        try container.encodeIfPresent(warning, forKey: .warning)
+        try container.encodeIfPresent(success, forKey: .success)
+        try container.encodeIfPresent(radius, forKey: .radius)
+        try container.encodeIfPresent(scale, forKey: .scale)
+        try container.encodeIfPresent(motion, forKey: .motion)
+        try container.encodeIfPresent(fontWidth, forKey: .fontWidth)
+        try container.encodeIfPresent(soundVolume, forKey: .soundVolume)
+        try container.encodeIfPresent(allowsUserAccent, forKey: .allowsUserAccent)
+        try container.encodeIfPresent(allowsUserSoundToggle, forKey: .allowsUserSoundToggle)
+        try container.encodeIfPresent(palette, forKey: .palette)
+        try container.encodeIfPresent(surface, forKey: .surface)
+        try container.encodeIfPresent(backdropStrength, forKey: .backdropStrength)
+        try container.encodeIfPresent(name, forKey: .name)
+        if !backdrops.isEmpty { try container.encode(backdrops, forKey: .backdrops) }
+        if !tokens.isEmpty { try container.encode(tokens, forKey: .tokens) }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case accent
+        case fontDesign
+        case primaryLabel
+        case secondaryLabel
+        case tertiaryLabel
+        case quaternaryLabel
+        case subtleFill
+        case subtleStroke
+        case headerInactiveIcon
+        case hoverWash
+        case destructive
+        case warning
+        case success
+        case radius
+        case scale
+        case motion
+        case fontWidth
+        case soundVolume
+        case allowsUserAccent
+        case allowsUserSoundToggle
+        case palette
+        case surface
+        case backdropStrength
+        case name
+        case backdrops
+        case tokens
     }
 }
 
@@ -1306,6 +1605,11 @@ extension PlaygroundSettings.Labels: Codable {
         keepOpenHelp = try container.value(.keepOpenHelp, or: fallback.keepOpenHelp)
         settingsHelp = try container.value(.settingsHelp, or: fallback.settingsHelp)
         dismissHelp = try container.value(.dismissHelp, or: fallback.dismissHelp)
+        appearanceTitle = try container.decodeIfPresent(String.self, forKey: .appearanceTitle)
+        displayTitle = try container.decodeIfPresent(String.self, forKey: .displayTitle)
+        shortcutTitle = try container.decodeIfPresent(String.self, forKey: .shortcutTitle)
+        dataTitle = try container.decodeIfPresent(String.self, forKey: .dataTitle)
+        aboutTitle = try container.decodeIfPresent(String.self, forKey: .aboutTitle)
     }
 }
 
@@ -1323,6 +1627,11 @@ extension PlaygroundSettings.TopBar: Codable {
         notchAccessories = try container.value(.notchAccessories, or: fallback.notchAccessories)
         leadingTitle = try container.value(.leadingTitle, or: fallback.leadingTitle)
         leadingIcon = try container.decodeIfPresent(String.self, forKey: .leadingIcon)
+        keepOpenOnSymbol = try container.decodeIfPresent(String.self, forKey: .keepOpenOnSymbol)
+        keepOpenOffSymbol = try container.decodeIfPresent(String.self, forKey: .keepOpenOffSymbol)
+        settingsSymbol = try container.decodeIfPresent(String.self, forKey: .settingsSymbol)
+        breadcrumbSeparatorSymbol = try container.decodeIfPresent(String.self, forKey: .breadcrumbSeparatorSymbol)
+        backSymbol = try container.decodeIfPresent(String.self, forKey: .backSymbol)
     }
 }
 

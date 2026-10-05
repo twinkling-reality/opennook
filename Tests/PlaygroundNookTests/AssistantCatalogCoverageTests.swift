@@ -37,7 +37,7 @@ final class AssistantCatalogCoverageTests: XCTestCase {
     func testEveryPresetFieldIsInTheCatalog() throws {
         let encoded = try PlaygroundPresetCoder.encode(Self.fullyPopulatedPreset)
         let json = try XCTUnwrap(AssistantJSON(parsing: encoded))
-        let presetPaths = Self.leafPaths(of: json).subtracting(Self.excludedPaths)
+        let presetPaths = Self.leafPaths(of: json, stoppingAt: Self.structuredPaths).subtracting(Self.excludedPaths)
         let catalogPaths = Set(AssistantSettingsCatalog.fields.map(\.path.text))
 
         let missing = presetPaths.subtracting(catalogPaths).sorted()
@@ -52,7 +52,7 @@ final class AssistantCatalogCoverageTests: XCTestCase {
     func testTheCatalogDescribesNothingThatIsNotInAPreset() throws {
         let encoded = try PlaygroundPresetCoder.encode(Self.fullyPopulatedPreset)
         let json = try XCTUnwrap(AssistantJSON(parsing: encoded))
-        let presetPaths = Self.leafPaths(of: json)
+        let presetPaths = Self.leafPaths(of: json, stoppingAt: Self.structuredPaths)
         let catalogPaths = Set(AssistantSettingsCatalog.fields.map(\.path.text))
 
         let unknown = catalogPaths.subtracting(presetPaths).sorted()
@@ -79,6 +79,13 @@ final class AssistantCatalogCoverageTests: XCTestCase {
         try assertChoices("appearance.accentPreset", NookAccentPreset.allCases.map(\.rawValue))
         try assertChoices("settings.theme.fontDesign", PlaygroundSettings.FontDesign.allCases.map(\.rawValue))
         try assertChoices("settings.theme.motion", NookMotionScheme.allCases.map(\.rawValue))
+        try assertChoices("settings.theme.fontWidth", NookFontWidth.allCases.map(\.rawValue))
+        try assertChoices("settings.theme.palette", NookChromePalette.allCases.map(\.rawValue))
+        try assertChoices("settings.theme.surface", NookSurfaceStyle.allCases.map(\.rawValue))
+        try assertChoices(
+            "settings.theme.backdrops.glassShading",
+            PlaygroundSettings.Behavior.GlassShading.allCases.map(\.rawValue)
+        )
         try assertChoices("settings.topBar.width", PlaygroundSettings.TopBar.Width.allCases.map(\.rawValue))
         try assertChoices(
             "settings.topBar.notchClearance",
@@ -192,7 +199,8 @@ final class AssistantCatalogCoverageTests: XCTestCase {
     func testEveryDefaultMatchesItsKind() {
         for field in AssistantSettingsCatalog.fields {
             switch (field.kind, field.defaultValue) {
-                case (.number, .number), (.flag, .bool), (.text, .string), (.color, .string), (.choice, .string):
+                case (.number, .number), (.flag, .bool), (.text, .string), (.color, .string), (.choice, .string),
+                    (.tokenOverrides, .object), (.backdrop, .object):
                     continue
                 case (_, .null) where field.isNullable:
                     continue
@@ -226,6 +234,32 @@ final class AssistantCatalogCoverageTests: XCTestCase {
         }
     }
 
+    // MARK: - Tokens
+
+    /// The tokens field takes every token the framework defines and nothing else, so the model can
+    /// propose an override of any of them by id.
+    func testTheTokensFieldListsEveryRegisteredToken() throws {
+        let field = try XCTUnwrap(AssistantSettingsCatalog.field(at: AssistantFieldPath("settings.theme.tokens")))
+        XCTAssertEqual(field.kind, .tokenOverrides)
+        XCTAssertEqual(field.group, .tokens)
+        let tokens = try XCTUnwrap(
+            AssistantSchema.patch["properties"]?["settings"]?["properties"]?["theme"]?["properties"]?["tokens"]
+        )
+        let ids = try XCTUnwrap(tokens["properties"]?.members).map(\.name)
+        XCTAssertEqual(ids, NookTokenDescriptor.all.map(\.id))
+        XCTAssertEqual(tokens["additionalProperties"], .bool(false))
+        XCTAssertEqual(
+            tokens["properties"]?["banner.cornerRadius"]?["description"]?.stringValue,
+            "A dimension. Default \"{radius.md}\"."
+        )
+    }
+
+    func testTheFieldGuideListsEveryTokenID() {
+        for descriptor in NookTokenDescriptor.all {
+            XCTAssertTrue(AssistantSchema.fieldGuide.contains(descriptor.id), "\(descriptor.id) is not in the guide")
+        }
+    }
+
     // MARK: - Walking a preset
 
     /// A preset with every optional field present and one companion holding one item, so encoding
@@ -238,6 +272,29 @@ final class AssistantCatalogCoverageTests: XCTestCase {
         settings.theme.radius = 1.2
         settings.theme.scale = 1.1
         settings.theme.motion = .calm
+        settings.theme.fontWidth = .condensed
+        settings.theme.soundVolume = 0.5
+        settings.theme.allowsUserAccent = false
+        settings.theme.allowsUserSoundToggle = false
+        settings.theme.palette = .dark
+        settings.theme.surface = .liquidGlass
+        settings.theme.backdropStrength = 0.6
+        settings.theme.name = "Night"
+        let gradient = NookBackdropDescription.linearGradient(.init(gradient: NookGradientSpec(colors: ["#101014", "#000000"])))
+        settings.theme.backdrops = NookThemeBackdrops(
+            solid: .solid("#1C1C1E"),
+            translucent: gradient,
+            liquidGlass: .liquidGlass(.init(variant: .clear)),
+            glassShading: .even
+        )
+        settings.theme.tokens[.bannerCornerRadius] = 12
+        settings.theme.tokens[.chrome] = NookShadowSpec()
+        for group in PlaygroundSettings.Labels.GroupTitle.allCases {
+            settings.labels[group] = "Title"
+        }
+        for symbol in PlaygroundSettings.TopBar.Symbol.allCases {
+            settings.topBar[symbol] = "circle"
+        }
         settings.topBar.leadingIcon = "music.note"
         var item = PlaygroundSettings.Item(symbol: "moon.fill", title: "Sleep")
         item.tint = PlaygroundColor(red: 1, green: 1, blue: 1)
@@ -262,23 +319,35 @@ final class AssistantCatalogCoverageTests: XCTestCase {
         )
     }
 
+    /// The catalog fields that hold an object, such as a backdrop or the token overrides: the
+    /// keys below one are the field's own, so the walk stops there.
+    private static var structuredPaths: Set<String> {
+        Set(AssistantSettingsCatalog.fields.filter(\.isStructured).map(\.path.text))
+    }
+
     /// Every path in `json` that holds a value rather than more structure, with list indices
-    /// collapsed to `[]` so one entry in the catalog covers every element.
-    private static func leafPaths(of json: AssistantJSON, prefix: String = "") -> Set<String> {
+    /// collapsed to `[]` so one entry in the catalog covers every element. A path in `stops` is a
+    /// value however much structure it holds.
+    private static func leafPaths(
+        of json: AssistantJSON,
+        prefix: String = "",
+        stoppingAt stops: Set<String> = []
+    ) -> Set<String> {
+        if stops.contains(prefix) { return [prefix] }
         switch json {
             case .object(let members):
                 guard !members.isEmpty else { return [prefix] }
                 var paths = Set<String>()
                 for member in members {
                     let path = prefix.isEmpty ? member.name : "\(prefix).\(member.name)"
-                    paths.formUnion(leafPaths(of: member.value, prefix: path))
+                    paths.formUnion(leafPaths(of: member.value, prefix: path, stoppingAt: stops))
                 }
                 return paths
             case .array(let values):
                 guard !values.isEmpty else { return [prefix] }
                 var paths = Set<String>()
                 for value in values {
-                    paths.formUnion(leafPaths(of: value, prefix: prefix + "[]"))
+                    paths.formUnion(leafPaths(of: value, prefix: prefix + "[]", stoppingAt: stops))
                 }
                 return paths
             case .string, .number, .bool, .null:

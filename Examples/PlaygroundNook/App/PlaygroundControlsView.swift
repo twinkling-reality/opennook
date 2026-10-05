@@ -19,6 +19,7 @@ enum PlaygroundPage: String, CaseIterable, Identifiable, Hashable {
     case companions
     case effects
     case behavior
+    case tokens
     case presets
 
     var id: String { rawValue }
@@ -33,6 +34,7 @@ enum PlaygroundPage: String, CaseIterable, Identifiable, Hashable {
             case .companions: "Companions"
             case .effects: "Effects"
             case .behavior: "Behavior"
+            case .tokens: "Tokens"
             case .presets: "Presets"
         }
     }
@@ -47,6 +49,7 @@ enum PlaygroundPage: String, CaseIterable, Identifiable, Hashable {
             case .companions: "capsule.on.rectangle"
             case .effects: "sparkles"
             case .behavior: "cursorarrow.motionlines"
+            case .tokens: "curlybraces"
             case .presets: "square.stack"
         }
     }
@@ -59,7 +62,7 @@ enum PlaygroundPage: String, CaseIterable, Identifiable, Hashable {
                 appearance.keepNookOpen = NookAppearancePreferences.default.keepNookOpen
                 return appearance != .default
             case .theme:
-                return settings.theme != .init()
+                return settings.theme.withoutTokens != .init()
             case .panel:
                 return settings.panel != .init() || settings.metrics != .init()
             case .typeAndMotion:
@@ -70,8 +73,11 @@ enum PlaygroundPage: String, CaseIterable, Identifiable, Hashable {
                 return !settings.companions.isEmpty
             case .effects:
                 return settings.rimGlow != .init() || settings.scrollEdgeFade != .init()
+                    || settings.theme.tokens[.chrome] != nil
             case .behavior:
                 return settings.behavior != .init()
+            case .tokens:
+                return !settings.theme.tokens.isEmpty
             case .presets:
                 return false
         }
@@ -157,8 +163,9 @@ struct PlaygroundControlsView: View {
             case .typeAndMotion: TypeAndMotionPage(model: model)
             case .topBar: TopBarPage(model: model)
             case .companions: CompanionsPage(model: model)
-            case .effects: EffectsPage(model: model)
+            case .effects: EffectsPage(model: model, appState: appState)
             case .behavior: BehaviorPage(model: model)
+            case .tokens: TokensPage(model: model, appState: appState)
             case .presets: PresetsPage(model: model)
         }
     }
