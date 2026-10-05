@@ -170,7 +170,7 @@ final class NookLiveActivityTests: XCTestCase {
         )
         for id in ["one", "two", "three", "four"] { activities.start(activity(id)) }
         XCTAssertEqual(surface.companions.count, 3)
-        XCTAssertEqual(surface.companions.first?.anchor, .leading)
+        XCTAssertEqual(surface.companions.first?.anchor, .leading(alignment: .start))
         withExtendedLifetime(coordinator) {}
     }
 

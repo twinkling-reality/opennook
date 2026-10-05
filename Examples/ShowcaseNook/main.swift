@@ -27,7 +27,8 @@
 //
 // Run with `swift run ShowcaseNook --scene <id>`. `--expand` opens the nook at launch,
 // `--expand-after <seconds>` opens it later, and `--keep-open` holds it open.
-// `--peek` shows the player's peek shortly after launch and holds it, for a recording.
+// `--peek` shows the player's (or, in `compact`, the song activity's) peek shortly after launch
+// and holds it, and `--open-activity` opens `compact` onto the song activity, for a recording.
 // `--theme <file.json>` paints the chrome with a theme file and follows it as it is saved;
 // Examples/Themes holds a few to start from.
 

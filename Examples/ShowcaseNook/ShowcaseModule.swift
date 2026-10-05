@@ -77,8 +77,15 @@ enum LaunchOptions {
     }
 
     /// `--peek`: the player shows its peek shortly after launch and holds it, for a recording.
+    /// In the `compact` scene, the song activity's peek.
     static var peeks: Bool {
         ProcessInfo.processInfo.arguments.contains("--peek")
+    }
+
+    /// `--open-activity`: in the `compact` scene, the nook opens onto the song activity's
+    /// expanded view shortly after launch and stays, for a recording.
+    static var opensActivity: Bool {
+        ProcessInfo.processInfo.arguments.contains("--open-activity")
     }
 
     /// `--theme <file.json>`: a theme file for the chrome, followed as it changes.
@@ -168,6 +175,16 @@ final class ShowcaseModule: NookModule {
         song.setPeek { PlayerPeek(player: player) }
         song.setExpanded { PlayerHome(player: player) }
         activities.start(song)
+
+        // For a recording: hold the song's peek, or open onto it, shortly after launch.
+        let alert: NookLiveActivity.Alert? =
+            LaunchOptions.peeks ? .peek(.seconds(60)) : LaunchOptions.opensActivity ? .expand(.seconds(60)) : nil
+        if let alert {
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(900))
+                activities.alert("song", alert)
+            }
+        }
     }
 
     func makeConfiguration() -> NookConfiguration {
