@@ -31,7 +31,7 @@ hooks, and file drops:
 var configuration = NookConfiguration()
 configuration.setHome { MyHomeView() }
 configuration.setCompactTrailing { MyGlyph() }
-configuration.theme = { appState in MyPalette.resolve(appState) }
+configuration.chromeTheme = NookTheme(accent: "#3399FF", radius: .large)
 
 // Top bar - leading cluster identity and chrome flags live on `topBar`.
 configuration.topBar.leadingTitle = { _ in "Today" }  // default: "Home"

@@ -197,6 +197,42 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   The Settings groups (`NookSettingsGroup`) and `NookActivityHost` read their curve from
   the chrome; the defaults are the curves they hardcoded.
 
+- Chrome themes. `NookTheme` describes the chrome's whole look as data - knobs
+  (`accent`, `radius`, `scale`, `fontDesign`, `fontWidth`, `motion`, `soundVolume`),
+  semantic tokens (color roles including `color.surface`, `color.hoverWash`, and the
+  status colors `color.destructive`, `color.warning`, `color.success`; spacing, radius,
+  and type scales; springs; the chrome's shape; content transitions with delay and
+  stagger; ambient wash; shadow; sounds), and a component token for every
+  `NookChromeMetrics`, `NookChromeTypography`, and `NookChromeMotion` field, each
+  defaulting from the semantic tier. `NookTheme.standard` reproduces the framework's
+  look value for value. Set one with `NookConfiguration.chromeTheme`,
+  `NookHostConfiguration.chromeTheme`, or `NookApp.main(theme:home:)`; per-module
+  themes are applied when a module's content reaches the surface.
+- Theme files. `NookThemeCoder` reads and writes `{"format": "opennook.theme",
+  "version": 1, ...}` with stable dotted token ids, references (`"{radius.lg}"`,
+  `"accent"`), renames, range checks, and reported issues (`NookThemeIssue`,
+  `NookThemeError`). `NookTheme(contentsOf:)` loads one.
+- Live themes. `NookThemeSource` follows a theme replaced in code or a watched theme
+  file (`NookThemeSource.watching(fileAt:)`), through
+  `NookConfiguration.chromeThemeSource` or `NookHostConfiguration.chromeThemeSource`.
+- Theme backdrops per surface style (`NookThemeBackdrops`, `NookBackdropDescription`):
+  solid, vibrancy, Liquid Glass, linear, radial, elliptical, angular, and mesh
+  gradients, and named custom views the host registers in
+  `NookConfiguration.themeBackdrops`.
+- Theme pins: a theme's `palette`, `surface`, `backdropStrength`, and
+  `allowsUserAccent` override the person's choice without changing it, and the
+  built-in Settings hides the pinned controls.
+- `NookResolvedTheme` gained `hoverWash`, `destructive`, `warning`, and `success`
+  (with the colors the chrome already used as defaults), and the environment gained
+  `\.nookTheme`, `\.nookThemeTokens`, and `\.nookChromeColors`.
+- `AppCoordinator.playFeedback(_:duration:repeats:)` plays a peripheral cue in the
+  theme's `feedback.tint`.
+- `NookGlyphButtonStyle.washColor`.
+- The playground builds its Theme page as a `NookTheme`, adds corner, scale, and
+  motion knobs and the new color roles, exports the theme as Swift
+  (`configuration.chromeTheme`) or as a theme file, and the assistant can propose the
+  new fields. Presets keep format version 1.
+
 ### Changed
 
 - Framework strings no longer use em dashes; each became " - ": the "Stay expanded" and
@@ -211,7 +247,17 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   file count uses `labels.components.shelfFileCountOneFormat` and
   `shelfFileCountOtherFormat` instead of automatic grammar agreement, with the same
   English.
-
+- A module switch, and a background module's urgent activity reaching the surface, now
+  apply that module's chrome look - its theme, `style`, and `transitions` - in the
+  switch animation. Before, the chrome kept the launch module's shape and curves until
+  `reloadActiveConfiguration()`.
+- Peripheral feedback, the launch shimmer included, follows the accent
+  (`feedback.tint`), as the theming guide described. With the "System" accent this is
+  the macOS accent, as before; a person who picked an accent swatch now sees it on the
+  cue too.
+- The built-in Settings red and orange (the reset command, shortcut warnings) and the
+  glyph button's hover wash now come from the palette roles, with the same default
+  colors.
 - **Source compatibility:** `NookBackdrop` gained the `.gradient`, `.meshGradient`, and
   `.custom` cases, and `NookFeedback` gained `.pulse`. A host `switch` over either enum
   without a `default` clause needs one; nothing else about existing call sites changes.
@@ -263,6 +309,12 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - With the top bar hidden (`topBar.showsTopBar = false`), expanded content now starts
   below the hardware notch instead of beside and under it, where the notch hid the
   middle of it. Set `topBar.notchClearance = .manual` to keep the old layout.
+
+### Deprecated
+
+- `NookModuleDescriptor.accent` and the descriptor initializer that takes `accent:`. The
+  framework never read it; give a module its own accent with its configuration's
+  `chromeTheme`.
 
 ### Fixed
 

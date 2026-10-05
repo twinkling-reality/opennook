@@ -81,9 +81,26 @@ The app chrome layered over `NookSurface`.
   [Typing in the nook](/guides/keyboard/). Source:
   `Sources/NookKit/App/AppCoordinator.swift`,
   `Sources/NookKit/System/NookEditMenu.swift`.
-- **Theme** - `NookResolvedTheme`. The flat palette every chrome view reads,
-  including `accent` and `fontDesign`. See [Theming](/guides/theming/). Source:
-  `Sources/NookKit/App/NookResolvedTheme.swift`.
+- **Theme** - `NookTheme` (`NookConfiguration.chromeTheme`,
+  `NookHostConfiguration.chromeTheme`, `NookApp.main(theme:home:)`): knobs,
+  `NookRadiusScale`, `NookMotionScheme`, `NookThemeTokens` keyed by `NookColorID`,
+  `NookDimensionID`, `NookFontID`, `NookAnimationID`, `NookTransitionID`,
+  `NookSoundID`, and `NookShadowID`, and `NookThemeBackdrops`. The values a theme
+  holds: `NookColorValue`, `NookRGBA`, `NookAdaptiveColor`, `NookSystemColor`,
+  `NookDimension`, `NookAdaptiveNumber`, `NookFontSpec`, `NookAnimationSpec`,
+  `NookContentTransitionSpec`, `NookGradientSpec`, `NookShadowSpec`,
+  `NookSoundSpec`, `NookUnitPointSpec`, and `NookBackdropDescription`. Resolution:
+  `NookThemeContext`, `NookResolvedTokens` (`\.nookThemeTokens`), `\.nookTheme`,
+  `NookChromeColors` (`\.nookChromeColors`). Files: `NookThemeCoder`,
+  `NookThemeLoadResult`, `NookThemeIssue`, `NookThemeError`. Live themes:
+  `NookThemeSource` (`chromeThemeSource`). Custom backdrop views:
+  `NookConfiguration.themeBackdrops`. Feedback in the theme's tint:
+  `AppCoordinator.playFeedback(_:duration:repeats:)`. See
+  [Theming](/guides/theming/). Source: `Sources/NookKit/Theme/`.
+- **Palette** - `NookResolvedTheme`. The flat palette every chrome view reads,
+  including `accent`, `fontDesign`, and the `hoverWash`, `destructive`, `warning`,
+  and `success` roles. See [Theming](/guides/theming/#reading-the-theme-in-views).
+  Source: `Sources/NookKit/App/NookResolvedTheme.swift`.
 - **Appearance preferences** - `NookAppearancePreferences`, `NookChromePalette`,
   `NookSurfaceStyle`. The persisted, user-facing surface and chrome state. See
   [Theming](/guides/theming/#user-facing-appearance-preferences). Source:
