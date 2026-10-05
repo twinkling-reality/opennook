@@ -226,8 +226,9 @@ theme and its accent tint, the module's `\.appServices`, `\.nookHostBranding`,
 
 ### Labels
 
-`NookChromeLabels` holds the strings the chrome renders - for localization or
-product naming (for example "Preferences" instead of "Settings"):
+`NookChromeLabels` holds every string the framework draws - for localization or
+product naming (for example "Preferences" instead of "Settings"). The defaults are
+today's English. Four top-bar strings sit at the top level:
 
 ```swift
 configuration.labels.settingsBreadcrumb = "Preferences"
@@ -238,7 +239,40 @@ configuration.labels.dismissHelp = "Dismiss"
 
 `settingsBreadcrumb` is the label after the leading cluster
 (`[icon] Title > Settings`); the other three are tooltips on the keep-open lock,
-the gear, and the banner's dismiss button.
+the gear, and the banner's dismiss button. The rest are grouped by where they
+appear:
+
+| Group | Strings |
+| --- | --- |
+| `labels.topBar` | The module switcher's tooltip and its "needs attention" entry |
+| `labels.settings` | The Settings group titles (Appearance, Display, Shortcut & nook, Data, About), the banner preview row and its message, "Reset All Settings", the About version and fallback tagline |
+| `labels.appearance` | The Theme, Surface, and Layout pickers, their options and captions, the accent swatch names, the strength slider |
+| `labels.display` | The display picker, its options and captions |
+| `labels.shortcut` | The global shortcut row, its hints and accessibility text, the "unavailable" message, "Stay expanded", haptic feedback, and the "Cycle Modules" shortcut name |
+| `labels.menuBar` | The menu-bar item: Show, Settings..., Toggle Stay Expanded, Modules, Quit |
+| `labels.components` | The `NookComponents` shelf and volume glyph |
+| `labels.placeholderMessage` | The line on the placeholder home view |
+
+```swift
+configuration.labels.settings.appearanceTitle = "Look"
+configuration.labels.appearance.themeFollowSystem = "System"
+configuration.labels.appearance.accentNames[.teal] = "Petrol"
+configuration.labels.menuBar.quit = "Quit Constellation"
+```
+
+A string that carries a value is a template: its `{name}` placeholders are filled
+when it is drawn, so a translation can put the value where its grammar needs it.
+Each template's documentation lists its placeholders.
+
+```swift
+configuration.labels.shortcut.showHostFormat = "{host} anzeigen"           // {host}
+configuration.labels.shortcut.unavailableFormat = "{combination} ist belegt." // {combination}
+configuration.labels.components.shelfFileCountOtherFormat = "{count} Dateien" // {count}
+```
+
+Labels are drawn as written; the framework no longer looks its literals up in your
+app's string tables, so localize by setting labels. The menu-bar item reads the
+active module's labels. Labels are not part of a theme file.
 
 ### Metrics
 
@@ -298,7 +332,8 @@ configuration.typography.bannerMessage = .system(size: 10.5, weight: .medium)
 `NookChromeMotion` retunes the chrome's *in-panel* animation curves - distinct
 from `NookConfiguration.transitions`, which governs the surface-level
 expand / collapse / compact conversion. These drive the home-to-Settings swap,
-the status banner, the breadcrumb, and the leading cluster's reveals:
+the status banner, the breadcrumb, the leading cluster's reveals, the Settings
+groups, the switch between modules, and the activity card:
 
 ```swift
 configuration.motion.viewModeChange = .snappy        // home<->Settings swap and gear toggle
@@ -306,7 +341,21 @@ configuration.motion.leadingClusterBack = .snappy    // exiting Settings / clear
 configuration.motion.leadingClusterHover = .snappy   // hover-reveal of the title
 configuration.motion.statusBanner = .snappy          // banner appearance / dismissal
 configuration.motion.breadcrumb = .easeOut(duration: 0.18)
+configuration.motion.settingsDisclosure = .snappy    // a Settings group opening / closing
+configuration.motion.moduleSwitch = .easeInOut(duration: 0.22) // cross-fade between modules
+configuration.motion.activityCard = .snappy          // NookActivityHost card takeover
 ```
+
+The defaults are the curves these used to hardcode: `settingsDisclosure` is
+`.spring(response: 0.30, dampingFraction: 0.86)`, `moduleSwitch` is
+`.easeInOut(duration: 0.22)`, and `activityCard` is
+`.spring(response: 0.36, dampingFraction: 0.86)`. `NookSettingsGroup` and
+`NookActivityHost` read the curve from the environment, so they follow it in a
+custom Settings screen or home view too. Each field is also a theme token -
+`motion.viewModeChange`, `motion.leadingClusterBack`, `motion.leadingClusterHover`,
+`motion.statusBanner`, `motion.breadcrumb`, `motion.settingsDisclosure`,
+`motion.moduleSwitch`, `motion.activityCard` - so a theme file can set them (see
+[Theming](/guides/theming/)).
 
 ## Engine-level shape and motion (`NookSurface`)
 
@@ -499,6 +548,117 @@ The lock and gear themselves can leave the bar: `topBar.showsKeepOpenButton` and
 `NookKeepOpenButton`, `NookSettingsButton`, and `\.nookChromeActions` put them
 anywhere else - see [Moving the lock and
 gear](/guides/companion-surfaces/#moving-the-lock-and-gear).
+
+## Top-bar glyphs: `topBar.symbols`
+
+`NookChromeSymbols` names the SF Symbols the top bar draws. The defaults are
+today's glyphs:
+
+```swift
+configuration.topBar.symbols.keepOpenOn = "lock.fill"         // lock while staying expanded
+configuration.topBar.symbols.keepOpenOff = "lock.open"        // lock otherwise
+configuration.topBar.symbols.settings = "gearshape"           // gear
+configuration.topBar.symbols.breadcrumbSeparator = "chevron.right"
+configuration.topBar.symbols.back = nil                        // see below
+configuration.topBar.symbols.moduleSwitcherIndicator = "chevron.down"
+configuration.topBar.symbols.moduleSwitcherActive = "checkmark"
+```
+
+In Settings or under a module breadcrumb, the leading glyph becomes the back
+control. By default it keeps the leading icon or brand mark, so the bar reads as a
+breadcrumb (`[mark] > Settings`) rather than as back and forward buttons next to
+the separator. Set `back` to draw a symbol there instead.
+
+`NookKeepOpenButton` and `NookSettingsButton` read the same glyphs
+(`\.nookChromeSymbols`), in expanded content and in the compact slots.
+
+### A custom leading icon
+
+`topBar.leadingIcon` takes an SF Symbol name. For anything else - an image, a
+monogram, a live badge - draw the icon yourself with `setLeadingIcon`. The closure
+receives the color to draw in: the idle icon color beside the title, or the back
+control's idle, hover, or active color.
+
+```swift
+configuration.topBar.setLeadingIcon { color in Monogram(color: color) }
+
+struct Monogram: View {
+    let color: Color
+
+    var body: some View {
+        Text("C")
+            .font(.system(size: 10, weight: .bold, design: .rounded))
+            .foregroundStyle(color)
+    }
+}
+```
+
+It wins over `leadingIcon` and the brand mark; with the in-surface module switcher
+it is the fallback when no module is active.
+
+## Replacing the top bar
+
+To draw a bar of your own without losing what the framework bar does, set
+`topBar.content` - or call `setTopBar` - with a view built from a
+`NookTopBarContext`. The context carries the bar's state and the actions behind
+its controls:
+
+| Member | What it is |
+| --- | --- |
+| `title`, `leadingIcon` | `leadingTitle` for the current state, and `leadingIcon` |
+| `viewMode`, `isSettingsShown` | Home or Settings |
+| `showsSettings` | Whether Settings exists at all |
+| `breadcrumb` | The module's breadcrumb, or `nil` |
+| `canGoBack`, `goBack()` | Leave Settings or clear the breadcrumb, as the leading glyph does |
+| `isKeepOpen`, `toggleKeepOpen()` | Stay expanded, as the lock does |
+| `toggleSettings()` | Home to Settings and back, as the gear does; nothing when `showsSettings` is `false` |
+| `moduleSwitcher` | The modules, the active and attention ids, and `switchTo(_:)`, for a multi-module host |
+| `symbols` | The configured `topBar.symbols` |
+
+```swift
+configuration.setTopBar { bar in MyTopBar(bar: bar) }
+
+struct MyTopBar: View {
+    let bar: NookTopBarContext
+    @Environment(\.nookContentInsets) private var insets
+
+    var body: some View {
+        HStack(spacing: 8) {
+            if bar.canGoBack {
+                Button("Back", systemImage: bar.symbols.back ?? "chevron.left") { bar.goBack() }
+            }
+            Text(bar.breadcrumb ?? bar.title)
+            Spacer()
+            Button("Stay expanded", systemImage: bar.symbols.keepOpen(bar.isKeepOpen)) {
+                bar.toggleKeepOpen()
+            }
+            if bar.showsSettings {
+                Button("Settings", systemImage: bar.symbols.settings) { bar.toggleSettings() }
+            }
+        }
+        .labelStyle(.iconOnly)
+        .buttonStyle(.plain)
+        .padding(.leading, insets.leading)
+        .padding(.trailing, insets.trailing)
+    }
+}
+```
+
+`NookTopBarContext` is `Sendable`, so a view that keeps it can be registered like
+any other content view.
+
+The actions use the same `NookChromeMotion` curves as the framework bar. The host
+bar renders in the chrome environment, so it can also read `AppState`,
+`\.nookChromeActions`, the palette, the labels, and `\.nookContentInsets` - pad by
+the insets' `leading` and `trailing` to line up with home content the way the
+framework bar does. It gets at least `metrics.topBarHeight` of height, which the
+notch clearance below the bar assumes.
+
+`showsTopBar` and `showsStatusBanner` still apply. The lock and gear visibility
+flags, `leadingIcon`, `trailingItems`, and `width` describe the framework bar, so
+they are yours to honor or ignore. `moduleSwitcher` is present when a multi-module
+host sets `moduleSwitcherPlacement = .leadingCluster`, the placement that puts
+switching in the top bar - which is now yours.
 
 ## Top-bar width: `.contentColumn`
 

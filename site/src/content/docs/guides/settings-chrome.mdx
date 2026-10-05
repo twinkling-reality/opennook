@@ -5,8 +5,9 @@ description: Configure the top bar, the gear, and what the chrome shows.
 
 The chrome (top bar, lock for keep-open, and Settings gear) is driven by
 flags on `NookConfiguration.topBar`. You can replace the leading identity
-(label and icon), strip the top bar entirely, or keep the bar while dropping
-the gear.
+(label and icon), change the bar's glyphs, strip the top bar entirely, keep the
+bar while dropping the gear, or draw a bar of your own that keeps the framework's
+behavior.
 
 ```swift
 var configuration = NookConfiguration()
@@ -23,7 +24,16 @@ configuration.topBar.notchClearance = .automatic  // .manual lets content run up
 // Move the lock or the gear somewhere else, keeping the feature.
 configuration.topBar.showsKeepOpenButton = true  // false takes the lock out of the bar
 configuration.topBar.showsSettingsButton = true  // false takes the gear out of the bar
+
+// The bar's glyphs, a custom leading icon, or a whole bar of your own.
+configuration.topBar.symbols.settings = "slider.horizontal.3"
+configuration.topBar.setLeadingIcon { color in Monogram(color: color) }
+configuration.setTopBar { bar in MyTopBar(bar: bar) }
 ```
+
+The glyphs, the leading icon view, and the replacement bar are covered in
+[Top-bar glyphs](/guides/chrome-customization/#top-bar-glyphs-topbarsymbols) and
+[Replacing the top bar](/guides/chrome-customization/#replacing-the-top-bar).
 
 ## `showsTopBar`
 
@@ -74,6 +84,25 @@ it and keep the rest:
 ```swift
 configuration.settingsGroups = [.appearance, .shortcut, .about]  // no Display or Data
 ```
+
+## Renaming and translating Settings
+
+Every string the built-in screen draws comes from `NookConfiguration.labels`
+(`NookChromeLabels`): the group titles in `labels.settings`, and the rows of each
+group in `labels.appearance`, `labels.display`, and `labels.shortcut`. The public
+sections read the same labels, so they follow them in a Settings screen of your own.
+
+```swift
+configuration.labels.settings.appearanceTitle = "Look"
+configuration.labels.settings.shortcutTitle = "Keyboard"
+configuration.labels.shortcut.stayExpandedTitle = "Keep open"
+configuration.labels.shortcut.stayExpandedOn = "On - stays open after the pointer leaves"
+configuration.labels.display.builtIn = "This Mac's display"
+```
+
+Renaming a group keeps it open or closed. See
+[Labels](/guides/chrome-customization/#labels) for every group and for templates
+such as `labels.shortcut.showHostFormat` (`"Show {host}"`).
 
 ## Building your own Settings screen
 
@@ -130,8 +159,9 @@ are functions of `AppState`, so they can follow your product state.
 
 Defaults are `"Home"` for the title and the OpenNook brand mark for the icon
 (`leadingIcon` is `nil`). Set `leadingIcon` to an SF Symbol name, such as
-`"house"`, to use your own glyph. Set `leadingTitle` to return an empty string
-if you want a title-only cluster with no icon override.
+`"house"`, to use your own glyph, or `setLeadingIcon` to draw any view there. Set
+`leadingTitle` to return an empty string if you want a title-only cluster with no
+icon override.
 
 ## See also
 
