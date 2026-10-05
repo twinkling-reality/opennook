@@ -176,6 +176,8 @@ var package = Package(
             name: "NookKitTests",
             dependencies: ["NookKit", "NookSurface"],
             path: "Tests/NookKitTests",
+            // Read by path from the tests (theme-token-ids.txt), not bundled as a resource.
+            exclude: ["Fixtures"],
             swiftSettings: strictConcurrency
         ),
         .testTarget(

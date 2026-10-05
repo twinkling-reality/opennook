@@ -173,7 +173,7 @@ public indirect enum NookColorValue: Equatable, Sendable {
     /// Reserved. A hierarchical label style (`.primary`, `.secondary`, ...) would only render
     /// with vibrancy if the chrome's content were drawn inside its material, which it is not:
     /// the backdrop is a sibling behind the content. Until that changes this resolves to the
-    /// matching explicit label role, ``NookHierarchicalLevel/labelRole``, and a theme file that
+    /// matching explicit label role's default, ``NookHierarchicalLevel/labelRole``, and a theme file that
     /// uses it gets a warning.
     case hierarchical(NookHierarchicalLevel)
 

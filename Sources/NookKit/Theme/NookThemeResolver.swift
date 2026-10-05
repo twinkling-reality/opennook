@@ -451,7 +451,10 @@ final class NookThemeResolver {
                 )
                 return resolve(variant, in: context, useOverrides: useOverrides)
             case .hierarchical(let level):
-                return color(level.labelRole, in: context, useOverrides: useOverrides)
+                // The label role's own default, so a role written as its hierarchical level
+                // does not refer to itself.
+                let role = NookTokenRegistry.colorsByID[level.labelRole]?.value ?? .white(opacity: 1)
+                return resolve(role, in: context, useOverrides: false)
         }
     }
 
