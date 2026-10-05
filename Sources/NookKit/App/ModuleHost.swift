@@ -38,7 +38,7 @@ public final class ModuleHost: ObservableObject {
         self.activeModuleID = id
         self.configuration = Self.themed(
             registry.module(for: id)?.makeConfiguration() ?? NookConfiguration(),
-            hostTheme: registry.chromeTheme
+            registry: registry
         )
         self.chromeBehavior = registry.chromeBehavior
     }
@@ -224,16 +224,32 @@ public final class ModuleHost: ObservableObject {
 
     // MARK: - Theme
 
-    /// `configuration` with the host's theme filled in when it sets none, so everything that
-    /// reads ``NookConfiguration/chromeTheme`` downstream sees the theme the chrome draws with.
-    static func themed(_ configuration: NookConfiguration, hostTheme: NookTheme?) -> NookConfiguration {
-        guard configuration.chromeTheme == nil, let hostTheme else { return configuration }
+    /// `configuration` with the theme the chrome draws it with filled in, so everything that
+    /// reads ``NookConfiguration/chromeTheme`` downstream sees it. In order: the
+    /// configuration's own ``NookConfiguration/chromeThemeSource``, its own theme, the host's
+    /// source, the host's theme.
+    static func themed(_ configuration: NookConfiguration, registry: NookModuleRegistry) -> NookConfiguration {
         var themed = configuration
-        themed.chromeTheme = hostTheme
+        if let source = configuration.chromeThemeSource {
+            themed.chromeTheme = source.theme
+        } else if configuration.chromeTheme == nil {
+            if let source = registry.chromeThemeSource {
+                themed.chromeTheme = source.theme
+            } else if let hostTheme = registry.chromeTheme {
+                themed.chromeTheme = hostTheme
+            }
+        }
         return themed
     }
 
     private func themed(_ configuration: NookConfiguration) -> NookConfiguration {
-        Self.themed(configuration, hostTheme: registry.chromeTheme)
+        Self.themed(configuration, registry: registry)
+    }
+
+    /// Builds the presenting background module's configuration again, for a theme that
+    /// changed under it. A no-op while the active module is on the surface.
+    func reloadPresentedBackgroundConfiguration() {
+        guard let id = presentedBackgroundModuleID else { return }
+        presentedBackgroundConfiguration = registry.module(for: id).map { themed($0.makeConfiguration()) }
     }
 }

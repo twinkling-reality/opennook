@@ -60,6 +60,10 @@ public final class NookModuleRegistry {
     /// ``NookHostConfiguration/chromeTheme``.
     public let chromeTheme: NookTheme?
 
+    /// The host's live chrome theme, which stands in for ``chromeTheme`` when set. See
+    /// ``NookHostConfiguration/chromeThemeSource``.
+    public let chromeThemeSource: NookThemeSource?
+
     /// Where the module switcher appears (menu bar, leading cluster, or nowhere). Held
     /// here so the router and the app shell can read it through ``ModuleHost``. See
     /// ``NookModuleSwitcherPlacement``.
@@ -88,6 +92,7 @@ public final class NookModuleRegistry {
         chromeBehavior: NookChromeBehavior = .default,
         showsMenuBarExtra: Bool = true,
         chromeTheme: NookTheme? = nil,
+        chromeThemeSource: NookThemeSource? = nil,
         switcherPlacement: NookModuleSwitcherPlacement = .menuBar,
         presentationPinning: NookPresentationPinning = NookPresentationPinning()
     ) {
@@ -98,6 +103,7 @@ public final class NookModuleRegistry {
         self.chromeBehavior = chromeBehavior
         self.showsMenuBarExtra = showsMenuBarExtra
         self.chromeTheme = chromeTheme
+        self.chromeThemeSource = chromeThemeSource
         self.switcherPlacement = switcherPlacement
         self.presentationPinning = presentationPinning
         self.filePicker = NookFilePicker(presentationPinning: presentationPinning)

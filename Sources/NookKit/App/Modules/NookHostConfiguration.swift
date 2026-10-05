@@ -60,6 +60,10 @@ public struct NookHostConfiguration: Sendable {
     /// framework's look. A module's theme replaces this one as a whole.
     public var chromeTheme: NookTheme?
 
+    /// A host theme that changes while the nook runs, such as a watched theme file. When set,
+    /// it stands in for ``chromeTheme``. See ``NookThemeSource``.
+    public var chromeThemeSource: NookThemeSource?
+
     /// Where the module switcher appears. Defaults to ``NookModuleSwitcherPlacement/menuBar``
     /// so the framework never plants switcher chrome in the host's expanded surface: a
     /// multi-module host gets a "Modules" menu-bar section and the cycle / per-module
@@ -150,6 +154,7 @@ public struct NookHostConfiguration: Sendable {
             chromeBehavior: chromeBehavior,
             showsMenuBarExtra: showsMenuBarExtra,
             chromeTheme: chromeTheme,
+            chromeThemeSource: chromeThemeSource,
             switcherPlacement: moduleSwitcherPlacement,
             presentationPinning: NookPresentationPinning()
         )

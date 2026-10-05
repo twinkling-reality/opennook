@@ -95,6 +95,12 @@ public struct NookConfiguration: Sendable {
         didSet { resolvedThemeTokens = chromeTheme?.resolvedTokens() }
     }
 
+    /// A chrome theme that changes while the nook runs - replaced in code, or reloaded from a
+    /// theme file on every save (``NookThemeSource/watching(fileAt:debounce:)``). When set, its
+    /// theme is this configuration's ``chromeTheme``, and each new one is applied like
+    /// ``AppCoordinator/reloadActiveConfiguration()``. `nil` (the default) is none.
+    public var chromeThemeSource: NookThemeSource?
+
     /// Backdrop views a theme names by id, for a ``NookBackdropDescription/custom(id:fallback:)``
     /// backdrop: a theme file cannot hold a view, so it names one and the host supplies it.
     /// Each resolver gets the same ``NookBackdropContext`` a ``NookChromeBehavior/backdrop``
