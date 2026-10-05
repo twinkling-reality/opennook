@@ -95,8 +95,7 @@ final class ShowcaseModule: NookModule {
     nonisolated static let moduleDescriptor = NookModuleDescriptor(
         id: "com.opennook.example.showcase",
         displayName: "Showcase",
-        icon: "sparkles",
-        accent: .orange
+        icon: "sparkles"
     )
 
     let descriptor = ShowcaseModule.moduleDescriptor

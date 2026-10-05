@@ -32,10 +32,23 @@ public struct NookModuleDescriptor: Identifiable, Sendable {
     /// host brand mark - not by this descriptor.)
     public var icon: String
 
-    /// Accent used to tint the module's switcher entry.
-    public var accent: Color
+    /// Never read by the framework: the switcher is a menu whose entries cannot take a tint.
+    /// To give a module its own accent, set it on the module's configuration:
+    /// `configuration.chromeTheme = NookTheme(accent: ...)`, which the chrome applies when the
+    /// module's content is on the surface.
+    @available(
+        *,
+        deprecated,
+        message: "Never read. Give a module its own accent with its configuration's chromeTheme.accent."
+    )
+    public var accent: Color {
+        get { storedAccent }
+        set { storedAccent = newValue }
+    }
 
-    /// Optional global hotkey that jumps straight to this module. `nil` - the default - 
+    private var storedAccent: Color
+
+    /// Optional global hotkey that jumps straight to this module. `nil` - the default -
     /// means the module is reachable only via the switcher or the cycle hotkey.
     public var hotkey: NookHotkey?
 
@@ -58,15 +71,32 @@ public struct NookModuleDescriptor: Identifiable, Sendable {
         id: String,
         displayName: String,
         icon: String = "square.grid.2x2",
-        accent: Color = .accentColor,
         hotkey: NookHotkey? = nil,
         backgroundPolicy: BackgroundPolicy = .unloadOnSwitchAway
     ) {
         self.id = id
         self.displayName = displayName
         self.icon = icon
-        self.accent = accent
+        self.storedAccent = .accentColor
         self.hotkey = hotkey
         self.backgroundPolicy = backgroundPolicy
+    }
+
+    /// A descriptor with an `accent` the framework never reads. See ``accent``.
+    @available(
+        *,
+        deprecated,
+        message: "accent is never read. Drop it, and give a module its own accent with its configuration's chromeTheme."
+    )
+    public init(
+        id: String,
+        displayName: String,
+        icon: String = "square.grid.2x2",
+        accent: Color,
+        hotkey: NookHotkey? = nil,
+        backgroundPolicy: BackgroundPolicy = .unloadOnSwitchAway
+    ) {
+        self.init(id: id, displayName: displayName, icon: icon, hotkey: hotkey, backgroundPolicy: backgroundPolicy)
+        self.storedAccent = accent
     }
 }

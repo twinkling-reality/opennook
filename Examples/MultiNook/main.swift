@@ -79,8 +79,7 @@ final class CounterModule: NookModule {
     nonisolated static let moduleDescriptor = NookModuleDescriptor(
         id: "com.opennook.example.counter",
         displayName: "Counter",
-        icon: "number",
-        accent: .orange
+        icon: "number"
     )
 
     let descriptor = CounterModule.moduleDescriptor
@@ -100,6 +99,9 @@ final class CounterModule: NookModule {
         configuration.setHome { CounterHome() }
         configuration.topBar.leadingTitle = { _ in "Counter" }
         configuration.topBar.leadingIcon = "number"
+        // Each module has its own accent: the chrome applies a module's theme when a switch
+        // puts its content on the surface.
+        configuration.chromeTheme = NookTheme(accent: .system(.orange))
         return configuration
     }
 }
@@ -131,6 +133,7 @@ func clockConfiguration() -> NookConfiguration {
     }
     configuration.topBar.leadingTitle = { _ in "Clock" }
     configuration.topBar.leadingIcon = "clock"
+    configuration.chromeTheme = NookTheme(accent: .system(.blue))
     return configuration
 }
 
@@ -146,6 +149,7 @@ func notesConfiguration() -> NookConfiguration {
     }
     configuration.topBar.leadingTitle = { _ in "Notes" }
     configuration.topBar.leadingIcon = "note.text"
+    configuration.chromeTheme = NookTheme(accent: .system(.green))
     return configuration
 }
 
@@ -158,8 +162,7 @@ host.register(
     NookModuleDescriptor(
         id: "com.opennook.example.clock",
         displayName: "Clock",
-        icon: "clock",
-        accent: .blue
+        icon: "clock"
     ),
     configuration: { clockConfiguration() }
 )
@@ -167,8 +170,7 @@ host.register(
     NookModuleDescriptor(
         id: "com.opennook.example.notes",
         displayName: "Notes",
-        icon: "note.text",
-        accent: .green
+        icon: "note.text"
     ),
     configuration: { notesConfiguration() }
 )
