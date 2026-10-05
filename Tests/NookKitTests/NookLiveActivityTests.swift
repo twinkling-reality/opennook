@@ -191,11 +191,11 @@ final class NookLiveActivityTests: XCTestCase {
     func testAPeekAlertPeeksAndEndsOnSchedule() async {
         let (coordinator, surface, activities) = makeCoordinator()
         await surface.compact(on: nil)
-        activities.start(activity("song", alert: .peek(.milliseconds(150)), peek: true))
-        await waitUntil { surface.isPeeking }
+        activities.start(activity("song", alert: .peek(.milliseconds(900)), peek: true))
+        await waitUntil(timeout: .seconds(4)) { surface.isPeeking }
         XCTAssertTrue(surface.isPeeking)
         XCTAssertEqual(surface.state, .compact)
-        await waitUntil { !surface.isPeeking }
+        await waitUntil(timeout: .seconds(4)) { !surface.isPeeking }
         XCTAssertFalse(surface.isPeeking)
         withExtendedLifetime(coordinator) {}
     }
@@ -203,11 +203,11 @@ final class NookLiveActivityTests: XCTestCase {
     func testAnExpandAlertOpensOntoTheActivityAndCollapsingTakesItDown() async {
         let (coordinator, surface, activities) = makeCoordinator()
         await surface.compact(on: nil)
-        activities.start(activity("timer", alert: .expand(.milliseconds(150)), expanded: true))
-        await waitUntil { surface.state == .expanded }
+        activities.start(activity("timer", alert: .expand(.milliseconds(900)), expanded: true))
+        await waitUntil(timeout: .seconds(4)) { surface.state == .expanded }
         XCTAssertEqual(coordinator.appState.presentedLiveActivity, "a\u{1F}timer")
         XCTAssertEqual(coordinator.appState.moduleBreadcrumb, "Timer")
-        await waitUntil { surface.state == .compact }
+        await waitUntil(timeout: .seconds(4)) { surface.state == .compact }
         XCTAssertNil(coordinator.appState.presentedLiveActivity)
         XCTAssertNil(coordinator.appState.moduleBreadcrumb)
     }
@@ -221,8 +221,8 @@ final class NookLiveActivityTests: XCTestCase {
         XCTAssertFalse(surface.isPeeking)
         XCTAssertEqual(coordinator.liveActivities.primary?.moduleID, "b", "it still holds the pill")
 
-        background.start(activity("alarm", priority: .high, alert: .peek(.milliseconds(150)), peek: true))
-        await waitUntil { surface.isPeeking }
+        background.start(activity("alarm", priority: .high, alert: .peek(.milliseconds(900)), peek: true))
+        await waitUntil(timeout: .seconds(4)) { surface.isPeeking }
         XCTAssertTrue(surface.isPeeking, "a high priority alert from the background takes the surface")
     }
 

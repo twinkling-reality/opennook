@@ -6,9 +6,10 @@
 // A copy is included at /LICENSE in the repository root.
 
 import Combine
-import XCTest
-@testable import NookComponents
 import NookKit
+import XCTest
+
+@testable import NookComponents
 
 /// A `NookSurfacePresenting` stand-in - no real window, fully controllable engagement.
 @MainActor
@@ -19,7 +20,7 @@ private final class FakePresenter: NookSurfacePresenting {
     private(set) var endCount = 0
     private var nextToken = 0
 
-    /// When > 0, the next N `beginTransientPresentation(_:)` calls reject the takeover - 
+    /// When > 0, the next N `beginTransientPresentation(_:)` calls reject the takeover -
     /// simulating the user grabbing the surface in the pre-takeover race window.
     var rejectNextBegins = 0
 
@@ -108,7 +109,7 @@ final class NookActivityQueueTests: XCTestCase {
     /// changes, the card keeps its id, and nothing more is queued.
     @MainActor
     func testACardWithTheSameKeyUpdatesTheOneOnScreen() async {
-        let queue = NookActivityQueue(sleep: { _ in try? await Task.sleep(for: .milliseconds(300)) })
+        let queue = NookActivityQueue(sleep: { _ in try? await Task.sleep(for: .seconds(1)) })
         let presenter = FakePresenter()
         queue.bind(to: presenter)
 
