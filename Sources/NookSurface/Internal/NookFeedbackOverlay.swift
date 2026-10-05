@@ -31,9 +31,8 @@ import SwiftUI
 /// reading as added light against the dark backdrop without overdarkening on light themes.
 struct NookFeedbackOverlay: View {
     let event: NookFeedbackEvent?
-    let form: NookChromeForm
-    let topCornerRadius: CGFloat
-    let bottomCornerRadius: CGFloat
+    /// The chrome's outline, which the cue traces.
+    let shape: NookShape
     let reduceMotion: Bool
 
     var body: some View {
@@ -65,9 +64,10 @@ struct NookFeedbackOverlay: View {
         return min(max(elapsed / event.duration, 0), 1)
     }
 
+    /// The cue at `progress` (0...1) through one cycle. Internal so tests can render a frame.
     @ViewBuilder
-    private func overlayContent(event: NookFeedbackEvent, progress: Double) -> some View {
-        if reduceMotion && event.respectsReduceMotion {
+    func overlayContent(event: NookFeedbackEvent, progress: Double) -> some View {
+        if event.effect == .pulse || (reduceMotion && event.respectsReduceMotion) {
             saturationCrossfade(event: event, progress: progress)
         } else {
             shimmerSweep(event: event, progress: progress)
@@ -85,20 +85,13 @@ struct NookFeedbackOverlay: View {
     /// band fades in as it enters the visible region and fades out as it leaves - no hard
     /// edges at the start/end frames.
     private func shimmerSweep(event: NookFeedbackEvent, progress: Double) -> some View {
+        let style = event.style
         let startX = -0.5 + progress * 1.5
         let endX = startX + 0.5
         let envelope = sin(progress * .pi)
 
-        let highlight = event.tint.opacity(0.95)
-        let core = Color.white.opacity(0.75)
         let gradient = LinearGradient(
-            stops: [
-                .init(color: .clear, location: 0.0),
-                .init(color: highlight, location: 0.42),
-                .init(color: core, location: 0.5),
-                .init(color: highlight, location: 0.58),
-                .init(color: .clear, location: 1.0)
-            ],
+            gradient: style.resolvedBandGradient,
             startPoint: UnitPoint(x: startX, y: 0.5),
             endPoint: UnitPoint(x: endX, y: 0.5)
         )
@@ -106,28 +99,31 @@ struct NookFeedbackOverlay: View {
         return ZStack {
             // Soft ambient halo that pulses with the shimmer - gives the perimeter weight at
             // peripheral vision so the cue reads even when the user isn't directly looking.
-            NookShape(form: form, topCornerRadius: topCornerRadius, bottomCornerRadius: bottomCornerRadius)
-                .stroke(event.tint.opacity(0.55), lineWidth: 8.0)
-                .blur(radius: 3.0)
-                .opacity(envelope * 0.9)
-                .blendMode(.plusLighter)
+            if let glow = style.glow {
+                shape
+                    .stroke(style.resolvedGlowColor(glow), lineWidth: glow.width)
+                    .blur(radius: glow.radius)
+                    .opacity(envelope * 0.9)
+                    .blendMode(style.blendMode)
+            }
 
-            NookShape(form: form, topCornerRadius: topCornerRadius, bottomCornerRadius: bottomCornerRadius)
-                .stroke(gradient, lineWidth: 6.0)
+            shape
+                .stroke(gradient, lineWidth: style.lineWidth)
                 .opacity(envelope)
-                .blendMode(.plusLighter)
+                .blendMode(style.blendMode)
         }
     }
 
-    /// Reduce Motion fallback. No horizontal sweep; the perimeter pulses the tint color in and
-    /// out symmetrically. Functionally informative ("the chrome briefly accented") without the
-    /// vestibular cost of moving content.
+    /// The pulse, and the shimmer's Reduce Motion fallback. No horizontal sweep; the
+    /// perimeter pulses the style's color in and out symmetrically. Functionally informative
+    /// ("the chrome briefly accented") without the vestibular cost of moving content.
+    @ViewBuilder
     private func saturationCrossfade(event: NookFeedbackEvent, progress: Double) -> some View {
         let envelope = sin(progress * .pi) * 0.7
-        return NookShape(form: form, topCornerRadius: topCornerRadius, bottomCornerRadius: bottomCornerRadius)
-            .stroke(event.tint, lineWidth: 4.0)
+        shape
+            .stroke(event.style.color, lineWidth: event.style.pulseLineWidth)
             .opacity(envelope)
-            .blendMode(.plusLighter)
+            .blendMode(event.style.blendMode)
     }
 
 }

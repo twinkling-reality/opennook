@@ -86,6 +86,16 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// and every hide, so a new value takes effect from the next one.
     public var hoverBehavior: NookHoverBehavior
 
+    /// The haptic played on hover changes when ``hoverBehavior`` contains
+    /// ``NookHoverBehavior/hapticFeedback``. ``NookHoverHaptic/standard`` (the `.alignment`
+    /// pattern) by default. Read on every hover change, so a new value takes effect from
+    /// the next one.
+    public var hoverHaptic: NookHoverHaptic = .standard
+
+    /// Performs hover haptics in place of the system's default performer. Tests set it to
+    /// record what was played.
+    var hapticPerformer: (any NSHapticFeedbackPerformer)?
+
     public var transitionConfiguration = NookTransitionConfiguration()
 
     /// Resolves the screen the chrome should occupy when a caller doesn't pass one
@@ -257,6 +267,17 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// color, so this style alone never draws anything. See ``NookRimGlowStyle``.
     @Published public var rimGlowStyle: NookRimGlowStyle = .standard
 
+    /// A shadow cast by the chrome's outline onto the desktop, or `nil` (the default) for
+    /// none. It follows the outline as the chrome springs between compact and expanded, is
+    /// never drawn under the chrome itself (so a translucent backdrop is not darkened), and
+    /// in the notch form fades out across the menu bar, as the rim glow's halo does. See
+    /// ``NookChromeShadow``.
+    @Published public var chromeShadow: NookChromeShadow?
+
+    /// The shape of the wash expanded content paints with `nookAmbientColor(_:)`.
+    /// ``NookAmbientWash/standard`` by default. See ``NookAmbientWash``.
+    @Published public var ambientWash: NookAmbientWash = .standard
+
     /// A panel-wide soft fade where scrolling content meets the panel's edges, or `nil` (the
     /// default) for none. Published to the chrome's content as
     /// `\.nookScrollEdgeFade`; each scroll view opts in with
@@ -314,13 +335,13 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
 
     /// Most recent peripheral-feedback request. The view layer (`NookFeedbackOverlay`) watches
     /// this; bumping it with a new `id` re-arms the animation. Internal because callers should
-    /// go through ``playFeedback(_:tint:duration:)`` rather than mutate directly.
+    /// go through ``playFeedback(_:tint:duration:repeats:)`` rather than mutate directly.
     @Published var feedbackEvent: NookFeedbackEvent?
 
     /// Feedback queued while the chrome wasn't visible (`.hidden` during the boot race, or
     /// reset path). Replayed when state next transitions to `.compact`. Cleared on a real
     /// `.expanded` transition because the user has by then acknowledged the surface directly.
-    private var pendingFeedback: NookFeedbackEvent?
+    private(set) var pendingFeedback: NookFeedbackEvent?
 
     /// Auto-clears a one-shot `feedbackEvent` once it has finished playing. Without this the
     /// overlay's `TimelineView(.animation)` keeps ticking at 60fps forever after the cue ends
@@ -587,8 +608,8 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
     /// hover so both feel the same.
     func performHoverHapticIfEnabled() {
         guard hoverBehavior.contains(.hapticFeedback) else { return }
-        let performer = NSHapticFeedbackManager.defaultPerformer
-        performer.perform(.alignment, performanceTime: .default)
+        let performer = hapticPerformer ?? NSHapticFeedbackManager.defaultPerformer
+        performer.perform(hoverHaptic.pattern, performanceTime: hoverHaptic.performanceTime)
     }
 
     /// Claims the next transition generation **synchronously**, cancels any in-flight
@@ -821,9 +842,29 @@ extension Nook {
     /// timing - no internal queueing or debouncing; rapid successive calls re-anchor
     /// `startedAt` and the in-flight animation restarts. A cue requested while the chrome
     /// is hidden is queued and replayed the next time the nook becomes visible.
+    ///
+    /// `tint` colors the cue in the built-in ``NookFeedbackStyle/standard`` look; use
+    /// ``playFeedback(_:style:duration:repeats:)`` to change more than the color.
     public func playFeedback(
         _ effect: NookFeedback = .shimmer,
         tint: Color = Color(nsColor: .controlAccentColor),
+        duration: TimeInterval = 0.85,
+        repeats: Bool = false
+    ) {
+        var style = NookFeedbackStyle.standard
+        style.color = tint
+        playFeedback(effect, style: style, duration: duration, repeats: repeats)
+    }
+
+    /// Play a peripheral cue drawn in `style` - its color or band gradient, line width,
+    /// glow, and blend mode. Otherwise the same as ``playFeedback(_:tint:duration:repeats:)``.
+    ///
+    /// ```swift
+    /// nook.playFeedback(.pulse, style: NookFeedbackStyle(color: .orange, glow: nil))
+    /// ```
+    public func playFeedback(
+        _ effect: NookFeedback = .shimmer,
+        style: NookFeedbackStyle,
         duration: TimeInterval = 0.85,
         repeats: Bool = false
     ) {
@@ -833,7 +874,7 @@ extension Nook {
             startedAt: Date(),
             effect: effect,
             duration: duration,
-            tint: tint,
+            style: style,
             respectsReduceMotion: true,
             repeats: repeats
         )

@@ -64,8 +64,9 @@ struct NookRimHalo<S: Shape>: View {
     }
 }
 
-/// Opaque, except for an optional band at the top that eases in from clear.
-private struct NookRimTopFade: View {
+/// Opaque, except for an optional band at the top that eases in from clear. Shared by the rim
+/// halo and the chrome shadow.
+struct NookRimTopFade: View {
     let height: CGFloat?
 
     var body: some View {
