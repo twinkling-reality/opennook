@@ -280,7 +280,9 @@ final class AppCoordinatorTests: XCTestCase {
 
         let normalGrant = await coordinator.beginTransientPresentation(NookSurfaceClaim(moduleID: "A"))
         let normal = try XCTUnwrap(normalGrant)
-        let urgentGrant = await coordinator.beginTransientPresentation(NookSurfaceClaim(moduleID: "A", priority: .urgent))
+        let urgentGrant = await coordinator.beginTransientPresentation(
+            NookSurfaceClaim(moduleID: "A", priority: .urgent)
+        )
         let urgent = try XCTUnwrap(urgentGrant)
         await coordinator.endTransientPresentation(urgent)
         XCTAssertTrue(coordinator.appState.isHomeView, "a claim still holds the surface")
