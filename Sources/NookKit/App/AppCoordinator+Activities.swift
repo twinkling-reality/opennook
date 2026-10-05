@@ -81,7 +81,8 @@ extension AppCoordinator {
             let overflow = index == shown.count - 1 ? leftOut : 0
             return NookCompanion(
                 id: "opennook.activity.\(entry.moduleID).\(entry.activity.id)",
-                anchor: policy.side == .trailing ? .trailing : .leading,
+                // Top-aligned, so the capsule stays beside the slots while the pill peeks.
+                anchor: policy.side == .trailing ? .trailing(alignment: .start) : .leading(alignment: .start),
                 visibility: .compact,
                 shape: .capsule,
                 hidesInSettings: false,
