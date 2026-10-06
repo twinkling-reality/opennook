@@ -264,7 +264,7 @@ public final class AppState: ObservableObject {
     /// Switches the chrome to the home view and clears ``errorMessage``.
     public func showHome() {
         viewMode = .home
-        settingsSetAsideForClaim = false
+        settingsSetAsideReasons = []
         resetTransientStatus()
     }
 
@@ -273,7 +273,7 @@ public final class AppState: ObservableObject {
     /// ``AppCoordinator/showSettings()``, not here.
     public func showSettings() {
         viewMode = .settings
-        settingsSetAsideForClaim = false
+        settingsSetAsideReasons = []
         resetTransientStatus()
     }
 
@@ -288,24 +288,34 @@ public final class AppState: ObservableObject {
     /// Kept current by `AppCoordinator.applyHoverIntent()`.
     @Published var hostFixesHoverIntent = false
 
-    /// `true` while Settings is set aside for a surface claim: the claim's content took the
-    /// expanded view Settings had, and Settings comes back when the last claim ends unless the
-    /// person changes the view before then.
-    private(set) var settingsSetAsideForClaim = false
-
-    /// Shows home in place of Settings while a surface claim holds the expanded view, so the
-    /// claim's content is what opens. Does nothing outside Settings.
-    func setSettingsAsideForClaim() {
-        guard viewMode == .settings else { return }
-        viewMode = .home
-        settingsSetAsideForClaim = true
+    /// Why Settings is set aside: a surface claim holds the expanded view, or the nook opened
+    /// onto a live activity's expanded view.
+    enum SettingsSetAsideReason: Hashable {
+        case claim
+        case activity
     }
 
-    /// Ends a set-aside started by ``setSettingsAsideForClaim()``: Settings comes back when
+    /// What is holding Settings aside, empty while it is not. The content that took the
+    /// expanded view Settings had shows instead, and Settings comes back when the last reason
+    /// ends, unless the person changes the view before then.
+    private(set) var settingsSetAsideReasons: Set<SettingsSetAsideReason> = []
+
+    /// Shows home in place of Settings for `reason`, so the content that wants the expanded
+    /// view is what opens. Does nothing outside Settings, unless Settings is already set aside,
+    /// in which case `reason` joins the others in holding it.
+    func setSettingsAside(for reason: SettingsSetAsideReason) {
+        if viewMode == .settings {
+            viewMode = .home
+        } else if settingsSetAsideReasons.isEmpty {
+            return
+        }
+        settingsSetAsideReasons.insert(reason)
+    }
+
+    /// Ends `reason`'s hold on Settings. When it was the last one, Settings comes back if
     /// `restoring` is `true`, and is dropped otherwise.
-    func endSettingsSetAsideForClaim(restoring: Bool) {
-        guard settingsSetAsideForClaim else { return }
-        settingsSetAsideForClaim = false
+    func endSettingsSetAside(for reason: SettingsSetAsideReason, restoring: Bool) {
+        guard settingsSetAsideReasons.remove(reason) != nil, settingsSetAsideReasons.isEmpty else { return }
         if restoring { viewMode = .settings }
     }
 

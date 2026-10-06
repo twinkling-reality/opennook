@@ -162,6 +162,10 @@ public final class AppCoordinator: ObservableObject {
     /// the view down only takes down its own breadcrumb.
     var activityBreadcrumb: String?
 
+    /// How many rows of the expanded content stagger in (``View/nookStaggered(index:)``), as the
+    /// expanded router last reported. Part of the expanded entrance an awaited expand waits for.
+    var staggeredRowCount = 0
+
     /// Subscriptions that keep the surface in step with the live activities.
     var liveActivitySubscriptions: Set<AnyCancellable> = []
 
@@ -273,7 +277,8 @@ public final class AppCoordinator: ObservableObject {
                         hide: { coordinatorBox.coordinator?.hideNook() },
                         resetAllSettings: { coordinatorBox.coordinator?.resetAllSettingsToDefaults() },
                         switchModule: { id in coordinatorBox.coordinator?.switchModule(to: id) },
-                        chromeActions: chromeActions
+                        chromeActions: chromeActions,
+                        staggeredRowsChanged: { count in coordinatorBox.coordinator?.staggeredRowsChanged(count) }
                     )
                 )
             },
@@ -656,9 +661,9 @@ public final class AppCoordinator: ObservableObject {
     /// never flashes) if the module on screen still offers it.
     private func surfaceClaimChanged() {
         if arbiter.isPresenting {
-            appState.setSettingsAsideForClaim()
+            appState.setSettingsAside(for: .claim)
         } else {
-            appState.endSettingsSetAsideForClaim(restoring: moduleHost.configuration.topBar.showsSettings)
+            appState.endSettingsSetAside(for: .claim, restoring: moduleHost.configuration.topBar.showsSettings)
         }
         syncPresentedModule()
     }
@@ -791,7 +796,10 @@ public final class AppCoordinator: ObservableObject {
         // the pill. The module's own peek otherwise.
         let owner = peekActivity(entries ?? liveActivities.activities)
         peekOwnerActivity = owner?.id
-        guard let peek = owner?.activity.peek ?? configuration.peek else {
+        let activityPeek = owner.flatMap { entry in
+            entry.activity.peek.map { moduleHost.scoped($0, toModule: entry.moduleID) }
+        }
+        guard let peek = activityPeek ?? configuration.peek else {
             surface.peekContent = nil
             return
         }
@@ -1031,9 +1039,19 @@ public final class AppCoordinator: ObservableObject {
         var transitions = configuration.effectiveTransitions ?? AppCoordinator.defaultTransitions
         // The top bar's `motion.header.delay` holds it back whatever curves the host chose, so an
         // awaited expand waits for it even under host-supplied transitions.
-        let headerDelay = Double(configuration.effectiveThemeTokens[.headerDelay])
-        transitions.expandedEntranceDuration = max(transitions.expandedEntranceDuration, headerDelay)
+        let tokens = configuration.effectiveThemeTokens
+        let headerDelay = Double(tokens[.headerDelay])
+        // The last staggered row's turn, so an awaited expand waits for the whole list too.
+        let lastRowTurn = Double(tokens[.stagger]) * Double(max(staggeredRowCount - 1, 0))
+        transitions.expandedEntranceDuration = max(transitions.expandedEntranceDuration, headerDelay, lastRowTurn)
         surface.transitionConfiguration = transitions
+    }
+
+    /// The expanded content's staggered rows changed: an awaited expand waits for the last one.
+    func staggeredRowsChanged(_ count: Int) {
+        guard count != staggeredRowCount else { return }
+        staggeredRowCount = count
+        configureNotchAnimations()
     }
 
     /// The framework's default chrome animation curves, used when a host does not supply

@@ -411,8 +411,14 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the top bar held back by `motion.header.delay`, where it used to return as soon as
   the chrome settled. `NookTransitionConfiguration.expandedEntranceDuration` (0 by
   default) is how a host declares its own entrances; NookKit sets it from the header
-  delay. Only the `await` waits: no animation and no hide dwell changes length.
-  Staggered rows are open-ended and are not waited for.
+  delay and until the last row marked with `nookStaggered(index:)` has its turn. Only
+  the `await` waits: no animation and no hide dwell changes length.
+- A live activity from a module that is not on screen draws its pill, peek, capsule, and
+  expanded views with its own module's services (`\.appServices`, `\.nookLiveActivities`)
+  instead of the displayed module's.
+- Opening from a live activity's peek shows the activity's expanded view even when
+  Settings was the last view open. Settings comes back with the next open, or when the
+  person goes back from the activity.
 - A surface claim granted while Settings is showing opens onto the claiming module's
   content instead of Settings. Settings comes back once the last claim ends, unless
   the person picked a view in the meantime or the module on screen no longer offers

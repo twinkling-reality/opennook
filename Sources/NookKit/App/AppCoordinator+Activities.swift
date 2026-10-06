@@ -77,7 +77,7 @@ extension AppCoordinator {
         let shown = Array(entries.dropFirst().prefix(policy.capsules))
         let leftOut = max(entries.count - 1 - shown.count, 0)
         return shown.enumerated().map { index, entry in
-            let minimal = entry.activity.minimal
+            let minimal = moduleHost.scoped(entry.activity.minimal, toModule: entry.moduleID)
             let overflow = index == shown.count - 1 ? leftOut : 0
             return NookCompanion(
                 id: "opennook.activity.\(entry.moduleID).\(entry.activity.id)",
@@ -142,32 +142,54 @@ extension AppCoordinator {
     func presentActivity(_ entry: NookActivityCenter.Entry) {
         let label = entry.activity.accessibilityLabel
         activityBreadcrumb = label
+        // The activity's view wins over Settings, which comes back once the activity is down.
+        appState.setSettingsAside(for: .activity)
         appState.presentedLiveActivity = entry.id
         appState.moduleBreadcrumb = label
     }
 
     /// Takes down a presented activity's expanded view, and its breadcrumb if that is still up.
-    func clearActivityPresentation() {
+    /// Settings, if the activity set it aside, comes back now when `restoringSettings` is
+    /// `true`, or with the next open otherwise.
+    func clearActivityPresentation(restoringSettings: Bool = true) {
         guard appState.presentedLiveActivity != nil || activityBreadcrumb != nil else { return }
         appState.presentedLiveActivity = nil
-        if let breadcrumb = activityBreadcrumb, appState.moduleBreadcrumb == breadcrumb {
+        // Forgotten first, so taking the breadcrumb down does not read as the person going back.
+        let breadcrumb = activityBreadcrumb
+        activityBreadcrumb = nil
+        if let breadcrumb, appState.moduleBreadcrumb == breadcrumb {
             appState.moduleBreadcrumb = nil
         }
-        activityBreadcrumb = nil
+        if restoringSettings { endActivitySettingsSetAside() }
+    }
+
+    /// Brings Settings back if an activity's view set it aside, and the module on screen still
+    /// offers it.
+    private func endActivitySettingsSetAside() {
+        appState.endSettingsSetAside(
+            for: .activity,
+            restoring: moduleHost.displayedConfiguration.topBar.showsSettings
+        )
     }
 
     /// Opening from an activity's peek opens onto its expanded view; collapsing takes it down.
     private func surfaceStateWillChange(to state: NookState) {
         switch state {
             case .expanded:
-                guard appState.presentedLiveActivity == nil, surface.isPeeking,
-                    let owner = peekOwnerActivity,
+                guard appState.presentedLiveActivity == nil else { return }
+                if surface.isPeeking, let owner = peekOwnerActivity,
                     let entry = liveActivities.activities.first(where: { $0.id == owner }),
                     entry.activity.expanded != nil
-                else { return }
-                presentActivity(entry)
+                {
+                    presentActivity(entry)
+                } else {
+                    // Opening onto the module: Settings, if an activity's view held it aside
+                    // when the nook last collapsed, is what the person left open.
+                    endActivitySettingsSetAside()
+                }
             case .compact:
-                clearActivityPresentation()
+                // Settings waits for the next open, so it never shows in the collapsing view.
+                clearActivityPresentation(restoringSettings: false)
             case .hidden:
                 // Also passed through on the way from compact to expanded, so it ends nothing.
                 break
@@ -179,6 +201,7 @@ extension AppCoordinator {
         guard let current = activityBreadcrumb, breadcrumb != current else { return }
         appState.presentedLiveActivity = nil
         activityBreadcrumb = nil
+        endActivitySettingsSetAside()
     }
 }
 

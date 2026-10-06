@@ -291,4 +291,53 @@ final class NookChoreographyTests: XCTestCase {
         header.tokens[.headerDelay] = 0.3
         XCTAssertFalse(NookEntranceModifier.waits(.staggered(index: 2), tokens: header.resolvedTokens()))
     }
+
+    /// Staggered rows join the expanded entrance: an awaited expand waits until the last row's
+    /// turn, and never less than the header delay.
+    func testAnAwaitedExpandWaitsForTheLastStaggeredRow() {
+        var configuration = NookConfiguration()
+        configuration.chromeTheme = choreographedTheme()
+        let coordinator = AppCoordinator(configuration: configuration)
+        coordinator.configureNotchAnimations()
+        XCTAssertEqual(coordinator.surface.transitionConfiguration.expandedEntranceDuration, 0.3, accuracy: 0.0001)
+
+        coordinator.staggeredRowsChanged(12)
+        XCTAssertEqual(
+            coordinator.surface.transitionConfiguration.expandedEntranceDuration,
+            0.035 * 11,
+            accuracy: 0.0001,
+            "the twelfth row's turn comes after the header's"
+        )
+
+        coordinator.staggeredRowsChanged(2)
+        XCTAssertEqual(coordinator.surface.transitionConfiguration.expandedEntranceDuration, 0.3, accuracy: 0.0001)
+    }
+
+    /// Rows the theme holds back report how many there are, from the first layout on; rows it
+    /// does not hold back report nothing, so the default tree is unchanged.
+    func testStaggeredRowsReportTheirCount() {
+        @MainActor final class CountBox { var counts: [Int] = [] }
+        let box = CountBox()
+        func host(_ tokens: NookResolvedTokens) {
+            let view = VStack {
+                ForEach(0..<4) { index in
+                    Color.clear.frame(width: 4, height: 4).nookStaggered(index: index)
+                }
+            }
+            .environment(\.nookThemeTokens, tokens)
+            .onPreferenceChange(NookStaggeredRowsPreferenceKey.self) { count in
+                MainActor.assumeIsolated { box.counts.append(count) }
+            }
+            let hosting = NSHostingView(rootView: view)
+            hosting.frame = NSRect(x: 0, y: 0, width: 40, height: 40)
+            hosting.layoutSubtreeIfNeeded()
+        }
+
+        host(choreographedTheme().resolvedTokens())
+        XCTAssertEqual(box.counts.last, 4)
+
+        box.counts = []
+        host(.standard)
+        XCTAssertTrue(box.counts.allSatisfy { $0 == 0 })
+    }
 }
