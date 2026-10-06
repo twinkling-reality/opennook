@@ -1,9 +1,8 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Glendon Chin
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// A copy is included at /LICENSE in the repository root.
+// Licensed under the MIT License.
+// Modifications license: /LICENSE-MIT-NOOKSURFACE
 
 import XCTest
 
