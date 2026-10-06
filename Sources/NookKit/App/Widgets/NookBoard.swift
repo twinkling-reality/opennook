@@ -153,6 +153,9 @@ final class NookBoardModule: NookModule {
     func makeConfiguration() -> NookConfiguration {
         var configuration = NookConfiguration()
         configuration.expandedWidth = board.width
+        let name = board.displayName
+        configuration.topBar.leadingTitle = { _ in name }
+        configuration.topBar.leadingIcon = board.icon
         board.customize?(&configuration)
         let board = board
         let catalog = catalog
