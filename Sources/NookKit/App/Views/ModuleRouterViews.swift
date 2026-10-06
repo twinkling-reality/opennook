@@ -25,7 +25,7 @@ struct ModuleRouterExpandedView: View {
     let toggleKeepOpen: () -> Void
     let hide: () -> Void
     let resetAllSettings: () -> Void
-    let switchModule: (String) -> Void
+    let switchModule: @Sendable @MainActor (String) -> Void
     /// What the lock and gear do, for host content that shows them outside the top bar.
     var chromeActions: NookChromeActions = .inert
     /// Told how many rows of the content stagger in, so an awaited expand can wait for them.
@@ -69,6 +69,7 @@ struct ModuleRouterExpandedView: View {
         // `ModuleHost`; surface it so the chrome can read it without an init-time plumb.
         .environment(\.nookHostBranding, moduleHost.branding)
         .environment(\.nookChromeActions, chromeActions)
+        .environment(\.nookSwitchModule, switchModule)
         .environment(
             \.nookContentEntrance,
             NookContentEntrance(

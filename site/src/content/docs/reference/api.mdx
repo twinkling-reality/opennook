@@ -63,10 +63,17 @@ The app chrome layered over `NookSurface`.
   `NookModuleDescriptor.loadsAtLaunch` starts a resident module at launch. See
   [Live activities](/guides/live-activities/). Source:
   `Sources/NookKit/App/Activities/`.
+- **Widgets and boards** - `NookWidget` (with `NookWidget.Action`), `NookWidgetSize`,
+  `NookWidgetSource`, `NookConfiguration.addWidget(_:)`, `widgets`, and `widgetSource`;
+  `NookWidgetGrid` lays widgets out in any view; `NookBoardConfiguration` (with
+  `Admission`), `NookWidgetPlacement`, and `NookHostConfiguration.registerBoard(_:)` make
+  a board module whose home is every loaded module's widgets, arranged in its Settings.
+  See [Widgets and boards](/guides/widgets-and-boards/). Source:
+  `Sources/NookKit/App/Widgets/`.
 - **Chrome strings and motion** - `NookChromeLabels` (`NookConfiguration.labels`,
   `\.nookChromeLabels`) holds every string the framework draws, grouped as
   `NookChromeLabels.TopBar`, `.Settings`, `.Appearance`, `.Display`, `.Shortcut`,
-  `.MenuBar`, and `.Components`, with `{name}` templates filled by
+  `.MenuBar`, `.Components`, and `.Widgets`, with `{name}` templates filled by
   `NookChromeLabels.fill(_:_:)`; `NookChromeMotion` (`NookConfiguration.motion`,
   `\.nookChromeMotion`) holds the in-panel curves, including `settingsDisclosure`,
   `moduleSwitch`, and `activityCard`. See

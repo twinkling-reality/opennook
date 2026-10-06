@@ -10,8 +10,8 @@ import SwiftUI
 /// Colors for single parts of the chrome, beyond the shared palette in ``NookResolvedTheme``.
 ///
 /// Each is optional: `nil` (the default) draws the part the way it has always been drawn,
-/// from the palette. A theme sets them through the `banner.severity.*.color` tokens, for
-/// example to give errors the theme's `color.destructive`:
+/// from the palette. A theme sets them through the `banner.severity.*.color` and
+/// `widget.card.*.color` tokens, for example to give errors the theme's `color.destructive`:
 ///
 /// ```json
 /// "components": { "banner.severity.error.color": "{color.destructive}" }
@@ -27,17 +27,25 @@ public struct NookChromeColors: Equatable, Sendable {
     public var bannerSeverityInfo: Color?
     /// The status banner's glyph for a success. `nil` uses the palette's accent.
     public var bannerSeveritySuccess: Color?
+    /// The card behind each widget on a ``NookWidgetGrid``. `nil` uses the palette's subtle fill.
+    public var widgetCardBackground: Color?
+    /// The hairline around each widget card. `nil` uses the palette's subtle stroke.
+    public var widgetCardBorder: Color?
 
     public init(
         bannerSeverityError: Color? = nil,
         bannerSeverityWarning: Color? = nil,
         bannerSeverityInfo: Color? = nil,
-        bannerSeveritySuccess: Color? = nil
+        bannerSeveritySuccess: Color? = nil,
+        widgetCardBackground: Color? = nil,
+        widgetCardBorder: Color? = nil
     ) {
         self.bannerSeverityError = bannerSeverityError
         self.bannerSeverityWarning = bannerSeverityWarning
         self.bannerSeverityInfo = bannerSeverityInfo
         self.bannerSeveritySuccess = bannerSeveritySuccess
+        self.widgetCardBackground = widgetCardBackground
+        self.widgetCardBorder = widgetCardBorder
     }
 
     /// Every part drawn from the palette, as the chrome always has.
@@ -56,8 +64,8 @@ public struct NookChromeColors: Equatable, Sendable {
 
 extension NookTheme {
     /// The theme's colors for single parts of the chrome in `context`. Each token the theme
-    /// leaves at its default (the palette's accent) stays `nil`, so the part keeps following
-    /// the palette.
+    /// leaves at its default (the palette's accent, or its subtle fill and stroke) stays `nil`,
+    /// so the part keeps following the palette.
     public func chromeColors(in context: NookThemeContext) -> NookChromeColors {
         let resolver = NookThemeResolver(theme: self)
         func color(_ id: NookColorID) -> Color? {
@@ -67,7 +75,9 @@ extension NookTheme {
             bannerSeverityError: color(.bannerSeverityError),
             bannerSeverityWarning: color(.bannerSeverityWarning),
             bannerSeverityInfo: color(.bannerSeverityInfo),
-            bannerSeveritySuccess: color(.bannerSeveritySuccess)
+            bannerSeveritySuccess: color(.bannerSeveritySuccess),
+            widgetCardBackground: color(.widgetCardBackground),
+            widgetCardBorder: color(.widgetCardBorder)
         )
     }
 }

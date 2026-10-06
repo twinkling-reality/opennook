@@ -472,3 +472,31 @@ extension NookShadowID {
     /// A shadow cast by the chrome. Default none, as today.
     public static let chrome: NookShadowID = "shadow.chrome"
 }
+
+// MARK: - Widgets
+
+extension NookColorID {
+    /// The card behind each widget on a ``NookWidgetGrid``. Default `color.fill.subtle`.
+    public static let widgetCardBackground: NookColorID = "widget.card.background.color"
+    /// The hairline around each widget card. Default `color.stroke.subtle`.
+    public static let widgetCardBorder: NookColorID = "widget.card.border.color"
+}
+
+extension NookDimensionID {
+    /// The space between widgets on a grid, both across and down. Default `{space.md}`, 8.
+    public static let widgetGap: NookDimensionID = "widget.gap"
+    /// The height of one grid row. Default 72.
+    public static let widgetRowHeight: NookDimensionID = "widget.rowHeight"
+    /// The tallest a board's grid grows before it scrolls. Default 320.
+    public static let widgetBoardMaxHeight: NookDimensionID = "widget.board.maxHeight"
+    /// A widget card's corner radius. Default 16: the chrome's 24 less the 8 point edge
+    /// padding, so the card's corner follows the panel's.
+    public static let widgetCardCornerRadius: NookDimensionID = "widget.card.cornerRadius"
+    /// The margin inside a widget card. Default `{space.lg}`, 10.
+    public static let widgetCardPadding: NookDimensionID = "widget.card.padding"
+}
+
+extension NookAnimationID {
+    /// How widgets move when a board's layout changes. Default `{spring.default}`.
+    public static let widgetLayout: NookAnimationID = "motion.widgetLayout"
+}

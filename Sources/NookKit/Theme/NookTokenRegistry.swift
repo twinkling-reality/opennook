@@ -169,6 +169,8 @@ enum NookTokenRegistry {
         NookColorToken(.bannerSeverityWarning, .component, .accent),
         NookColorToken(.bannerSeverityInfo, .component, .accent),
         NookColorToken(.bannerSeveritySuccess, .component, .accent),
+        NookColorToken(.widgetCardBackground, .component, .reference(.fillSubtle, opacity: nil)),
+        NookColorToken(.widgetCardBorder, .component, .reference(.strokeSubtle, opacity: nil)),
     ]
 
     // MARK: Numbers
@@ -216,7 +218,17 @@ enum NookTokenRegistry {
         NookDimensionToken(.ambientWashBottom, .semantic, .none, 0.02, .opacity),
     ]
 
-    static let dimensionTokens: [NookDimensionToken] = semanticDimensionTokens + metricTokens
+    /// The widget grid's numbers, read straight from the resolved tokens by ``NookWidgetGrid``.
+    static let widgetDimensionTokens: [NookDimensionToken] = [
+        NookDimensionToken(.widgetGap, .component, .spacing, .token(.spaceMD), .length),
+        NookDimensionToken(.widgetRowHeight, .component, .none, 72, .length),
+        NookDimensionToken(.widgetBoardMaxHeight, .component, .none, 320, .length),
+        NookDimensionToken(.widgetCardCornerRadius, .component, .radius, 16, .length),
+        NookDimensionToken(.widgetCardPadding, .component, .spacing, .token(.spaceLG), .length),
+    ]
+
+    static let dimensionTokens: [NookDimensionToken] =
+        semanticDimensionTokens + metricTokens + widgetDimensionTokens
 
     // MARK: Fonts
 
@@ -260,6 +272,7 @@ enum NookTokenRegistry {
         NookAnimationToken(.settingsDisclosure, .component, .spring(response: 0.30, dampingFraction: 0.86)),
         NookAnimationToken(.moduleSwitch, .component, .curve(.easeInOut, duration: 0.22)),
         NookAnimationToken(.activityCard, .component, .spring(response: 0.36, dampingFraction: 0.86)),
+        NookAnimationToken(.widgetLayout, .component, .reference(.springDefault)),
     ]
 
     // MARK: Transitions, sounds, shadows

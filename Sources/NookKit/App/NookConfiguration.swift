@@ -270,6 +270,16 @@ public struct NookConfiguration: Sendable {
     /// ``NookCompanionSource``.
     public var companionSource: NookCompanionSource?
 
+    /// The module's widgets, in order, for boards and grids. Empty by default. Use
+    /// ``addWidget(_:)`` to append one; see ``NookWidget``. A board shows the widgets of every
+    /// loaded module (``NookBoardConfiguration``); a widget whose id an earlier one (here or in
+    /// ``widgetSource``) already has is left out.
+    public var widgets: [NookWidget] = []
+
+    /// Widgets that can change while the nook runs, after ``widgets``. `nil` (the default) is
+    /// none. See ``NookWidgetSource``.
+    public var widgetSource: NookWidgetSource?
+
     /// How every companion is drawn unless it sets its own ``NookCompanion/style``. Defaults to
     /// `.standard`: the companion's backdrop, padded and sized by ``companionSize``.
     ///
@@ -454,6 +464,19 @@ public struct NookConfiguration: Sendable {
                 content: content
             )
         )
+    }
+
+    /// Appends a widget for boards and grids. See ``NookWidget``.
+    ///
+    /// Traps on an `id` already registered on this configuration: boards save their layouts by
+    /// widget id, and two widgets sharing one would take each other's place.
+    public mutating func addWidget(_ widget: NookWidget) {
+        precondition(
+            !widgets.contains(where: { $0.id == widget.id }),
+            "NookConfiguration: duplicate widget id '\(widget.id)'. Widget ids must be unique within a "
+                + "configuration - boards save their layouts by them."
+        )
+        widgets.append(widget)
     }
 
     /// Registers host actions for the top bar's trailing cluster from a `@ViewBuilder`

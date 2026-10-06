@@ -57,8 +57,11 @@ extension NookTheme {
 
     /// Whether the theme sets any of the per-part chrome colors in ``NookChromeColors``.
     var setsChromeColors: Bool {
-        [NookColorID.bannerSeverityError, .bannerSeverityWarning, .bannerSeverityInfo, .bannerSeveritySuccess]
-            .contains { tokens[$0] != nil }
+        [
+            NookColorID.bannerSeverityError, .bannerSeverityWarning, .bannerSeverityInfo, .bannerSeveritySuccess,
+            .widgetCardBackground, .widgetCardBorder,
+        ]
+        .contains { tokens[$0] != nil }
     }
 
     /// ``chromeColors(in:)`` for right now, skipping the resolution when the theme sets none.
