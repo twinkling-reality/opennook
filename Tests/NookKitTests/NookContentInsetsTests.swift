@@ -120,7 +120,7 @@ final class NookContentInsetsTests: XCTestCase {
         let insets = NookContentInsets.expanded(
             form: .notch,
             topCornerRadius: 19,
-            bottomCornerRadius: 8, // == the bottom/leading/trailing inset
+            bottomCornerRadius: 8,  // == the bottom/leading/trailing inset
             chromeSafeAreaInsets: chromeSafeAreaInsets
         )
         XCTAssertEqual(insets.leading, 0, "horizontal residual must floor at 0")
