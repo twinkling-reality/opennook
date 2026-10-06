@@ -36,11 +36,12 @@ final class NookSystemSoundPlayer: NookSoundPlaying {
     /// Sources that failed to load, so a missing file is looked for once, not on every play.
     private var missing: Set<NookSoundSpec.Source> = []
 
-    /// `true` inside a test process, where nothing is ever played. Tests replace the player
-    /// with a recording one; this keeps a test that forgets to from making a noise.
-    private let isSilenced: Bool
+    /// `true` when nothing is ever played: sounds still load, so a test can check loading
+    /// without making a noise. Tests that exercise playback replace the player with a recording
+    /// one through ``AppCoordinator/makeSoundPlayer``.
+    let isSilenced: Bool
 
-    init(isSilenced: Bool = NSClassFromString("XCTestCase") != nil) {
+    init(isSilenced: Bool = false) {
         self.isSilenced = isSilenced
     }
 

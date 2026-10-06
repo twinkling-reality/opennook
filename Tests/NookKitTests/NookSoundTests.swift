@@ -15,7 +15,7 @@ import XCTest
 
 /// The chrome theme's sounds: which chrome event plays which sound, the person's "Sounds"
 /// switch, and the player. Nothing here makes a noise: the coordinator plays through a
-/// recording player, and the system player is silenced in a test process.
+/// recording player, and the system player is silenced whenever a test asks it to play.
 @MainActor
 final class NookSoundTests: XCTestCase {
     /// Records what would have played.
@@ -212,6 +212,16 @@ final class NookSoundTests: XCTestCase {
         XCTAssertEqual(harness.madePlayers(), 1)
     }
 
+    /// Every sound goes to the player the coordinator's factory made, made once and kept.
+    func testTheCoordinatorPlaysThroughTheInjectedPlayer() {
+        let harness = makeHarness(theme: soundTheme())
+        harness.coordinator.playSound(.open)
+        harness.coordinator.playSound(.close)
+        XCTAssertEqual(harness.player.events, ["sound.open", "sound.close"])
+        XCTAssertEqual(harness.madePlayers(), 1)
+        XCTAssertTrue(harness.coordinator.madeSoundPlayer === harness.player)
+    }
+
     // MARK: - Status severities
 
     func testEachSeveritysSound() {
@@ -308,9 +318,13 @@ final class NookSoundTests: XCTestCase {
         XCTAssertNil(player.loaded(.file(URL(fileURLWithPath: "/nonexistent/sound.caf"))))
     }
 
-    func testTheSystemPlayerIsSilentInATestProcess() {
-        XCTAssertNotNil(NSClassFromString("XCTestCase"))
-        let player = NookSystemSoundPlayer()
+    /// The shipping player plays: nothing about the process it runs in silences it.
+    func testTheSystemPlayerIsNotSilencedByDefault() {
+        XCTAssertFalse(NookSystemSoundPlayer().isSilenced)
+    }
+
+    func testASilencedSystemPlayerPlaysNothing() {
+        let player = NookSystemSoundPlayer(isSilenced: true)
         player.preload([.system("Tink")])
         player.play(.system("Tink", volume: 0.2))
         XCTAssertEqual(player.loaded(.system("Tink"))?.isPlaying, false)
