@@ -19,6 +19,8 @@ struct PlayerHome: View {
     var body: some View {
         HStack(alignment: .top, spacing: 18) {
             CoverArt(design: player.track.cover, size: Self.coverSize, cornerRadius: 14)
+                // The pill's cover grows into this one as the nook opens.
+                .nookSharedElement("cover", style: .scale)
             NowPlayingColumn(player: player)
                 .frame(height: Self.coverSize)
             ColumnRule()
@@ -263,6 +265,7 @@ struct CompactCover: View {
 
     var body: some View {
         CoverArt(design: player.track.cover, size: 20, cornerRadius: 5)
+            .nookSharedElement("cover", style: .scale)
             .frame(height: 24)
     }
 }

@@ -34,6 +34,10 @@ final class PlaygroundModel: ObservableObject {
         }
     }
 
+    /// The widget grid the Widgets page shows in the nook's home, or `nil` for the home's own
+    /// sample content. A live demo, never saved.
+    @Published var widgetDemo: PlaygroundWidgetDemo?
+
     /// A message for the controls window to show in an alert, such as why a preset did not open.
     @Published var alertMessage: String?
 
@@ -303,7 +307,7 @@ final class PlaygroundModel: ObservableObject {
                 settings.behavior = .init()
             case .tokens:
                 settings.theme.tokens = .init()
-            case .activities, .presets:
+            case .activities, .widgets, .presets:
                 return
         }
         self.settings = settings

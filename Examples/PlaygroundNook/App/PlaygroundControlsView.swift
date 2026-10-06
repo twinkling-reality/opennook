@@ -20,6 +20,7 @@ enum PlaygroundPage: String, CaseIterable, Identifiable, Hashable {
     case effects
     case behavior
     case activities
+    case widgets
     case tokens
     case presets
 
@@ -36,6 +37,7 @@ enum PlaygroundPage: String, CaseIterable, Identifiable, Hashable {
             case .effects: "Effects"
             case .behavior: "Behavior"
             case .activities: "Activities"
+            case .widgets: "Widgets"
             case .tokens: "Tokens"
             case .presets: "Presets"
         }
@@ -52,6 +54,7 @@ enum PlaygroundPage: String, CaseIterable, Identifiable, Hashable {
             case .effects: "sparkles"
             case .behavior: "cursorarrow.motionlines"
             case .activities: "dot.radiowaves.left.and.right"
+            case .widgets: "square.grid.2x2"
             case .tokens: "curlybraces"
             case .presets: "square.stack"
         }
@@ -81,7 +84,7 @@ enum PlaygroundPage: String, CaseIterable, Identifiable, Hashable {
                 return settings.behavior != .init()
             case .tokens:
                 return !settings.theme.tokens.isEmpty
-            case .activities, .presets:
+            case .activities, .widgets, .presets:
                 return false
         }
     }
@@ -169,6 +172,7 @@ struct PlaygroundControlsView: View {
             case .effects: EffectsPage(model: model, appState: appState)
             case .behavior: BehaviorPage(model: model)
             case .activities: ActivitiesPage(model: model)
+            case .widgets: WidgetsPage(model: model)
             case .tokens: TokensPage(model: model, appState: appState)
             case .presets: PresetsPage(model: model)
         }

@@ -42,7 +42,8 @@ struct ActivitiesPage: View {
                 Text(
                     "The newest activity of the highest priority holds the pill. The next one shows its "
                         + "minimal view in a capsule beside it, and the capsule counts any others. "
-                        + "Pick Peek first on the Appearance page to see an activity's peek on hover."
+                        + "Pick Peek first on the Appearance page to see an activity's peek on hover. "
+                        + "Open the song: its cover is a shared element, so it grows out of the pill."
                 )
                 .font(PlaygroundTheme.body)
                 .foregroundStyle(.secondary)
@@ -203,13 +204,18 @@ private struct SampleGlyph: View {
     }
 }
 
+/// The song's cover. The pill's small one grows into the expanded view's large one as the nook
+/// opens onto the song: both are marked as the same shared element.
 private struct SampleCover: View {
+    var size: CGFloat = 20
+
     var body: some View {
-        RoundedRectangle(cornerRadius: 5, style: .continuous)
+        RoundedRectangle(cornerRadius: size / 4, style: .continuous)
             .fill(LinearGradient(colors: [.pink, .purple], startPoint: .top, endPoint: .bottom))
-            .overlay { Image(systemName: "music.note").font(.system(size: 10, weight: .bold)) }
-            .frame(width: 20, height: 20)
-            .frame(height: 24)
+            .overlay { Image(systemName: "music.note").font(.system(size: size / 2, weight: .bold)) }
+            .frame(width: size, height: size)
+            .nookSharedElement("cover", style: .scale)
+            .frame(height: max(size, 24))
     }
 }
 
@@ -307,6 +313,15 @@ private struct SampleExpanded: View {
     @Environment(\.nookResolvedTheme) private var theme
 
     var body: some View {
+        HStack(spacing: 14) {
+            if sample == .music { SampleCover(size: 72) }
+            details
+        }
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var details: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(sample == .focus ? "Focus" : "Soft Machinery")
                 .font(.system(size: 20, weight: .semibold))
@@ -322,7 +337,5 @@ private struct SampleExpanded: View {
                 .progressViewStyle(.linear)
                 .tint(sample == .focus ? .orange : .pink)
         }
-        .padding(.vertical, 12)
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

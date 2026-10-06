@@ -45,6 +45,8 @@ struct TimerHome: View {
                     .foregroundStyle(theme.primaryLabel)
                     .contentTransition(.numericText(countsDown: true))
                     .animation(.snappy, value: timer.remaining)
+                    // The time beside the notch grows into this one as the nook opens.
+                    .nookSharedElement("time", style: .scale)
                     .padding(.top, 2)
 
                 Text(endsAt)
@@ -269,6 +271,7 @@ struct CompactTimer: View {
             Text(Format.timer(timer.remaining))
                 .font(.system(size: 12, weight: .semibold, design: .rounded).monospacedDigit())
                 .foregroundStyle(FocusPalette.warm)
+                .nookSharedElement("time", style: .scale)
         }
         .frame(height: 24)
         .nookRimGlow(lightsRim && timer.isRunning ? FocusPalette.warm : nil)

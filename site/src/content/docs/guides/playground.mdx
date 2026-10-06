@@ -64,7 +64,8 @@ swift run PlaygroundNook --hide-controls           # skip the controls window
 | Companions | the size, look, and entrance every companion shares; add, duplicate, remove, and reorder companions; the selected one's items, placement, style, and details | `companionSize`, `companionStyle`, `companionPresence`, `addCompanion(...)` |
 | Effects | rim style, scroll edge fade edges and length, the chrome's shadow | `rimGlow`, `scrollEdgeFade`, the theme's `shadow.chrome` |
 | Behavior | hover keeps visible, hover haptics, glass shading | `chromeBehavior.hoverBehavior`, `chromeBehavior.glassShading` |
-| Activities | starts, alerts, and ends three sample live activities, to see the pill shared and the peek; not part of a preset | the module's `NookLiveActivities` |
+| Activities | starts, alerts, and ends three sample live activities, to see the pill shared and the peek; the song's cover is a shared element; not part of a preset | the module's `NookLiveActivities`, `nookSharedElement(_:style:)` |
+| Widgets | shows sample widgets on a grid in the nook's home, with the columns, sizes, and card style you pick; not part of a preset | `NookWidget`, `NookWidgetGrid` |
 | Tokens | any theme token by id: colors, numbers, fonts, animations, content transitions, sounds, shadows | `NookConfiguration.chromeTheme` tokens |
 
 Some controls exist only to show a setting off. **Preview** on the Top Bar page posts
