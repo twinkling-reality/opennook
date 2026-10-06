@@ -187,7 +187,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
             .animation(nook.effectiveConversionAnimation, value: [compactLeadingWidth, compactTrailingWidth])
             .environment(\.nookHasKeyboardFocus, nook.hasKeyboardFocus)
             .onChange(of: reduceMotion, initial: true) { _, reduceMotion in
-                nook.sharedElements.reduceMotion = reduceMotion
+                nook.sharedElements.systemReduceMotion = reduceMotion
             }
     }
 

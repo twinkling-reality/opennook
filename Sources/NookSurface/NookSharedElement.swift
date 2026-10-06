@@ -143,8 +143,12 @@ final class NookSharedElementCoordinator: ObservableObject {
     private(set) var animation: Animation = .default
     /// The part of the chrome on screen.
     private(set) var region: NookSharedElementRegion?
+    /// The person's Reduce Motion setting, kept current by the chrome.
+    var systemReduceMotion = false
+    /// Pins Reduce Motion for tests, since some machines (CI runners among them) have it on.
+    var reduceMotionOverride: Bool?
     /// With Reduce Motion on, nothing moves.
-    var reduceMotion = false
+    var reduceMotion: Bool { reduceMotionOverride ?? systemReduceMotion }
 
     /// Where each element was last drawn, by key and part of the chrome. Written by the flight
     /// layer as the chrome lays out; never published.

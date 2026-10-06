@@ -115,12 +115,27 @@ final class NookSharedElementTests: XCTestCase {
 
     func testReduceMotionMovesNothing() {
         let coordinator = NookSharedElementCoordinator()
-        coordinator.reduceMotion = true
+        coordinator.reduceMotionOverride = true
         coordinator.surfaceWillMove(to: .compact, animation: .default)
         coordinator.record([drawn("cover", .compact, pill)])
         coordinator.surfaceWillMove(to: .expanded, animation: .default)
         XCTAssertNil(coordinator.transition)
         XCTAssertFalse(coordinator.isHidden("cover", in: .expanded))
+    }
+
+    func testThePersonsReduceMotionTurnsMovesOffUnlessATestPinsIt() {
+        let coordinator = NookSharedElementCoordinator()
+        coordinator.systemReduceMotion = true
+        coordinator.surfaceWillMove(to: .compact, animation: .default)
+        coordinator.record([drawn("cover", .compact, pill)])
+        coordinator.surfaceWillMove(to: .expanded, animation: .default)
+        XCTAssertNil(coordinator.transition)
+
+        coordinator.reduceMotionOverride = false
+        coordinator.surfaceWillMove(to: .compact, animation: .default)
+        coordinator.record([drawn("cover", .compact, pill)])
+        coordinator.surfaceWillMove(to: .expanded, animation: .default)
+        XCTAssertNotNil(coordinator.transition)
     }
 
     func testHidingForgetsEverything() {
@@ -187,6 +202,8 @@ final class NookSharedElementTests: XCTestCase {
     func testASharedElementOnScreenFliesAndTheConversionSkipsTheDip() async throws {
         let screen = try screen()
         let nook = makeNook(shared: true)
+        // CI runners have Reduce Motion on, which turns the move off; this test is about the move.
+        nook.sharedElements.reduceMotionOverride = false
         await nook.compact(on: screen)
         await waitUntil { nook.sharedElements.holdsElements }
 
