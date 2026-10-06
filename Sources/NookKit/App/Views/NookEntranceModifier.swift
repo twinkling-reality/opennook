@@ -77,8 +77,18 @@ struct NookEntranceModifier: ViewModifier {
                     )
                 )
                 .onAppear(perform: enter)
+                // How many turns the content's rows take, so an awaited expand waits for the last.
+                .preference(key: NookStaggeredRowsPreferenceKey.self, value: Self.rowCount(timing))
         } else {
             content
+        }
+    }
+
+    /// The rows up to and including a staggered row: its index plus one. Nothing for the header.
+    static func rowCount(_ timing: Timing) -> Int {
+        switch timing {
+            case .header: 0
+            case .staggered(let index): max(index, 0) + 1
         }
     }
 
@@ -136,6 +146,17 @@ struct NookEntranceAppearance: ViewModifier {
             )
             .offset(isHeldBack ? transition.offset : .zero)
             .opacity(isHeldBack ? transition.opacity : 1)
+    }
+}
+
+/// The most rows that stagger in the expanded content: the highest ``nookStaggered(index:)``
+/// index plus one, among rows the theme holds back. The router hands it to the coordinator, so
+/// an awaited expand waits until the last row's turn.
+struct NookStaggeredRowsPreferenceKey: PreferenceKey {
+    static let defaultValue = 0
+
+    static func reduce(value: inout Int, nextValue: () -> Int) {
+        value = max(value, nextValue())
     }
 }
 

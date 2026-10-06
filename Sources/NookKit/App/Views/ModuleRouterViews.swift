@@ -28,6 +28,8 @@ struct ModuleRouterExpandedView: View {
     let switchModule: (String) -> Void
     /// What the lock and gear do, for host content that shows them outside the top bar.
     var chromeActions: NookChromeActions = .inert
+    /// Told how many rows of the content stagger in, so an awaited expand can wait for them.
+    var staggeredRowsChanged: @MainActor (Int) -> Void = { _ in }
 
     /// When the surface inserted this view: the start of the content's entrance. The surface
     /// inserts it each time it expands and keeps it across a module switch, so a switch does
@@ -74,12 +76,18 @@ struct ModuleRouterExpandedView: View {
                 delay: configuration.effectiveTransitions?.expandedContentTransition.delay ?? 0
             )
         )
+        .onPreferenceChange(NookStaggeredRowsPreferenceKey.self) { count in
+            MainActor.assumeIsolated { staggeredRowsChanged(count) }
+        }
     }
 
     /// The expanded view of the live activity the nook opened onto, when there is one.
     private var presentedActivityHome: (@Sendable @MainActor () -> AnyView)? {
-        guard let id = appState.presentedLiveActivity else { return nil }
-        return activities.activities.first { $0.id == id }?.activity.expanded
+        guard let id = appState.presentedLiveActivity,
+            let entry = activities.activities.first(where: { $0.id == id }),
+            let expanded = entry.activity.expanded
+        else { return nil }
+        return moduleHost.scoped(expanded, toModule: entry.moduleID)
     }
 
     /// The in-surface switcher payload, built only when the host opted into
@@ -119,11 +127,15 @@ struct ModuleRouterCompactView: View {
     var body: some View {
         let configuration = moduleHost.displayedConfiguration
         // The live activity that holds the pill, if any, takes both slots from the module.
-        let primary = activities.primary?.activity
-        let content =
-            switch slot {
-                case .leading: primary?.compactLeading ?? configuration.compactLeading
-                case .trailing: primary?.compactTrailing ?? configuration.compactTrailing
+        // It draws in its own module's scope, which need not be the module on screen.
+        let content: @Sendable @MainActor () -> AnyView =
+            if let primary = activities.primary {
+                moduleHost.scoped(
+                    slot == .leading ? primary.activity.compactLeading : primary.activity.compactTrailing,
+                    toModule: primary.moduleID
+                )
+            } else {
+                slot == .leading ? configuration.compactLeading : configuration.compactTrailing
             }
         // The compact slots render in their own view tree (not under NookExpandedView), so
         // the host gives them the whole chrome environment the expanded content gets.

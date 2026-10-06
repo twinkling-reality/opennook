@@ -372,7 +372,8 @@ ForEach(Array(sessions.enumerated()), id: \.element.id) { index, session in
 `nookStaggered(index:)` reads the theme from the environment, so the theme decides
 the timing, and it does nothing while `motion.stagger` is 0. Outside the expanded
 content (a compact slot, a companion) its turns count from the row's own
-appearance. The framework's own chrome uses it nowhere.
+appearance. The framework's own chrome uses it nowhere. An awaited `expand()` waits
+until the last marked row's turn, as it waits for the top bar.
 
 A theme with a quick exit, an entrance that waits for the chrome to grow, a late
 header, and a cascading list:

@@ -265,6 +265,119 @@ final class NookLiveActivityTests: XCTestCase {
         XCTAssertNil(coordinator.appState.presentedLiveActivity)
     }
 
+    func testOpeningFromAnActivitysPeekWinsOverSettingsAndTheNextOpenBringsItBack() async {
+        let (coordinator, surface, activities) = makeCoordinator()
+        coordinator.appState.showSettings()
+        await surface.compact(on: nil)
+        activities.start(activity("song", peek: true, expanded: true))
+        await surface.peek(on: nil)
+        await surface.expand(on: nil)
+        XCTAssertEqual(coordinator.appState.presentedLiveActivity, "a\u{1F}song")
+        XCTAssertTrue(coordinator.appState.isHomeView, "the activity's view shows, not Settings")
+
+        await surface.compact(on: nil)
+        XCTAssertNil(coordinator.appState.presentedLiveActivity)
+        XCTAssertTrue(coordinator.appState.isHomeView, "Settings does not come back in the collapsing view")
+
+        await surface.expand(on: nil)
+        XCTAssertNil(coordinator.appState.presentedLiveActivity)
+        XCTAssertTrue(coordinator.appState.isSettingsView, "the next open shows the Settings the person left open")
+    }
+
+    func testBackFromAnActivityOpenedOverSettingsReturnsToSettings() async {
+        let (coordinator, surface, activities) = makeCoordinator()
+        coordinator.appState.showSettings()
+        await surface.compact(on: nil)
+        activities.start(activity("song", peek: true, expanded: true))
+        await surface.peek(on: nil)
+        await surface.expand(on: nil)
+        XCTAssertTrue(coordinator.appState.isHomeView)
+
+        NookTopBarCommands.goBack(coordinator.appState, animation: .default)
+        XCTAssertNil(coordinator.appState.presentedLiveActivity)
+        XCTAssertTrue(coordinator.appState.isSettingsView)
+    }
+
+    func testAClaimAndAnActivityHoldSettingsAsideTogether() {
+        let appState = AppState()
+        appState.showSettings()
+        appState.setSettingsAside(for: .activity)
+        appState.setSettingsAside(for: .claim)
+        XCTAssertTrue(appState.isHomeView)
+
+        appState.endSettingsSetAside(for: .activity, restoring: true)
+        XCTAssertTrue(appState.isHomeView, "the claim still holds it")
+        appState.endSettingsSetAside(for: .claim, restoring: true)
+        XCTAssertTrue(appState.isSettingsView)
+
+        appState.showHome()
+        appState.setSettingsAside(for: .claim)
+        XCTAssertTrue(appState.settingsSetAsideReasons.isEmpty, "outside Settings there is nothing to set aside")
+    }
+
+    // MARK: - Module scope
+
+    /// Records the module whose activities a view could see.
+    @MainActor
+    private final class ScopeCapture {
+        var moduleIDs: [String] = []
+    }
+
+    private struct ScopeProbe: View {
+        let capture: ScopeCapture
+        @Environment(\.nookLiveActivities) private var activities
+
+        var body: some View {
+            Color.clear
+                .frame(width: 10, height: 10)
+                .onAppear { capture.moduleIDs.append(activities.moduleID) }
+        }
+    }
+
+    private func render(_ view: some View) {
+        _ = ImageRenderer(content: view.frame(width: 40, height: 40)).nsImage
+    }
+
+    func testAnActivityFromAnotherModuleDrawsInItsOwnModulesScope() throws {
+        let (coordinator, surface, _) = makeCoordinator()
+        coordinator.loadModulesAtLaunch()
+        XCTAssertTrue(coordinator.moduleHost.registry.isLoaded("b"))
+        let capture = ScopeCapture()
+        var download = NookLiveActivity(id: "download", accessibilityLabel: "Download") {
+            ScopeProbe(capture: capture)
+        } compactTrailing: {
+            Text("T")
+        } minimal: {
+            Text("M")
+        }
+        download.setPeek { ScopeProbe(capture: capture) }
+        coordinator.liveActivities.activities(for: "b").start(download)
+
+        render(
+            ModuleRouterCompactView(
+                moduleHost: coordinator.moduleHost,
+                appState: coordinator.appState,
+                activities: coordinator.liveActivities,
+                slot: .leading
+            )
+        )
+        XCTAssertEqual(capture.moduleIDs, ["b"], "the pill, though module a is on screen")
+
+        render(try XCTUnwrap(surface.peekContent))
+        XCTAssertEqual(capture.moduleIDs, ["b", "b"], "the peek")
+    }
+
+    func testAModuleGetsItsOwnServicesOnceLoadedAndTheDisplayedOnesBefore() {
+        let (coordinator, _, _) = makeCoordinator()
+        let host = coordinator.moduleHost
+        XCTAssertTrue(host.services(forModule: "b") === host.displayedServices, "b is not loaded yet")
+        coordinator.loadModulesAtLaunch()
+        XCTAssertTrue(host.services(forModule: "a") === host.activeServices)
+        XCTAssertTrue(host.services(forModule: "b") === host.registry.context(for: "b")?.services)
+        XCTAssertFalse(host.services(forModule: "b") === host.displayedServices)
+        XCTAssertTrue(host.services(forModule: "missing") === host.displayedServices)
+    }
+
     func testUnloadingAModuleEndsItsActivities() {
         let (coordinator, _, _) = makeCoordinator()
         let registry = coordinator.moduleHost.registry
