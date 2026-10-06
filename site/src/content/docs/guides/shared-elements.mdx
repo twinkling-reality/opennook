@@ -1,0 +1,104 @@
+---
+title: Shared elements
+description: Move a cover or a timer between the compact pill, the peek, and the expanded nook instead of fading it out and in again.
+---
+
+When the nook opens, the pill's slots fade out and the expanded content fades in. For
+most content that is right. For something that is plainly the same thing on both sides,
+an album cover or a running timer, it reads better if it moves: the small cover beside
+the notch grows into the big one in the panel. Apple's guidance for the Dynamic Island
+says the same: move elements to their new place rather than removing and adding them.
+
+## Marking an element
+
+Mark the view on each side with the same id:
+
+```swift
+configuration.setCompactLeading {
+    CoverArt(track: player.track).frame(width: 20, height: 20)
+        .nookSharedElement("cover")
+}
+configuration.setHome {
+    HStack {
+        CoverArt(track: player.track).frame(width: 156, height: 156)
+            .nookSharedElement("cover")
+        TrackDetails(player: player)
+    }
+}
+```
+
+At rest each copy draws in place, exactly as it would without the modifier. When the
+nook moves between the pill, the peek, and the expanded content, and a copy with the
+same id is on the other side, that copy is drawn moving from where the element was to
+where it lands, on the chrome's own curve and inside the chrome's shape. Everything
+around it keeps its usual transition.
+
+While the pill peeks, an element in both the pill and the peek shows in the peek only,
+and moves there and back as the peek opens and closes.
+
+## Styles
+
+```swift
+TimerText(timer: timer).nookSharedElement("timer", style: .scale)
+```
+
+- `.resize` (the default) lays the element out at each in-between frame: right for
+  artwork, images, and shapes.
+- `.scale` lays it out once at its destination size and scales it: right for text and
+  numbers, which would otherwise rewrap mid-move.
+
+## What moves well
+
+- **The same view on both sides,** at different sizes. Two different views still move,
+  but cross-fade inside the moving frame.
+- **State in a model, not in `@State`.** The moving copy is a second instance of the
+  view, with the same environment.
+- **Rows that do not wait.** A destination inside a row held back by `motion.stagger`
+  or `motion.header.delay` lands before its row appears. Keep shared elements in content
+  that arrives at once.
+
+## Live activities
+
+An activity opts in the same way, inside the views it already supplies:
+
+```swift
+var song = NookLiveActivity(id: "song", accessibilityLabel: "Now playing") {
+    CoverArt(track: player.track).frame(width: 20, height: 20).nookSharedElement("cover")
+} compactTrailing: {
+    EqualizerBars(player: player)
+} minimal: {
+    Image(systemName: "music.note")
+}
+song.setPeek { SongPeek(player: player) }          // its cover marked "cover" too
+song.setExpanded { SongDetail(player: player) }    // and here
+```
+
+Ids are matched within the module that supplied the view, so two modules can both have
+a "cover". An activity's pill can move into its peek, its expanded view, or its module's
+home (when the nook opens onto the home), and into the module's widget on a
+[board](/guides/widgets-and-boards/). A module running two activities that use the same
+name adds the activity's id itself: `"timer.\(id)"`.
+
+Capsules beside the pill do not take part yet: an activity moving from a capsule to the
+pill still cross-fades.
+
+## Timing and the hide dip
+
+Opening the nook from the host or a surface claim normally passes through hidden for a
+moment on the way from the pill to the panel. An element cannot move across a moment
+where the chrome is gone, so while a shared element is on screen the surface converts
+directly, the way hovering already does. With none on screen, nothing changes.
+
+The curves are themeable: `motion.sharedElement.convert` (default
+`{transition.convert}`) between the pill and the expanded content, and
+`motion.sharedElement.peek` (default `{transition.peek}`) between the pill and its peek.
+Without NookKit, `NookTransitionConfiguration.sharedElementAnimation` and
+`sharedElementPeekAnimation` set them; `nil` rides the chrome's own curves.
+
+With Reduce Motion on, nothing moves: each copy comes and goes with its slot.
+
+A window that is rebuilt (the first show from hidden, or a display change) starts
+fresh, so an element simply arrives with its slot.
+
+Outside the pill, the peek, and the expanded content (in a companion, for example), the
+modifier does nothing.

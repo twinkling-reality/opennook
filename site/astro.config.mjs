@@ -123,6 +123,7 @@ export default defineConfig({
             { label: 'Hover and peek', slug: 'guides/hover-and-peek' },
             { label: 'Live activities', slug: 'guides/live-activities' },
             { label: 'Widgets and boards', slug: 'guides/widgets-and-boards' },
+            { label: 'Shared elements', slug: 'guides/shared-elements' },
             { label: 'Typing in the nook', slug: 'guides/keyboard' },
             { label: 'Rim glow and edge fade', slug: 'guides/panel-effects' },
             { label: 'Displays and presentation', slug: 'guides/displays' },

@@ -321,6 +321,10 @@ Widget grids and boards read `widget.gap`, `widget.rowHeight`, `widget.board.max
 `widget.card.border.color`, and `motion.widgetLayout`. See
 [Widgets and boards](/guides/widgets-and-boards/#tokens).
 
+Shared elements move on `motion.sharedElement.convert` (default `{transition.convert}`)
+and `motion.sharedElement.peek` (default `{transition.peek}`), so by default they move
+with the chrome. See [Shared elements](/guides/shared-elements/#timing-and-the-hide-dip).
+
 `ambient.wash.top`, `.upper`, `.lower`, and `.bottom` shape the wash that
 `nookAmbientColor(_:)` lights behind expanded content, and `shadow.chrome` gives the
 chrome a shadow. Backdrops are described per surface style; see

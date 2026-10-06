@@ -380,7 +380,7 @@ struct NookBoardHome: View, Sendable {
                 widget: entry.widget,
                 size: arranged.size,
                 open: open,
-                scope: { AnyView($0.modifier(NookModuleScope(services: services))) }
+                scope: { AnyView($0.modifier(NookModuleScope(moduleID: moduleID, services: services))) }
             )
         }
     }
@@ -479,7 +479,7 @@ struct NookBoardEditor: View, Sendable {
 
             if let settings = widget.settings, !item.placement.isHidden {
                 settings()
-                    .modifier(NookModuleScope(services: item.entry.services))
+                    .modifier(NookModuleScope(moduleID: item.entry.moduleID, services: item.entry.services))
                     .padding(.leading, metrics.settingsIconWidth + metrics.settingsGroupSpacing * 2 + 12)
             }
         }

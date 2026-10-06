@@ -145,6 +145,11 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
                 peekStartedByHover = false
                 cancelHoverIntent()
             }
+            // Shared elements move with the chrome, on the same transaction.
+            sharedElements.surfaceWillMove(
+                to: .onScreen(state: state, isPeeking: isPeeking),
+                animation: transitionConfiguration.sharedElementAnimation ?? effectiveConversionAnimation
+            )
         }
     }
     @Published private(set) var notchSize: CGSize = .zero
@@ -313,7 +318,20 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
 
     /// `true` while the compact pill shows its peek region. The ``state`` stays
     /// ``NookState/compact`` throughout; leaving compact ends the peek. See ``peek(on:)``.
-    @Published public internal(set) var isPeeking: Bool = false
+    @Published public internal(set) var isPeeking: Bool = false {
+        didSet {
+            // Leaving compact ends a peek inside the state change, which moves the elements.
+            guard state == .compact, isPeeking != oldValue else { return }
+            sharedElements.surfaceWillMove(
+                to: .onScreen(state: state, isPeeking: isPeeking),
+                animation: transitionConfiguration.sharedElementPeekAnimation ?? effectivePeekAnimation
+            )
+        }
+    }
+
+    /// Where the shared elements (``SwiftUI/View/nookSharedElement(_:style:)``) are drawn and
+    /// which ones are moving.
+    let sharedElements = NookSharedElementCoordinator()
 
     /// What resting the pointer on the compact pill does. ``NookHoverIntent/standard`` (open
     /// at once) by default.
@@ -1020,7 +1038,8 @@ extension Nook {
             // bail condition robust against any future cancellation path.
             guard isCurrent(generation), !Task.isCancelled else { return }
         } else {
-            if !skipHide {
+            // A shared element on screen cannot move across a moment where the chrome is gone.
+            if !skipHide, !sharedElements.holdsElements {
                 withAnimation(effectiveClosingAnimation) { state = .hidden }
                 try? await Task.sleep(for: intermediateHideDuration)
                 // A newer transition may have superseded us across the sleep.
@@ -1062,7 +1081,8 @@ extension Nook {
             await awaitContentArrival(for: .compact)
             guard isCurrent(generation), !Task.isCancelled else { return }
         } else {
-            if !skipHide {
+            // A shared element on screen cannot move across a moment where the chrome is gone.
+            if !skipHide, !sharedElements.holdsElements {
                 withAnimation(effectiveClosingAnimation) { state = .hidden }
                 try? await Task.sleep(for: intermediateHideDuration)
                 guard isCurrent(generation), !Task.isCancelled, state == .hidden else { return }

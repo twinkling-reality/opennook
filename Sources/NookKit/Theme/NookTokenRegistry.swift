@@ -264,6 +264,8 @@ enum NookTokenRegistry {
             .spring(response: 0.54, dampingFraction: 0.86, blendDuration: 0.12)
         ),
         NookAnimationToken(.transitionPeek, .semantic, .reference(.springSnappy)),
+        NookAnimationToken(.sharedElementConvert, .semantic, .reference(.transitionConvert)),
+        NookAnimationToken(.sharedElementPeek, .semantic, .reference(.transitionPeek)),
         NookAnimationToken(.viewModeChange, .component, .reference(.springGentle)),
         NookAnimationToken(.leadingClusterBack, .component, .spring(response: 0.34, dampingFraction: 0.85)),
         NookAnimationToken(.leadingClusterHover, .component, .reference(.springSnappy)),

@@ -5,6 +5,7 @@
 // you may not use this file except in compliance with the License.
 // A copy is included at /LICENSE in the repository root.
 
+import NookSurface
 import SwiftUI
 
 /// Expanded-surface router. `Nook` builds its expanded content closure exactly once,
@@ -70,6 +71,8 @@ struct ModuleRouterExpandedView: View {
         .environment(\.nookHostBranding, moduleHost.branding)
         .environment(\.nookChromeActions, chromeActions)
         .environment(\.nookSwitchModule, switchModule)
+        // The module's shared elements match within the module; an activity's view sets its own.
+        .environment(\.nookSharedElementScope, moduleHost.displayedModuleID)
         .environment(
             \.nookContentEntrance,
             NookContentEntrance(
@@ -155,6 +158,7 @@ struct ModuleRouterCompactView: View {
             themeTokens: configuration.effectiveThemeTokens,
             content: content
         )
+        .environment(\.nookSharedElementScope, moduleHost.displayedModuleID)
         // A new holder replaces the slot's content rather than morphing it.
         .id(activities.primary?.id)
         .transition(.opacity)

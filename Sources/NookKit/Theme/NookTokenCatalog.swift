@@ -500,3 +500,13 @@ extension NookAnimationID {
     /// How widgets move when a board's layout changes. Default `{spring.default}`.
     public static let widgetLayout: NookAnimationID = "motion.widgetLayout"
 }
+
+// MARK: - Shared elements
+
+extension NookAnimationID {
+    /// How a shared element (`nookSharedElement(_:style:)`) moves between the compact pill and
+    /// the expanded content. Default `{transition.convert}`, the chrome's own curve.
+    public static let sharedElementConvert: NookAnimationID = "motion.sharedElement.convert"
+    /// How a shared element moves between the pill and its peek. Default `{transition.peek}`.
+    public static let sharedElementPeek: NookAnimationID = "motion.sharedElement.peek"
+}

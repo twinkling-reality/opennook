@@ -97,6 +97,15 @@ public struct NookTransitionConfiguration: Sendable {
     /// ``conversionAnimation``, or the surface's built-in conversion curve.
     public var peekAnimation: Animation?
 
+    /// The curve shared elements (``SwiftUI/View/nookSharedElement(_:style:)``) move on between
+    /// the compact pill and the expanded content. `nil` (the default) rides the chrome's own
+    /// conversion curve, so the element and the chrome move as one.
+    public var sharedElementAnimation: Animation?
+
+    /// The curve shared elements move on between the pill and its peek. `nil` (the default)
+    /// rides the peek's own curve.
+    public var sharedElementPeekAnimation: Animation?
+
     public init(
         openingAnimation: Animation? = nil,
         closingAnimation: Animation? = nil,
@@ -111,7 +120,9 @@ public struct NookTransitionConfiguration: Sendable {
         expandedEntranceDuration: TimeInterval = 0,
         peekContentTransition: NookContentTransition = .standardPeek,
         peekContentRemoval: NookContentTransition? = nil,
-        peekAnimation: Animation? = nil
+        peekAnimation: Animation? = nil,
+        sharedElementAnimation: Animation? = nil,
+        sharedElementPeekAnimation: Animation? = nil
     ) {
         self.openingAnimation = openingAnimation
         self.closingAnimation = closingAnimation
@@ -127,6 +138,8 @@ public struct NookTransitionConfiguration: Sendable {
         self.peekContentTransition = peekContentTransition
         self.peekContentRemoval = peekContentRemoval
         self.peekAnimation = peekAnimation
+        self.sharedElementAnimation = sharedElementAnimation
+        self.sharedElementPeekAnimation = sharedElementPeekAnimation
     }
 }
 
