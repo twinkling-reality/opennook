@@ -6,6 +6,7 @@
 // A copy is included at /LICENSE in the repository root.
 
 import XCTest
+
 @testable import NookComponents
 
 @MainActor
@@ -212,8 +213,9 @@ final class ShelfStoreTests: XCTestCase {
 
         let store = ShelfStore(persistenceKey: key, defaults: defaults)
         XCTAssertEqual(
-            store.items.count, 2,
-            "the non-scoped item survives even though it cannot resolve — this is the corrosion regression test"
+            store.items.count,
+            2,
+            "the non-scoped item survives even though it cannot resolve - this is the corrosion regression test"
         )
         XCTAssertTrue(store.items.contains(where: { $0.bookmarkKind == .nonScoped }))
     }
@@ -260,7 +262,7 @@ final class ShelfStoreTests: XCTestCase {
             "fileExtension": aliveItem.fileExtension,
             "addedAt": ISO8601DateFormatter().string(from: aliveItem.addedAt),
             "bookmark": aliveItem.bookmark.base64EncodedString(),
-            "typeIdentifier": aliveItem.typeIdentifier
+            "typeIdentifier": aliveItem.typeIdentifier,
         ]
         let ghostDict: [String: Any] = [
             "id": UUID().uuidString,
@@ -268,27 +270,29 @@ final class ShelfStoreTests: XCTestCase {
             "fileExtension": "txt",
             "addedAt": ISO8601DateFormatter().string(from: Date()),
             "bookmark": Data(repeating: 0xff, count: 32).base64EncodedString(),
-            "typeIdentifier": "public.plain-text"
+            "typeIdentifier": "public.plain-text",
         ]
         // We avoid JSONSerialization here because JSONEncoder writes Dates and Data
         // with specific encodings - emit those by hand to match its defaults exactly.
         let json = """
-        [
-          {"id":"\(aliveItem.id.uuidString)",
-           "displayName":"\(aliveItem.displayName)",
-           "fileExtension":"\(aliveItem.fileExtension)",
-           "addedAt":\(aliveItem.addedAt.timeIntervalSinceReferenceDate),
-           "bookmark":"\(aliveItem.bookmark.base64EncodedString())",
-           "typeIdentifier":"\(aliveItem.typeIdentifier)"},
-          {"id":"\(ghostDict["id"]!)",
-           "displayName":"ghost",
-           "fileExtension":"txt",
-           "addedAt":\(Date().timeIntervalSinceReferenceDate),
-           "bookmark":"\(Data(repeating: 0xff, count: 32).base64EncodedString())",
-           "typeIdentifier":"public.plain-text"}
-        ]
-        """
-        _ = aliveDict; _ = ghostDict  // dict forms shown above for documentation
+            [
+              {"id":"\(aliveItem.id.uuidString)",
+               "displayName":"\(aliveItem.displayName)",
+               "fileExtension":"\(aliveItem.fileExtension)",
+               "addedAt":\(aliveItem.addedAt.timeIntervalSinceReferenceDate),
+               "bookmark":"\(aliveItem.bookmark.base64EncodedString())",
+               "typeIdentifier":"\(aliveItem.typeIdentifier)"},
+              {"id":"\(ghostDict["id"]!)",
+               "displayName":"ghost",
+               "fileExtension":"txt",
+               "addedAt":\(Date().timeIntervalSinceReferenceDate),
+               "bookmark":"\(Data(repeating: 0xff, count: 32).base64EncodedString())",
+               "typeIdentifier":"public.plain-text"}
+            ]
+            """
+        // The dict forms above are for documentation.
+        _ = aliveDict
+        _ = ghostDict
         let data = json.data(using: .utf8)!
         defaults.set(data, forKey: key)
 
