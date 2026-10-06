@@ -306,19 +306,22 @@ final class PlaygroundColorTests: XCTestCase {
 
 final class PlaygroundStoreTests: XCTestCase {
     private var suiteName = ""
+    private var directory = FileManager.default.temporaryDirectory
     private var defaults = UserDefaults.standard
 
+    /// The suite name is a path in a fresh temporary directory, so its plist lands there, not in
+    /// ~/Library/Preferences.
     override func setUpWithError() throws {
-        suiteName = "opennook.playground.tests.\(UUID().uuidString)"
+        directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("opennook-playground-tests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        suiteName = directory.appendingPathComponent("opennook.playground.tests").path
         defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
     }
 
     override func tearDown() {
         defaults.removePersistentDomain(forName: suiteName)
-        // Removing the domain still leaves an empty plist behind, one per test run.
-        let file = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Preferences/\(suiteName).plist")
-        try? FileManager.default.removeItem(at: file)
+        try? FileManager.default.removeItem(at: directory)
     }
 
     func testAnEmptyStoreLoadsTheDefaults() {

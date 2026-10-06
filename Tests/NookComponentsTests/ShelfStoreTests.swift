@@ -19,15 +19,30 @@ final class ShelfStoreTests: XCTestCase {
         return url
     }
 
+    /// A unique, isolated `UserDefaults` suite, removed when the test ends. The suite name is
+    /// a path in a fresh temporary directory, so its plist lands there, not in ~/Library/Preferences.
+    private func makeDefaults() throws -> UserDefaults {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("nook-shelf-defaults-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let suiteName = directory.appendingPathComponent("nook.test").path
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        addTeardownBlock {
+            defaults.removePersistentDomain(forName: suiteName)
+            try? FileManager.default.removeItem(at: directory)
+        }
+        return defaults
+    }
+
     /// A store backed by a unique, isolated `UserDefaults` suite so tests don't collide.
-    private func freshStore() -> (store: ShelfStore, defaults: UserDefaults, key: String) {
-        let defaults = UserDefaults(suiteName: "nook.test.\(UUID().uuidString)")!
+    private func freshStore() throws -> (store: ShelfStore, defaults: UserDefaults, key: String) {
+        let defaults = try makeDefaults()
         let key = "items"
         return (ShelfStore(persistenceKey: key, defaults: defaults), defaults, key)
     }
 
     func testAcceptAddsResolvableItem() throws {
-        let (store, _, _) = freshStore()
+        let (store, _, _) = try freshStore()
         let url = try makeTempFile()
         defer { try? FileManager.default.removeItem(at: url) }
 
@@ -40,7 +55,7 @@ final class ShelfStoreTests: XCTestCase {
     }
 
     func testAcceptSkipsDuplicates() throws {
-        let (store, _, _) = freshStore()
+        let (store, _, _) = try freshStore()
         let url = try makeTempFile()
         defer { try? FileManager.default.removeItem(at: url) }
 
@@ -50,7 +65,7 @@ final class ShelfStoreTests: XCTestCase {
     }
 
     func testRemoveAndClear() throws {
-        let (store, _, _) = freshStore()
+        let (store, _, _) = try freshStore()
         let first = try makeTempFile()
         let second = try makeTempFile()
         defer {
@@ -72,7 +87,7 @@ final class ShelfStoreTests: XCTestCase {
         let url = try makeTempFile()
         defer { try? FileManager.default.removeItem(at: url) }
 
-        let defaults = UserDefaults(suiteName: "nook.test.\(UUID().uuidString)")!
+        let defaults = try makeDefaults()
         let key = "items"
 
         let first = ShelfStore(persistenceKey: key, defaults: defaults)
@@ -85,7 +100,7 @@ final class ShelfStoreTests: XCTestCase {
     }
 
     func testPurgeMissingDropsIndividualDeletedFile() throws {
-        let (store, _, _) = freshStore()
+        let (store, _, _) = try freshStore()
         let kept = try makeTempFile()
         let deleted = try makeTempFile()
         defer { try? FileManager.default.removeItem(at: kept) }
@@ -105,7 +120,7 @@ final class ShelfStoreTests: XCTestCase {
     /// sandboxed host that lost its file-access grant - the shelf must be preserved,
     /// not silently wiped.
     func testPurgeMissingPreservesShelfOnSystemicFailure() throws {
-        let (store, _, _) = freshStore()
+        let (store, _, _) = try freshStore()
         let first = try makeTempFile()
         let second = try makeTempFile()
 
@@ -122,7 +137,7 @@ final class ShelfStoreTests: XCTestCase {
     /// individually-deleted file on launch, exactly as `purgeMissing()` does - proving
     /// the single-pass consolidation preserves the per-item purge behaviour.
     func testInitReconcilePurgesIndividualDeletedFile() throws {
-        let defaults = UserDefaults(suiteName: "nook.test.\(UUID().uuidString)")!
+        let defaults = try makeDefaults()
         let key = "items"
         let kept = try makeTempFile()
         let deleted = try makeTempFile()
@@ -143,7 +158,7 @@ final class ShelfStoreTests: XCTestCase {
     /// The consolidated `init` reconcile must also honour the systemic-failure rule:
     /// when *every* persisted item fails to resolve on launch, the shelf is preserved.
     func testInitReconcilePreservesShelfOnSystemicFailure() throws {
-        let defaults = UserDefaults(suiteName: "nook.test.\(UUID().uuidString)")!
+        let defaults = try makeDefaults()
         let key = "items"
         let first = try makeTempFile()
         let second = try makeTempFile()
@@ -163,7 +178,7 @@ final class ShelfStoreTests: XCTestCase {
     /// Outside the App Sandbox (where every test runs) scoped capture should still
     /// succeed for any URL the process can read. The tag records that.
     func testBookmarkKindIsScopedWhenAvailable() throws {
-        let (store, _, _) = freshStore()
+        let (store, _, _) = try freshStore()
         let url = try makeTempFile()
         defer { try? FileManager.default.removeItem(at: url) }
 
@@ -175,7 +190,7 @@ final class ShelfStoreTests: XCTestCase {
     /// reconcile, even when a sibling resolves. Before the fix, a sandboxed host's
     /// non-scoped items were silently corroded on every launch.
     func testNonScopedItemPreservedOnReconcileWhenUnresolvable() throws {
-        let defaults = UserDefaults(suiteName: "nook.test.\(UUID().uuidString)")!
+        let defaults = try makeDefaults()
         let key = "items"
         let alive = try makeTempFile()
         defer { try? FileManager.default.removeItem(at: alive) }
@@ -206,7 +221,7 @@ final class ShelfStoreTests: XCTestCase {
     /// A `.scoped` item that fails to resolve, alongside a `.scoped` sibling that
     /// does resolve, IS purged. The lenient rule applies only to non-scoped items.
     func testScopedItemPurgedOnReconcileWhenUnresolvableWithLiveSibling() throws {
-        let defaults = UserDefaults(suiteName: "nook.test.\(UUID().uuidString)")!
+        let defaults = try makeDefaults()
         let key = "items"
         let alive = try makeTempFile()
         defer { try? FileManager.default.removeItem(at: alive) }
@@ -232,7 +247,7 @@ final class ShelfStoreTests: XCTestCase {
     /// Items persisted before the `bookmarkKind` field existed decode as `.unknown`
     /// and are treated exactly like `.nonScoped` for purge - preserved on failure.
     func testUnknownKindTreatedAsNonScopedForPurge() throws {
-        let defaults = UserDefaults(suiteName: "nook.test.\(UUID().uuidString)")!
+        let defaults = try makeDefaults()
         let key = "items"
         let alive = try makeTempFile()
         defer { try? FileManager.default.removeItem(at: alive) }
