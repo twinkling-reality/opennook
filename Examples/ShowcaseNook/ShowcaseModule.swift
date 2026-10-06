@@ -88,9 +88,39 @@ enum LaunchOptions {
         ProcessInfo.processInfo.arguments.contains("--open-activity")
     }
 
+    /// `--alert-after <seconds>`: when `--peek` or `--open-activity` alerts the song activity in
+    /// the `compact` scene. 0.9 s by default.
+    static var alertDelay: Duration {
+        .milliseconds(Int((value(after: "--alert-after").flatMap(Double.init) ?? 0.9) * 1000))
+    }
+
     /// `--theme <file.json>`: a theme file for the chrome, followed as it changes.
     static var themePath: String? {
         value(after: "--theme")
+    }
+
+    /// `--scene board`: the player, agenda, and timer scenes run side by side as resident
+    /// modules, and a board shows a widget from each.
+    static var showsBoard: Bool {
+        value(after: "--scene") == "board"
+    }
+
+    /// The pin that holds the nook open for `--keep-open`, kept for the life of the process.
+    @MainActor private static var keepOpenPin: NookPresentationPinHandle?
+
+    /// Opens the nook after `--expand`, `--expand-after`, or `--keep-open`, and holds it open for
+    /// `--keep-open` with a pin rather than the keep-open preference, so a recording leaves no
+    /// setting behind.
+    @MainActor
+    static func openIfAsked(_ coordinator: AppCoordinator) {
+        guard let delay = expandDelay else { return }
+        Task { @MainActor in
+            try? await Task.sleep(for: delay)
+            coordinator.showNook()
+            if keepsNookOpen {
+                keepOpenPin = coordinator.moduleHost.registry.presentationPinning.pin(reason: "showcase-keep-open")
+            }
+        }
     }
 
     private static func value(after flag: String) -> String? {
@@ -115,7 +145,8 @@ final class ShowcaseModule: NookModule {
         icon: "sparkles"
     )
 
-    let descriptor = ShowcaseModule.moduleDescriptor
+    /// The scene's own descriptor in a board run (`descriptor(for:)`), this one otherwise.
+    let descriptor: NookModuleDescriptor
     private let scene: ShowcaseScene
     private let context: NookModuleContext
 
@@ -127,7 +158,6 @@ final class ShowcaseModule: NookModule {
     private lazy var volume = SystemVolumeObserver()
     private lazy var outputLabel = OutputDevice.currentLabel()
 
-    private var keepOpenPin: NookPresentationPinHandle?
     private var volumeObservation: AnyCancellable?
     private var trackObservation: AnyCancellable?
     private var trackPeek: NookSurfaceToken?
@@ -138,6 +168,7 @@ final class ShowcaseModule: NookModule {
     init(scene: ShowcaseScene, context: NookModuleContext) {
         self.scene = scene
         self.context = context
+        self.descriptor = context.descriptor
         if scene == .shelf {
             // A fresh shelf each launch: last run's files are gone from the temporary folder.
             shelf.clear()
@@ -181,7 +212,7 @@ final class ShowcaseModule: NookModule {
             LaunchOptions.peeks ? .peek(.seconds(60)) : LaunchOptions.opensActivity ? .expand(.seconds(60)) : nil
         if let alert {
             Task { @MainActor in
-                try? await Task.sleep(for: .milliseconds(900))
+                try? await Task.sleep(for: LaunchOptions.alertDelay)
                 activities.alert("song", alert)
             }
         }
@@ -241,10 +272,53 @@ final class ShowcaseModule: NookModule {
                 configuration.setCompactTrailing { NookVolumeIndicator(observer: volume) }
         }
 
+        addWidgets(to: &configuration)
         configuration.onReady = { [weak self] coordinator in
             self?.ready(coordinator)
         }
         return configuration
+    }
+
+    /// The scene's widget, for a board (`--scene board`). Scenes without one add nothing.
+    private func addWidgets(to configuration: inout NookConfiguration) {
+        switch scene {
+            case .player:
+                let player = player
+                configuration.addWidget(
+                    NookWidget(id: "now-playing", title: "Now playing", symbol: "music.note", sizes: [.medium, .large])
+                    {
+                        size in
+                        NowPlayingWidget(player: player, size: size)
+                    }
+                )
+            case .agenda:
+                configuration.addWidget(
+                    NookWidget(id: "next", title: "Next event", symbol: "calendar", sizes: [.medium]) { _ in
+                        NextEventWidget()
+                    }
+                )
+            case .timer:
+                let timer = timer
+                configuration.addWidget(
+                    NookWidget(id: "focus", title: "Focus", symbol: "timer", sizes: [.small, .medium]) { _ in
+                        FocusWidget(timer: timer)
+                    }
+                )
+            case .progress, .shelf, .hud, .compact:
+                break
+        }
+    }
+
+    /// A scene's own module, resident and loaded at launch, for a board run.
+    nonisolated static func descriptor(for scene: ShowcaseScene) -> NookModuleDescriptor {
+        var descriptor = NookModuleDescriptor(
+            id: "com.opennook.example.showcase.\(scene.rawValue)",
+            displayName: scene.title,
+            icon: scene.icon,
+            backgroundPolicy: .stayResident
+        )
+        descriptor.loadsAtLaunch = true
+        return descriptor
     }
 
     private func configurePlayer(_ configuration: inout NookConfiguration) {
@@ -357,16 +431,9 @@ final class ShowcaseModule: NookModule {
                 break
         }
 
-        if let delay = LaunchOptions.expandDelay {
-            Task { @MainActor [weak self] in
-                try? await Task.sleep(for: delay)
-                coordinator.showNook()
-                if LaunchOptions.keepsNookOpen {
-                    // A pin, not the keep-open preference, so a recording leaves no setting behind.
-                    self?.keepOpenPin = self?.context.services.resolve(NookPresentationPinningKey.self)
-                        .pin(reason: "showcase-keep-open")
-                }
-            }
+        // Only the module the nook opens on: in a board run the others load in the background.
+        if descriptor.id == coordinator.activeModuleID {
+            LaunchOptions.openIfAsked(coordinator)
         }
     }
 

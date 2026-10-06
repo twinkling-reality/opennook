@@ -23,13 +23,16 @@
 //     peek claim with a scheduled end), with `NookVolumeIndicator` beside the notch.
 //   - `compact`: two live activities sharing the collapsed pill: the song holds it, and the
 //     focus session waits in a capsule beside it (`NookLiveActivity`).
+//   - `board`: the player, agenda, and timer run side by side as resident modules, and a board
+//     shows a widget from each (`NookWidget`, `NookBoardConfiguration`).
 //
 // Every song, artist, event, and build here is invented.
 //
 // Run with `swift run ShowcaseNook --scene <id>`. `--expand` opens the nook at launch,
 // `--expand-after <seconds>` opens it later, and `--keep-open` holds it open.
 // `--peek` shows the player's (or, in `compact`, the song activity's) peek shortly after launch
-// and holds it, and `--open-activity` opens `compact` onto the song activity, for a recording.
+// and holds it, and `--open-activity` opens `compact` onto the song activity, for a recording;
+// `--alert-after <seconds>` sets when.
 // `--theme <file.json>` paints the chrome with a theme file and follows it as it is saved;
 // Examples/Themes holds a few to start from.
 
@@ -37,10 +40,39 @@ import Foundation
 import NookApp
 
 var host = NookHostConfiguration()
-host.register(ShowcaseModule.moduleDescriptor) { context in
-    ShowcaseModule(scene: LaunchOptions.scene, context: context)
+if LaunchOptions.showsBoard {
+    for scene in [ShowcaseScene.player, .agenda, .timer] {
+        host.register(ShowcaseModule.descriptor(for: scene)) { context in
+            ShowcaseModule(scene: scene, context: context)
+        }
+    }
+    var board = NookBoardConfiguration(
+        id: "com.opennook.example.showcase.board",
+        displayName: "Today",
+        icon: "square.grid.2x2",
+        width: 520,
+        defaultLayout: [
+            NookWidgetPlacement(
+                moduleID: "com.opennook.example.showcase.player",
+                widgetID: "now-playing",
+                size: .large
+            ),
+            NookWidgetPlacement(moduleID: "com.opennook.example.showcase.agenda", widgetID: "next"),
+            NookWidgetPlacement(moduleID: "com.opennook.example.showcase.timer", widgetID: "focus", size: .medium),
+        ]
+    )
+    board.customize = { configuration in
+        configuration.topBar.showsKeepOpenButton = false
+        configuration.onReady = { coordinator in LaunchOptions.openIfAsked(coordinator) }
+    }
+    host.registerBoard(board)
+    host.defaultModule = board.id
+} else {
+    host.register(ShowcaseModule.moduleDescriptor) { context in
+        ShowcaseModule(scene: LaunchOptions.scene, context: context)
+    }
+    host.defaultModule = ShowcaseModule.moduleDescriptor.id
 }
-host.defaultModule = ShowcaseModule.moduleDescriptor.id
 host.branding = NookHostBranding(
     hostName: "ShowcaseNook",
     hostTagline: "Finished-looking notch scenes built on OpenNook."
