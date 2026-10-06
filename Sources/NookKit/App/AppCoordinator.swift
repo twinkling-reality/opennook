@@ -985,7 +985,8 @@ public final class AppCoordinator: ObservableObject {
                 let module = registry.module(for: descriptor.id)
             else { continue }
             modulesGivenOnReady.insert(descriptor.id)
-            module.makeConfiguration().onReady?(self)
+            let configuration = ModuleHost.prepared(module.makeConfiguration(), of: descriptor.id, registry: registry)
+            configuration.onReady?(self)
         }
     }
 

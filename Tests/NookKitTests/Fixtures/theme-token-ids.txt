@@ -72,6 +72,7 @@ motion.settingsDisclosure
 motion.stagger
 motion.statusBanner
 motion.viewModeChange
+motion.widgetLayout
 placeholder.body.font
 placeholder.mark.size
 placeholder.mark.strokeWidth
@@ -212,3 +213,10 @@ type.size.xl
 type.size.xs
 volume.glyph.font
 volume.glyph.opacity
+widget.board.maxHeight
+widget.card.background.color
+widget.card.border.color
+widget.card.cornerRadius
+widget.card.padding
+widget.gap
+widget.rowHeight

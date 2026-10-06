@@ -8,6 +8,19 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Widgets and boards. A module offers small views of itself as `NookWidget`s
+  (`NookConfiguration.addWidget(_:)`, or a `NookWidgetSource` for widgets that come and
+  go), each with the sizes it supports (`NookWidgetSize`: small, medium, large, wide, or
+  any span). `NookWidgetGrid` lays widgets out on a column grid in any home. A board
+  (`NookBoardConfiguration`, `NookHostConfiguration.registerBoard(_:)`) is a module whose
+  home is a grid of every loaded module's widgets, each drawn in its own module's scope;
+  people reorder, resize, show, and hide them in the board's Settings, and the layout is
+  saved per board (`NookWidgetPlacement`). New tokens: `widget.gap`, `widget.rowHeight`,
+  `widget.board.maxHeight`, `widget.card.cornerRadius`, `widget.card.padding`,
+  `widget.card.background.color`, `widget.card.border.color`, and
+  `motion.widgetLayout`. New labels: `NookChromeLabels.Widgets`. New site guide: "Widgets
+  and boards".
+
 - Live activities, modeled on the Dynamic Island. Any loaded module starts a
   `NookLiveActivity` (compact leading and trailing views, a minimal view, and optionally a
   peek and an expanded view) through its own `NookLiveActivities`

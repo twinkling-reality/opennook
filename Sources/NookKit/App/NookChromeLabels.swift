@@ -66,6 +66,9 @@ public struct NookChromeLabels: Sendable, Equatable {
     /// The `NookComponents` views: the file shelf and the volume glyph.
     public var components: Components
 
+    /// Boards of widgets: the empty board and the board's editor in Settings.
+    public var widgets: Widgets
+
     /// The line under the host name on ``NookPlaceholderHomeView``.
     public var placeholderMessage: String
 
@@ -81,6 +84,7 @@ public struct NookChromeLabels: Sendable, Equatable {
         shortcut: Shortcut = Shortcut(),
         menuBar: MenuBar = MenuBar(),
         components: Components = Components(),
+        widgets: Widgets = Widgets(),
         placeholderMessage: String = "Register your own view with NookConfiguration to start building."
     ) {
         self.settingsBreadcrumb = settingsBreadcrumb
@@ -94,6 +98,7 @@ public struct NookChromeLabels: Sendable, Equatable {
         self.shortcut = shortcut
         self.menuBar = menuBar
         self.components = components
+        self.widgets = widgets
         self.placeholderMessage = placeholderMessage
     }
 

@@ -319,4 +319,32 @@ extension NookChromeLabels {
             NookChromeLabels.fill(volumeLevelFormat, ["percent": String(percent)])
         }
     }
+
+    /// Boards of widgets (``NookBoardConfiguration``): the board's empty state and its editor
+    /// in Settings.
+    public struct Widgets: Sendable, Equatable {
+        /// The board's Settings group that lists its widgets.
+        public var sectionTitle = "Widgets"
+        /// The caption under the group's title.
+        public var editorCaption = "Drag a widget to move it. A hidden widget keeps its place."
+        /// A board with nothing to show.
+        public var emptyBoard = "No widgets yet. Modules add them, and Settings turns them on."
+        /// The size menu's title.
+        public var sizeTitle = "Size"
+        /// The button that puts the board back the way the app set it up.
+        public var resetLayout = "Reset layout"
+        /// The accessibility action that moves a widget one place earlier.
+        public var moveUp = "Move up"
+        /// The accessibility action that moves a widget one place later.
+        public var moveDown = "Move down"
+        /// The switch that shows or hides a widget. Placeholder: `{widget}`.
+        public var showWidgetFormat = "Show {widget}"
+
+        public init() {}
+
+        /// ``showWidgetFormat`` for `widget`.
+        public func showWidget(_ widget: String) -> String {
+            NookChromeLabels.fill(showWidgetFormat, ["widget": widget])
+        }
+    }
 }

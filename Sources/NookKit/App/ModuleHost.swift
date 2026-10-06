@@ -36,8 +36,9 @@ public final class ModuleHost: ObservableObject {
         self.registry = registry
         let id = registry.defaultModuleID
         self.activeModuleID = id
-        self.configuration = Self.themed(
+        self.configuration = Self.prepared(
             registry.module(for: id)?.makeConfiguration() ?? NookConfiguration(),
+            of: id,
             registry: registry
         )
         self.chromeBehavior = registry.chromeBehavior
@@ -139,7 +140,7 @@ public final class ModuleHost: ObservableObject {
         incoming.onActivate()
         activeModuleID = id
         attentionModuleIDs.remove(id)
-        configuration = themed(incoming.makeConfiguration())
+        configuration = prepared(incoming.makeConfiguration(), of: id)
         // The incoming module's own content now fills the surface; it is no longer a
         // background module presenting over another.
         if presentedBackgroundModuleID == id {
@@ -207,8 +208,9 @@ public final class ModuleHost: ObservableObject {
             return id
         }()
         guard target != presentedBackgroundModuleID else { return false }
-        presentedBackgroundConfiguration = target.flatMap { registry.module(for: $0)?.makeConfiguration() }
-            .map(themed)
+        presentedBackgroundConfiguration = target.flatMap { id in
+            registry.module(for: id).map { prepared($0.makeConfiguration(), of: id) }
+        }
         presentedBackgroundModuleID = target
         return true
     }
@@ -219,7 +221,7 @@ public final class ModuleHost: ObservableObject {
     /// is why this stays internal.
     func reloadConfiguration() {
         guard let module = activeModule else { return }
-        configuration = themed(module.makeConfiguration())
+        configuration = prepared(module.makeConfiguration(), of: activeModuleID)
     }
 
     // MARK: - Theme
@@ -242,14 +244,25 @@ public final class ModuleHost: ObservableObject {
         return themed
     }
 
-    private func themed(_ configuration: NookConfiguration) -> NookConfiguration {
-        Self.themed(configuration, registry: registry)
+    /// `configuration`, just built by the module `id`, themed, with its widgets recorded for
+    /// boards. Every configuration the host builds passes through here.
+    static func prepared(_ configuration: NookConfiguration, of id: String, registry: NookModuleRegistry)
+        -> NookConfiguration
+    {
+        if registry.isLoaded(id), let services = registry.context(for: id)?.services {
+            registry.widgets.record(configuration, moduleID: id, services: services)
+        }
+        return themed(configuration, registry: registry)
+    }
+
+    private func prepared(_ configuration: NookConfiguration, of id: String) -> NookConfiguration {
+        Self.prepared(configuration, of: id, registry: registry)
     }
 
     /// Builds the presenting background module's configuration again, for a theme that
     /// changed under it. A no-op while the active module is on the surface.
     func reloadPresentedBackgroundConfiguration() {
         guard let id = presentedBackgroundModuleID else { return }
-        presentedBackgroundConfiguration = registry.module(for: id).map { themed($0.makeConfiguration()) }
+        presentedBackgroundConfiguration = registry.module(for: id).map { prepared($0.makeConfiguration(), of: id) }
     }
 }

@@ -57,7 +57,8 @@ public final class NookModuleContext {
         for descriptor: NookModuleDescriptor,
         presentationPinning: NookPresentationPinning,
         filePicker: NookFilePicker,
-        liveActivities: NookActivityCenter? = nil
+        liveActivities: NookActivityCenter? = nil,
+        widgets: NookWidgetCatalog? = nil
     ) -> NookModuleContext {
         let suiteName = "opennook.module.\(descriptor.id)"
         let defaults = UserDefaults(suiteName: suiteName) ?? .standard
@@ -78,6 +79,9 @@ public final class NookModuleContext {
         services.register(NookFilePickerKey.self, filePicker)
         if let liveActivities {
             services.register(NookLiveActivitiesKey.self, liveActivities.activities(for: descriptor.id))
+        }
+        if let widgets {
+            services.register(NookWidgetCatalogKey.self, widgets)
         }
 
         return NookModuleContext(

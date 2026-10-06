@@ -86,6 +86,10 @@ public final class NookModuleRegistry {
     /// it is unloaded. See ``NookActivityCenter``.
     public let liveActivities = NookActivityCenter()
 
+    /// The widgets every loaded module offers, for boards. A module's widgets leave with it
+    /// when it is unloaded. See ``NookWidgetCatalog``.
+    let widgets: NookWidgetCatalog
+
     /// How the compact pill shares itself among live activities. See
     /// ``NookHostConfiguration/activityPolicy``.
     public let activityPolicy: NookActivityPolicy
@@ -118,6 +122,7 @@ public final class NookModuleRegistry {
         self.presentationPinning = presentationPinning
         self.activityPolicy = activityPolicy
         self.filePicker = NookFilePicker(presentationPinning: presentationPinning)
+        self.widgets = NookWidgetCatalog(moduleOrder: registrations.map(\.descriptor.id))
     }
 
     /// All registered modules' descriptors, in registration order - the switcher's list.
@@ -141,7 +146,8 @@ public final class NookModuleRegistry {
             for: registration.descriptor,
             presentationPinning: presentationPinning,
             filePicker: filePicker,
-            liveActivities: liveActivities
+            liveActivities: liveActivities,
+            widgets: widgets
         )
         let module = registration.factory(context)
         contexts[id] = context
@@ -168,5 +174,6 @@ public final class NookModuleRegistry {
         contexts.removeValue(forKey: id)
         // Its activities' views read the instance's state, which is gone.
         liveActivities.endAll(moduleID: id)
+        widgets.remove(moduleID: id)
     }
 }
