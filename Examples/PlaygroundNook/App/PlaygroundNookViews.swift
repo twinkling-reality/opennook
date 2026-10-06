@@ -50,7 +50,14 @@ private struct HomeContent: View {
                     ControlsButton(model: model)
                 }
             }
-            if model.demo.showsScrollDemo {
+            if let widgets = model.widgetDemo {
+                NookWidgetGrid(
+                    widgets.widgets,
+                    sizes: widgets.sizesByID,
+                    columns: widgets.columns,
+                    cardStyle: widgets.cards ? .card : .plain
+                )
+            } else if model.demo.showsScrollDemo {
                 TagStrip()
                 AgendaList()
             } else {

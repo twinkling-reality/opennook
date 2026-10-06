@@ -11,6 +11,10 @@
 // the user switches between them from the Modules menu-bar section (the default
 // `moduleSwitcherPlacement`), or with the module-cycle shortcut. See the placement
 // options near the bottom of this file. Run with `swift run MultiNook`.
+//
+// It opens on a board: a module whose home shows a widget from each of the other three,
+// side by side. The three are resident and load at launch, so their widgets are there
+// from the start. Arrange the board in its Settings.
 
 import NookApp
 import SwiftUI
@@ -76,10 +80,8 @@ struct LaunchTrackerKey: ServiceKey {
 final class CounterModule: NookModule {
     // `nonisolated` so the top-level (nonisolated) host setup can reference it. The
     // descriptor is an immutable `Sendable` value, so this is safe outside the actor.
-    nonisolated static let moduleDescriptor = NookModuleDescriptor(
-        id: "com.opennook.example.counter",
-        displayName: "Counter",
-        icon: "number"
+    nonisolated static let moduleDescriptor = resident(
+        NookModuleDescriptor(id: "com.opennook.example.counter", displayName: "Counter", icon: "number")
     )
 
     let descriptor = CounterModule.moduleDescriptor
@@ -102,8 +104,85 @@ final class CounterModule: NookModule {
         // Each module has its own accent: the chrome applies a module's theme when a switch
         // puts its content on the surface.
         configuration.chromeTheme = NookTheme(accent: .system(.orange))
+        configuration.addWidget(
+            NookWidget(id: "launches", title: "Launches", symbol: "number", action: .openModule) { _ in
+                CounterWidget()
+            }
+        )
         return configuration
     }
+}
+
+/// The counter's widget: the same launch count, small. It draws in the counter module's scope
+/// on the board, so it resolves the counter's own services.
+struct CounterWidget: View {
+    @Environment(\.appServices) private var services
+    @Environment(\.nookResolvedTheme) private var theme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Image(systemName: "number")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.orange)
+            Spacer(minLength: 0)
+            Text("\(services.resolve(LaunchTrackerKey.self).launchCount)")
+                .font(.system(size: 22, weight: .semibold, design: .rounded).monospacedDigit())
+                .foregroundStyle(theme.primaryLabel)
+            Text("launches")
+                .font(.system(size: 10))
+                .foregroundStyle(theme.tertiaryLabel)
+        }
+    }
+}
+
+/// The clock's widget: the time, and the date when it has the room.
+struct ClockWidget: View {
+    let size: NookWidgetSize
+    @Environment(\.nookResolvedTheme) private var theme
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            VStack(alignment: .leading, spacing: 2) {
+                Image(systemName: "clock")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.blue)
+                Spacer(minLength: 0)
+                Text(context.date, format: .dateTime.hour().minute())
+                    .font(.system(size: 22, weight: .semibold, design: .rounded).monospacedDigit())
+                    .foregroundStyle(theme.primaryLabel)
+                if size != .small {
+                    Text(context.date, format: .dateTime.weekday(.wide).month().day())
+                        .font(.system(size: 10))
+                        .foregroundStyle(theme.tertiaryLabel)
+                }
+            }
+        }
+    }
+}
+
+/// The notes module's widget: the latest note.
+struct NoteWidget: View {
+    @Environment(\.nookResolvedTheme) private var theme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Label("Latest note", systemImage: "note.text")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.green)
+            Text("Boards show a widget from every loaded module. Drag them around in Settings.")
+                .font(.system(size: 12))
+                .foregroundStyle(theme.secondaryLabel)
+                .lineLimit(2)
+        }
+    }
+}
+
+/// `descriptor`, resident and loaded at launch, so its widgets are on the board from the start.
+nonisolated func resident(_ descriptor: NookModuleDescriptor) -> NookModuleDescriptor {
+    var descriptor = descriptor
+    descriptor.backgroundPolicy = .stayResident
+    descriptor.loadsAtLaunch = true
+    return descriptor
 }
 
 /// The counter module's home view. It resolves the launch count out of the module's
@@ -134,6 +213,11 @@ func clockConfiguration() -> NookConfiguration {
     configuration.topBar.leadingTitle = { _ in "Clock" }
     configuration.topBar.leadingIcon = "clock"
     configuration.chromeTheme = NookTheme(accent: .system(.blue))
+    configuration.addWidget(
+        NookWidget(id: "time", title: "Time", symbol: "clock", sizes: [.medium, .small], action: .openModule) { size in
+            ClockWidget(size: size)
+        }
+    )
     return configuration
 }
 
@@ -150,6 +234,11 @@ func notesConfiguration() -> NookConfiguration {
     configuration.topBar.leadingTitle = { _ in "Notes" }
     configuration.topBar.leadingIcon = "note.text"
     configuration.chromeTheme = NookTheme(accent: .system(.green))
+    configuration.addWidget(
+        NookWidget(id: "latest", title: "Latest note", symbol: "note.text", sizes: [.wide, .medium]) { _ in
+            NoteWidget()
+        }
+    )
     return configuration
 }
 
@@ -159,25 +248,27 @@ host.register(CounterModule.moduleDescriptor) { context in
     CounterModule(context: context)
 }
 host.register(
-    NookModuleDescriptor(
-        id: "com.opennook.example.clock",
-        displayName: "Clock",
-        icon: "clock"
-    ),
+    resident(NookModuleDescriptor(id: "com.opennook.example.clock", displayName: "Clock", icon: "clock")),
     configuration: { clockConfiguration() }
 )
 host.register(
-    NookModuleDescriptor(
-        id: "com.opennook.example.notes",
-        displayName: "Notes",
-        icon: "note.text"
-    ),
+    resident(NookModuleDescriptor(id: "com.opennook.example.notes", displayName: "Notes", icon: "note.text")),
     configuration: { notesConfiguration() }
+)
+
+// A board: its home is the other modules' widgets. Without a saved layout it shows them in
+// registration order at their preferred sizes; this one leads with the clock.
+host.registerBoard(
+    NookBoardConfiguration(
+        id: "com.opennook.example.board",
+        displayName: "Today",
+        defaultLayout: [NookWidgetPlacement(moduleID: "com.opennook.example.clock", widgetID: "time")]
+    )
 )
 
 // Control-Option-Grave cycles to the next module. (Carbon: controlKey | optionKey.)
 host.moduleCycleHotkey = NookHotkey(keyCode: 50, carbonModifiers: 4096 | 2048, keySymbol: "`")
-host.defaultModule = CounterModule.moduleDescriptor.id
+host.defaultModule = "com.opennook.example.board"
 
 // Where the switcher lives. The default (.menuBar) keeps the expanded surface entirely
 // the module's own and lists modules in the menu-bar item; switch there or with the cycle

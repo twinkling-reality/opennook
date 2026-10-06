@@ -105,7 +105,7 @@ extension PlaygroundPage {
     var group: Group {
         switch self {
             case .appearance, .theme, .panel, .typeAndMotion: .look
-            case .topBar, .companions, .effects, .behavior, .activities: .chrome
+            case .topBar, .companions, .effects, .behavior, .activities, .widgets: .chrome
             case .tokens: .advanced
             case .presets: .share
         }
