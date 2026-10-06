@@ -799,7 +799,8 @@ public final class AppCoordinator: ObservableObject {
         let activityPeek = owner.flatMap { entry in
             entry.activity.peek.map { moduleHost.scoped($0, toModule: entry.moduleID) }
         }
-        guard let peek = activityPeek ?? configuration.peek else {
+        let modulePeek = configuration.peek.map { moduleHost.scoped($0, toModule: moduleHost.displayedModuleID) }
+        guard let peek = activityPeek ?? modulePeek else {
             surface.peekContent = nil
             return
         }

@@ -186,6 +186,9 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
             .animation(nook.effectivePeekAnimation, value: nook.isPeeking)
             .animation(nook.effectiveConversionAnimation, value: [compactLeadingWidth, compactTrailingWidth])
             .environment(\.nookHasKeyboardFocus, nook.hasKeyboardFocus)
+            .onChange(of: reduceMotion, initial: true) { _, reduceMotion in
+                nook.sharedElements.reduceMotion = reduceMotion
+            }
     }
 
     /// Peripheral cue overlay. Sits above backdrop+content but inside the compositing group,
@@ -357,6 +360,11 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
         .frame(minWidth: minWidth, minHeight: nook.notchSize.height)
         .environment(\.nookChromeBackdrop, nook.backdrop)
         .environment(\.nookChromeShape, notchShape)
+        .environment(\.nookSharedElements, nook.sharedElements)
+        // Moving shared elements draw over the content, inside the chrome's shape.
+        .overlayPreferenceValue(NookSharedElementRecordsKey.self) { records in
+            NookSharedElementLayer(records: records, coordinator: nook.sharedElements)
+        }
     }
 
     /// How the compact slots arrive and leave. The transaction's curve inside this view is the
@@ -396,6 +404,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
                 .padding(.leading, insets.leading)
                 .padding(.trailing, insets.trailing)
                 .transition(peekTransition.anyTransition(axis: .vertical, anchor: .top))
+                .environment(\.nookSharedElementRegion, .peek)
         }
     }
 
@@ -436,6 +445,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
             }
         }
         .frame(height: nook.notchSize.height)
+        .environment(\.nookSharedElementRegion, .compact)
         // `disableCompactLeading/Trailing` are construction-time `let`s on `Nook` -
         // they cannot change at runtime, so no `.onChange` reconciliation is needed.
         // The `@State` `compactLeadingWidth`/`compactTrailingWidth` retain their last
@@ -455,6 +465,7 @@ where Expanded: View, CompactLeading: View, CompactTrailing: View {
                     .transition(expandedTransition.anyTransition(axis: .vertical, anchor: .top))
             }
         }
+        .environment(\.nookSharedElementRegion, .expanded)
         .frame(maxWidth: .infinity, alignment: .leading)
         .safeAreaInset(edge: .top, spacing: 0) { Color.clear.frame(height: expandedContentInsets.top) }
         .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: expandedContentInsets.bottom) }

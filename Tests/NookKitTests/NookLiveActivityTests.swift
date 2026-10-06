@@ -321,16 +321,21 @@ final class NookLiveActivityTests: XCTestCase {
     @MainActor
     private final class ScopeCapture {
         var moduleIDs: [String] = []
+        var sharedElementScopes: [String] = []
     }
 
     private struct ScopeProbe: View {
         let capture: ScopeCapture
         @Environment(\.nookLiveActivities) private var activities
+        @Environment(\.nookSharedElementScope) private var sharedElementScope
 
         var body: some View {
             Color.clear
                 .frame(width: 10, height: 10)
-                .onAppear { capture.moduleIDs.append(activities.moduleID) }
+                .onAppear {
+                    capture.moduleIDs.append(activities.moduleID)
+                    capture.sharedElementScopes.append(sharedElementScope)
+                }
         }
     }
 
@@ -365,6 +370,7 @@ final class NookLiveActivityTests: XCTestCase {
 
         render(try XCTUnwrap(surface.peekContent))
         XCTAssertEqual(capture.moduleIDs, ["b", "b"], "the peek")
+        XCTAssertEqual(capture.sharedElementScopes, ["b", "b"], "its shared elements match within module b")
     }
 
     func testAModuleGetsItsOwnServicesOnceLoadedAndTheDisplayedOnesBefore() {

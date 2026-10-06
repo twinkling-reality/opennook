@@ -69,6 +69,8 @@ motion.moduleSwitch
 motion.peek.enter
 motion.peek.exit
 motion.settingsDisclosure
+motion.sharedElement.convert
+motion.sharedElement.peek
 motion.stagger
 motion.statusBanner
 motion.viewModeChange

@@ -63,6 +63,13 @@ The app chrome layered over `NookSurface`.
   `NookModuleDescriptor.loadsAtLaunch` starts a resident module at launch. See
   [Live activities](/guides/live-activities/). Source:
   `Sources/NookKit/App/Activities/`.
+- **Shared elements** - `View.nookSharedElement(_:style:)` (`NookSharedElementStyle`)
+  moves an element between the compact pill, the peek, and the expanded content;
+  `\.nookSharedElementScope` scopes its id (NookKit sets the supplying module);
+  `NookTransitionConfiguration.sharedElementAnimation` and
+  `sharedElementPeekAnimation` set its curves. See
+  [Shared elements](/guides/shared-elements/). Source:
+  `Sources/NookSurface/NookSharedElement.swift`.
 - **Widgets and boards** - `NookWidget` (with `NookWidget.Action`), `NookWidgetSize`,
   `NookWidgetSource`, `NookConfiguration.addWidget(_:)`, `widgets`, and `widgetSource`;
   `NookWidgetGrid` lays widgets out in any view; `NookBoardConfiguration` (with

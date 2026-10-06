@@ -8,6 +8,19 @@ to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Shared elements. `nookSharedElement(_:style:)` marks a view in the compact pill, the
+  peek, or the expanded content; when the nook moves and a view with the same id is on
+  the other side, the element moves from where it was to where it lands, on the chrome's
+  curve and inside its shape, instead of fading out and in with its slot
+  (`NookSharedElementStyle`: resize or scale). Live activities, module homes, and board
+  widgets opt in the same way; NookKit matches ids within the module that supplied the
+  view (`\.nookSharedElementScope`). While a shared element is on screen, opening and
+  collapsing skip the brief dip through hidden; with none, nothing changes. Reduce Motion
+  turns the moves off. New tokens: `motion.sharedElement.convert` and
+  `motion.sharedElement.peek`; new surface settings:
+  `NookTransitionConfiguration.sharedElementAnimation` and
+  `sharedElementPeekAnimation`. New site guide: "Shared elements".
+
 - Widgets and boards. A module offers small views of itself as `NookWidget`s
   (`NookConfiguration.addWidget(_:)`, or a `NookWidgetSource` for widgets that come and
   go), each with the sizes it supports (`NookWidgetSize`: small, medium, large, wide, or

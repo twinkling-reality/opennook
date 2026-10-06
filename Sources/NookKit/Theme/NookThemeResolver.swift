@@ -254,12 +254,15 @@ public struct NookResolvedTokens: Sendable {
             expandedContentTransition: Self.expandedContentTransition(enter, delay: Double(self[.contentEnterDelay])),
             expandedContentRemoval: removal,
             // The top bar holds back for `motion.header.delay` after the content arrives; an
-            // awaited expand waits for it. Staggered rows are open-ended and are not waited for.
+            // awaited expand waits for it. The coordinator adds staggered rows, which it counts.
             expandedEntranceDuration: Double(self[.headerDelay]),
             // The peek unfolds from the slots like the expanded content does: scaled vertically.
             peekContentTransition: Self.expandedContentTransition(transition(.peekEnter)),
             peekContentRemoval: peekRemoval,
-            peekAnimation: self[.transitionPeek]
+            peekAnimation: self[.transitionPeek],
+            // By default these name the chrome's own curves, so shared elements move with it.
+            sharedElementAnimation: self[.sharedElementConvert],
+            sharedElementPeekAnimation: self[.sharedElementPeek]
         )
     }
 
