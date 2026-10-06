@@ -12,10 +12,14 @@ Images and the animated hero for the root `README.md`.
 | `nook-shelf.png` | `ShowcaseNook --scene shelf`, expanded | `make-readme-media.sh` |
 | `nook-playground.gif` | The PlaygroundNook controls window below the expanded nook, while Material moves Solid -> Translucent -> Glass and the nook follows | `record-playground.sh` |
 | `nook-activities.gif` | `ShowcaseNook --scene compact`: two live activities in the pill, the song's peek, the nook opened onto the song | `record-activities.sh` |
+| `nook-shared.gif` | `ShowcaseNook --scene compact --open-activity`: the song's cover moving from the pill into the player as the nook opens | `record-widgets.sh` |
 | `nook-themes.gif` | `ShowcaseNook --scene agenda`, re-themed live: the standard look, then Dusk, Aurora and Ember from `Examples/Themes` | `record-themes.sh` |
 
 `record-playground.sh` also writes `nook-playground.png`, a still of the same
-pair, which `README.md` does not use. `record-themes.sh` also writes
+pair, which `README.md` does not use. `record-widgets.sh` also writes
+`site/src/assets/widgets/nook-board.png`, `ShowcaseNook --scene board`, for the
+Widgets and boards guide. It records the cover's move slowed and plays it back at
+real speed; its header says how. `record-themes.sh` also writes
 `site/src/assets/themes/nook-themes.png` for the Theming guide.
 
 ## Regenerate
