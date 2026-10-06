@@ -31,35 +31,50 @@ enum PreferenceStoreTestIsolation {
     ]
 
     static func withIsolatedStore<T>(_ body: () throws -> T) rethrows -> T {
-        let (name, defaults) = makeSuite()
+        let suite = makeSuite()
         let previous = NookPreferenceStorage.defaults
-        NookPreferenceStorage.defaults = defaults
+        NookPreferenceStorage.defaults = suite.defaults
         defer {
             NookPreferenceStorage.defaults = previous
-            defaults.removePersistentDomain(forName: name)
+            removeSuite(suite)
         }
         return try body()
     }
 
     static func withIsolatedStore<T>(_ body: () async throws -> T) async rethrows -> T {
-        let (name, defaults) = makeSuite()
+        let suite = makeSuite()
         let previous = NookPreferenceStorage.defaults
-        NookPreferenceStorage.defaults = defaults
+        NookPreferenceStorage.defaults = suite.defaults
         defer {
             NookPreferenceStorage.defaults = previous
-            defaults.removePersistentDomain(forName: name)
+            removeSuite(suite)
         }
         return try await body()
     }
 
     /// A brand-new, empty `UserDefaults` suite. The UUID name makes a collision with any
     /// other process or prior run effectively impossible; the clear is belt-and-suspenders.
-    private static func makeSuite() -> (name: String, defaults: UserDefaults) {
-        let name = "opennook.tests.\(UUID().uuidString)"
+    /// The name is a path in a fresh temporary directory, so the suite's plist lands there,
+    /// not in ~/Library/Preferences.
+    private static func makeSuite() -> (name: String, defaults: UserDefaults, directory: URL) {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("opennook-tests-\(UUID().uuidString)", isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        } catch {
+            fatalError("Could not create a directory for an isolated UserDefaults suite: \(error)")
+        }
+        let name = directory.appendingPathComponent("opennook.tests").path
         guard let defaults = UserDefaults(suiteName: name) else {
             fatalError("Could not create isolated UserDefaults suite '\(name)'")
         }
         defaults.removePersistentDomain(forName: name)
-        return (name, defaults)
+        return (name, defaults, directory)
+    }
+
+    /// Clears the suite and deletes its directory, plist included.
+    private static func removeSuite(_ suite: (name: String, defaults: UserDefaults, directory: URL)) {
+        suite.defaults.removePersistentDomain(forName: suite.name)
+        try? FileManager.default.removeItem(at: suite.directory)
     }
 }
