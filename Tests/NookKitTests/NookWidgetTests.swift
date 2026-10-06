@@ -311,6 +311,7 @@ final class NookWidgetTests: XCTestCase {
         let registry = host.makeRegistry()
         XCTAssertEqual(registry.module(for: "open")?.makeConfiguration().settingsSections.map(\.title), ["Widgets"])
         XCTAssertEqual(registry.module(for: "locked")?.makeConfiguration().settingsSections.count, 0)
+        XCTAssertEqual(registry.module(for: "open")?.makeConfiguration().topBar.leadingIcon, "square.grid.2x2")
     }
 
     // MARK: - Entrance
